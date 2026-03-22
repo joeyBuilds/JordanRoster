@@ -396,65 +396,63 @@ function findSingleCreator(obj, depth = 0) {
 function normalizeCreator(raw) {
   if (!raw || typeof raw !== 'object') return null;
 
-  const name = raw.name || raw.firstName || raw.displayName ||
-    [raw.first_name, raw.last_name].filter(Boolean).join(' ') || '';
+  const name = raw.name || '';
   if (!name) return null;
 
+  // ── Platforms ──
+  // July structure: platforms is an array of {platform, size, engagementRate, platformUrl}
   const platforms = {};
+  if (Array.isArray(raw.platforms)) {
+    raw.platforms.forEach(p => {
+      const pName = (p.platform || '').toLowerCase();
+      const PLATFORM_MAP = {
+        instagram: 'Instagram',
+        tiktok: 'TikTok',
+        youtube: 'YouTube',
+        facebook: 'Facebook'
+      };
+      const finalName = PLATFORM_MAP[pName];
+      if (!finalName) return;
 
-  // Handle various platform data structures
-  const platformKeys = ['platforms', 'socials', 'social_accounts', 'accounts'];
-  for (const key of platformKeys) {
-    if (raw[key]) {
-      if (Array.isArray(raw[key])) {
-        raw[key].forEach(p => {
-          const pName = (p.platform || p.name || p.type || '').toLowerCase();
-          const normalized = pName.charAt(0).toUpperCase() + pName.slice(1);
-          if (['Instagram', 'Tiktok', 'Youtube', 'Facebook'].includes(normalized)) {
-            const finalName = normalized === 'Tiktok' ? 'TikTok' : normalized === 'Youtube' ? 'YouTube' : normalized;
-            platforms[finalName] = {
-              handle: p.handle || p.username || '',
-              url: p.url || p.profile_url || '',
-              followers: p.followers || p.follower_count || p.audience || null
-            };
-          }
-        });
-      } else if (typeof raw[key] === 'object') {
-        for (const [pName, pData] of Object.entries(raw[key])) {
-          const normalized = pName.charAt(0).toUpperCase() + pName.slice(1).toLowerCase();
-          const finalName = normalized === 'Tiktok' ? 'TikTok' : normalized === 'Youtube' ? 'YouTube' : normalized;
-          if (typeof pData === 'object') {
-            platforms[finalName] = {
-              handle: pData.handle || pData.username || '',
-              url: pData.url || '',
-              followers: pData.followers || pData.follower_count || null
-            };
-          }
-        }
-      }
-    }
+      const url = p.platformUrl || '';
+      platforms[finalName] = {
+        handle: extractHandle(url) || raw.username || '',
+        url,
+        followers: p.size || null,
+        engagementRate: p.engagementRate || null
+      };
+    });
   }
 
-  // Direct platform properties
-  ['instagram', 'tiktok', 'youtube', 'facebook'].forEach(p => {
-    if (raw[p] && typeof raw[p] === 'object') {
-      const name = p === 'tiktok' ? 'TikTok' : p === 'youtube' ? 'YouTube' : p.charAt(0).toUpperCase() + p.slice(1);
-      platforms[name] = {
-        handle: raw[p].handle || raw[p].username || '',
-        url: raw[p].url || '',
-        followers: raw[p].followers || raw[p].follower_count || null
-      };
-    }
-  });
+  // ── Photo ──
+  const photo = raw.profilePictureUrl || raw.photo || null;
+
+  // ── Niches / Tags ──
+  // July's tags array sometimes has an empty string as first element — filter it out
+  const rawTags = raw.tags || raw.niches || [];
+  const niches = rawTags.filter(t => typeof t === 'string' && t.trim() !== '');
+
+  // ── Location ──
+  // July splits into city, state, country
+  let location = null;
+  if (raw.city) {
+    const parts = [raw.city, raw.state].filter(Boolean);
+    location = parts.join(', ');
+  } else if (raw.location) {
+    location = raw.location;
+  }
 
   return {
     name,
-    photo: raw.photo || raw.avatar || raw.image || raw.profile_image || raw.headshot || null,
+    photo,
     platforms,
-    niches: raw.niches || raw.categories || raw.tags || [],
-    location: raw.location || raw.city || null,
-    bio: raw.bio || raw.description || raw.about || null,
-    detailUrl: raw.detailUrl || raw.url || raw.profile_url || null
+    niches,
+    location,
+    bio: raw.bio || raw.description || null,
+    detailUrl: null, // roster page has all the data we need
+    username: raw.username || null,
+    exclusivity: raw.exclusivity || null,
+    industries: raw.industries || []
   };
 }
 

@@ -1,5 +1,5 @@
 // Vercel Serverless Function: Scrape july.bio/iamsocial roster
-// Uses puppeteer-core + @sparticuz/chromium for headless Chrome in serverless
+// Uses puppeteer-core + @sparticuz/chromium-min for headless Chrome in serverless
 
 const chromium = require('@sparticuz/chromium');
 const puppeteer = require('puppeteer-core');
@@ -28,7 +28,7 @@ module.exports = async function handler(req, res) {
       args: chromium.args,
       defaultViewport: { width: 1280, height: 900 },
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
+      headless: 'shell',
     });
 
     const page = await browser.newPage();

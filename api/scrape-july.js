@@ -107,6 +107,19 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // ── Debug mode: return raw data structure for inspection ──
+    const debugMode = req.query.debug === '1';
+    if (debugMode && creatorsFromJson && creatorsFromJson.length > 0) {
+      // Return first 2 raw creator objects so we can see the actual field names
+      const sample = creatorsFromJson.slice(0, 2);
+      return res.status(200).json({
+        debug: true,
+        totalFound: creatorsFromJson.length,
+        sampleKeys: Object.keys(creatorsFromJson[0]),
+        rawSample: sample
+      });
+    }
+
     // ── Step 3: If JSON extraction worked, use that data ──
     if (creatorsFromJson && creatorsFromJson.length > 0) {
       const creators = creatorsFromJson.map(normalizeCreator).filter(Boolean);

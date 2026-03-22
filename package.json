@@ -1,9 +1,14 @@
 {
   "name": "creator-roster",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
+    "start": "npx serve public -p 3000",
     "dev": "vercel dev",
     "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^131.0.0",
+    "puppeteer-core": "^23.0.0"
   }
 }

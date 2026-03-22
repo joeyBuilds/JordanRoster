@@ -2,6 +2,19 @@
   "buildCommand": null,
   "outputDirectory": "public",
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "crons": [
+    {
+      "path": "/api/scrape-july",
+      "schedule": "0 8 * * *"
+    }
+  ],
+  "functions": {
+    "api/scrape-july.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  }
 }

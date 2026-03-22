@@ -131,33 +131,18 @@ const PLATFORMS = [
   'YouTube'
 ];
 
-const PRESET_NICHES = [
-  'Beauty',
-  'Comedy',
-  'Couples',
-  'Education',
-  'Fashion',
-  'Fitness',
-  'Food & Drink',
-  'Gaming',
-  'International',
-  'Lifestyle',
-  'Music',
-  'Outdoor & Adventure',
-  'Parenting',
-  'Pets',
-  'Tech',
-  'Travel',
-  'Van Life'
-];
-
 // ── Tag Categories ──
+// Comprehensive niche categories including all July import niches
 const DEFAULT_NICHE_CATEGORIES = {
-  'Content & Entertainment': ['Comedy', 'Music', 'Gaming', 'Education'],
-  'Lifestyle & Wellness': ['Lifestyle', 'Fitness', 'Beauty', 'Fashion', 'Food & Drink'],
-  'People & Relationships': ['Couples', 'Parenting', 'Pets'],
-  'Travel & Adventure': ['Travel', 'Outdoor & Adventure', 'Van Life', 'International'],
-  'Industry': ['Tech']
+  'Content & Entertainment': ['Comedy', 'Music', 'Entertainment', 'Podcast', 'Education', 'True Crime'],
+  'Lifestyle & Wellness': ['Lifestyle', 'Wellness', 'Mental Health', 'Fitness', 'Yoga', 'Running', 'Skincare', 'Beauty', 'Fashion'],
+  'Food & Drink': ['Food', 'Cooking', 'Vegan'],
+  'Travel & Adventure': ['Travel', 'Adventure', 'Outdoors', 'Camping', 'Hiking', 'Domestic Travel', 'International Travel', 'Tourism Board', 'Luxury Stays', 'Spas', 'Van Life'],
+  'People & Relationships': ['Couple', 'Family', 'Parenthood', 'Relationship', 'Pets', 'BIPOC'],
+  'Sports & Fitness': ['Sports', 'Athlete', 'Extreme Sports', 'Cycling', 'Fishing', 'Rafting'],
+  'Home & DIY': ['Home', 'DIY', 'Productivity'],
+  'Tech & Business': ['Tech', 'Entrepreneurship', 'Personal Finance', 'Artificial Intelligence (AI)'],
+  'Creative': ['Photography', 'Art', 'Model', 'History']
 };
 const DEFAULT_DEMO_CATEGORIES = {
   'Gender & Identity': ['Female', 'Male', 'Non-Binary', 'LGBTQ+'],
@@ -182,26 +167,23 @@ function getCategoryForItem(item, categories) {
   return null;
 }
 
-// Deleted presets — persisted so preset tags can be permanently removed
+// Deleted presets — persisted so preset demographics can be permanently removed
+// Niches no longer have the preset/custom distinction, so only demographics need this
 // Initialized in init() after database is ready
-let deletedNiches = [];
 let deletedDemographics = [];
 
 function loadDeletedPresets() {
-  deletedNiches = getSetting('deletedNiches', []);
   deletedDemographics = getSetting('deletedDemographics', []);
 }
 
 function saveDeletedPresets() {
-  setSetting('deletedNiches', deletedNiches);
   setSetting('deletedDemographics', deletedDemographics);
 }
 
-// Get all niches across the roster (presets + custom), minus deleted
+// Get all unique niches across the roster (no preset/custom distinction)
 function getAllNiches() {
-  const activePresets = PRESET_NICHES.filter(n => !deletedNiches.includes(n));
-  const custom = creators.flatMap(c => (c.niches || []).filter(n => !PRESET_NICHES.includes(n)));
-  return [...new Set([...activePresets, ...custom])].sort((a, b) => a.localeCompare(b));
+  const allNiches = creators.flatMap(c => c.niches || []);
+  return [...new Set(allNiches)].sort((a, b) => a.localeCompare(b));
 }
 
 const PRESET_DEMOGRAPHICS = [
@@ -659,40 +641,44 @@ function renderCreatorCard(creator) {
   location.textContent = creator.location ? `📍 ${displayLocation(creator.location)}` : '📍 No location';
   info.appendChild(location);
 
-  // — Platform chips row (uniform, canonical order) —
+  // — Platform badges grid (bigger, more readable) —
   const platforms = getCreatorPlatforms(creator).slice().sort((a, b) => {
     const ia = PLATFORMS.indexOf(a), ib = PLATFORMS.indexOf(b);
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
   if (platforms.length > 0) {
-    const platformRow = document.createElement('div');
-    platformRow.className = 'creator-platforms-row';
+    const platformGrid = document.createElement('div');
+    platformGrid.className = 'creator-platforms-grid';
     platforms.forEach(p => {
       const url = getUrl(creator, p);
-      const chip = document.createElement(url ? 'a' : 'span');
-      chip.className = 'creator-platform-chip platform-' + p.toLowerCase();
+      const badge = document.createElement(url ? 'a' : 'span');
+      badge.className = 'creator-platform-badge platform-' + p.toLowerCase();
       if (url) {
-        chip.href = url;
-        chip.target = '_blank';
-        chip.rel = 'noopener noreferrer';
-        chip.title = `Open ${p} profile`;
-        chip.addEventListener('click', e => e.stopPropagation());
+        badge.href = url;
+        badge.target = '_blank';
+        badge.rel = 'noopener noreferrer';
+        badge.title = `Open ${p} profile`;
+        badge.addEventListener('click', e => e.stopPropagation());
       }
+
       const svg = PLATFORM_SVGS_SM[p];
       const handle = getHandle(creator, p);
       const followers = getFollowers(creator, p);
-      let inner = svg || '';
-      const hasText = handle || followers !== null;
-      if (hasText) {
-        inner += '<span class="chip-text-stack">';
-        if (handle) inner += `<span class="chip-handle">@${handle.replace(/^@/, '')}</span>`;
-        if (followers !== null) inner += `<span class="chip-followers">${formatFollowers(followers)}</span>`;
-        inner += '</span>';
+
+      // Build badge HTML: SVG icon + handle + followers
+      let badgeHTML = svg || '';
+      if (handle) {
+        const displayHandle = handle.replace(/^@/, '');
+        badgeHTML += `<div class="badge-handle">@${displayHandle}</div>`;
       }
-      chip.innerHTML = inner;
-      platformRow.appendChild(chip);
+      if (followers !== null) {
+        badgeHTML += `<div class="badge-followers">${formatFollowers(followers)}</div>`;
+      }
+
+      badge.innerHTML = badgeHTML;
+      platformGrid.appendChild(badge);
     });
-    info.appendChild(platformRow);
+    info.appendChild(platformGrid);
   }
 
   // — Tag count pills (niches + demographics) —
@@ -1940,37 +1926,41 @@ function createTagModalCard(creator, activeTag, tagType, isActive) {
   head.appendChild(info);
   card.appendChild(head);
 
-  // Platform chips — reuse roster card style
+  // Platform badges — reuse roster card style (new grid design)
   const platforms = getCreatorPlatforms(creator);
   if (platforms.length > 0) {
-    const platformsRow = document.createElement('div');
-    platformsRow.className = 'creator-platforms-row';
+    const platformsGrid = document.createElement('div');
+    platformsGrid.className = 'creator-platforms-grid';
     platforms.forEach(p => {
       const url = getUrl(creator, p);
-      const chip = document.createElement(url ? 'a' : 'span');
-      chip.className = 'creator-platform-chip platform-' + p.toLowerCase();
+      const badge = document.createElement(url ? 'a' : 'span');
+      badge.className = 'creator-platform-badge platform-' + p.toLowerCase();
       if (url) {
-        chip.href = url;
-        chip.target = '_blank';
-        chip.rel = 'noopener noreferrer';
-        chip.title = `Open ${p} profile`;
-        chip.addEventListener('click', e => e.stopPropagation());
+        badge.href = url;
+        badge.target = '_blank';
+        badge.rel = 'noopener noreferrer';
+        badge.title = `Open ${p} profile`;
+        badge.addEventListener('click', e => e.stopPropagation());
       }
+
       const svg = PLATFORM_SVGS_SM[p];
       const handle = getHandle(creator, p);
       const followers = getFollowers(creator, p);
-      let inner = svg || '';
-      const hasText = handle || followers !== null;
-      if (hasText) {
-        inner += '<span class="chip-text-stack">';
-        if (handle) inner += `<span class="chip-handle">@${handle.replace(/^@/, '')}</span>`;
-        if (followers !== null) inner += `<span class="chip-followers">${formatFollowers(followers)}</span>`;
-        inner += '</span>';
+
+      // Build badge HTML: SVG icon + handle + followers
+      let badgeHTML = svg || '';
+      if (handle) {
+        const displayHandle = handle.replace(/^@/, '');
+        badgeHTML += `<div class="badge-handle">@${displayHandle}</div>`;
       }
-      chip.innerHTML = inner;
-      platformsRow.appendChild(chip);
+      if (followers !== null) {
+        badgeHTML += `<div class="badge-followers">${formatFollowers(followers)}</div>`;
+      }
+
+      badge.innerHTML = badgeHTML;
+      platformsGrid.appendChild(badge);
     });
-    card.appendChild(platformsRow);
+    card.appendChild(platformsGrid);
   }
 
   // Tags row (niches and demographics)
@@ -2785,10 +2775,7 @@ function renderModalBody() {
               if (type === 'niche' && c.niches) c.niches = c.niches.filter(n => n !== item);
               if (type === 'demographic' && c.demographics) c.demographics = c.demographics.filter(d => d !== item);
             });
-            // If it's a preset, add to deleted presets list
-            if (type === 'niche' && PRESET_NICHES.includes(item)) {
-              if (!deletedNiches.includes(item)) deletedNiches.push(item);
-            }
+            // If it's a preset demographic, add to deleted presets list
             if (type === 'demographic' && PRESET_DEMOGRAPHICS.includes(item)) {
               if (!deletedDemographics.includes(item)) deletedDemographics.push(item);
             }
@@ -2834,7 +2821,7 @@ function renderModalBody() {
   const nichesGroup = createTagPicker({
     label: 'Niches',
     type: 'niche',
-    presets: PRESET_NICHES,
+    presets: [],  // no presets — all niches are equal (from July or manual)
     getAllItems: getAllNiches,
     selected: creator ? creator.niches : [],
     bodyKey: 'modalNiches'
@@ -3666,11 +3653,9 @@ document.getElementById('resetAllBtn').addEventListener('click', () => {
     creators = [];
     db.save(creators);
     recycleBin.emptyAll();
-    setSetting('deletedNiches', []);
     setSetting('deletedDemographics', []);
     setSetting('creator_roster_niche_categories', DEFAULT_NICHE_CATEGORIES);
     setSetting('creator_roster_demographic_categories', DEFAULT_DEMO_CATEGORIES);
-    deletedNiches = [];
     deletedDemographics = [];
     flushPersist();
     renderRosterTab();

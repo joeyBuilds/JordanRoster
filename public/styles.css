@@ -1471,9 +1471,84 @@ body.dispatch-mode .title-amp {
   margin-bottom: 6px;
 }
 
+.creator-platforms-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.creator-platform-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 75px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  cursor: default;
+  background: rgba(110, 154, 118, 0.15);
+  border: 1px solid rgba(110, 154, 118, 0.3);
+  box-sizing: border-box;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.creator-platform-badge.platform-instagram {
+  background: rgba(225, 48, 108, 0.15);
+  border-color: rgba(225, 48, 108, 0.35);
+}
+
+.creator-platform-badge.platform-tiktok {
+  background: rgba(0, 242, 234, 0.12);
+  border-color: rgba(0, 242, 234, 0.3);
+}
+
+.creator-platform-badge.platform-youtube {
+  background: rgba(255, 0, 0, 0.12);
+  border-color: rgba(255, 0, 0, 0.3);
+}
+
+a.creator-platform-badge {
+  cursor: pointer;
+}
+
+a.creator-platform-badge:hover {
+  filter: brightness(1.15);
+  transform: scale(1.05);
+}
+
+.creator-platform-badge svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  opacity: 0.9;
+}
+
+.badge-handle {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.badge-followers {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+/* Legacy styles for backward compatibility */
 .creator-platforms-row {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 5px;
   margin-bottom: 6px;
 }
@@ -1489,9 +1564,6 @@ body.dispatch-mode .title-amp {
   cursor: default;
   background: rgba(110, 154, 118, 0.15);
   border: 1px solid rgba(110, 154, 118, 0.3);
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: calc((100% - 10px) / 3);
   box-sizing: border-box;
 }
 .creator-platform-chip.platform-instagram {

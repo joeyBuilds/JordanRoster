@@ -1,0 +1,3747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creator Roster & Dispatch</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    /* ===========================
+       ROOT VARIABLES & RESETS
+       =========================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #2C2320;
+      --bg-secondary: #342A26;
+      --bg-card: #3A302B;
+      --bg-hover: #463A34;
+      --bg-input: #322824;
+      --accent: #D4A08E;
+      --accent-light: #E0B8A8;
+      --accent-dark: #C08A76;
+      --text-primary: #F0E4DC;
+      --text-secondary: #C4B0A4;
+      --text-muted: #8A7A70;
+      --border: #4A3E38;
+      --success: #8EAE8B;
+      --warning: #D4B87C;
+      --danger: #C97B7B;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --lavender: #BBA7CF;
+      --sage: #9BB5A0;
+      --rose: #D4A0A0;
+      --mocha: #C09A8A;
+
+      /* Tag colors */
+      --tag-platform: #8EAE8B;
+      --tag-niche: #D4B87C;
+      --tag-tier: #BBA7CF;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    /* ===========================
+       LAYOUT: TOP BAR + SIDEBAR + MAP
+       =========================== */
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #topBar {
+      height: 70px;
+      background: linear-gradient(135deg, #342A26, #3A302B);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    #topBar h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+    }
+
+    .topBar-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dark);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+    }
+
+    #mainContainer {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      width: 360px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #mapContainer {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Leaflet warm dark filter */
+    .leaflet-tile {
+      filter: sepia(15%) brightness(0.92) saturate(0.9);
+    }
+
+    /* ===========================
+       SIDEBAR: TABS
+       =========================== */
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 14px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .tab-button.active {
+      border-bottom-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .tab-button:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    /* ===========================
+       SIDEBAR: ROSTER TAB
+       =========================== */
+    #rosterTab {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .roster-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--bg-card);
+    }
+
+    .search-input {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--bg-card);
+      box-shadow: 0 0 0 3px rgba(200, 144, 126, 0.1);
+    }
+
+    .sort-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .sort-row select {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .sort-row select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .creator-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Scrollbar styling */
+    .creator-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .creator-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .creator-list::-webkit-scrollbar-thumb {
+      background: var(--text-muted);
+      border-radius: 3px;
+    }
+
+    .creator-list::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    /* ===========================
+       CREATOR CARD
+       =========================== */
+    .creator-card {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .creator-card:hover {
+      border-color: var(--accent);
+      box-shadow: var(--shadow);
+      transform: translateY(-2px);
+    }
+
+    .creator-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--lavender), var(--sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+
+    .creator-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .creator-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .creator-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .creator-location {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .creator-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .creator-tags-compact {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag-pill-sm {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 500;
+      white-space: nowrap;
+      background: var(--bg-input);
+      color: var(--text-secondary);
+    }
+
+    /* ===========================
+       SIDEBAR: DISPATCH TAB
+       =========================== */
+    #dispatchTab {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .dispatch-filters {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .dispatch-filters::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .dispatch-filters::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .dispatch-filters::-webkit-scrollbar-thumb {
+      background: var(--text-muted);
+      border-radius: 3px;
+    }
+
+    .clear-all-filters-btn {
+      align-self: flex-end;
+      background: var(--danger);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 4px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .clear-all-filters-btn:hover {
+      opacity: 0.85;
+    }
+
+    .filter-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .filter-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .checkbox-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+
+    .checkbox-row label {
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: pointer;
+      flex: 1;
+    }
+
+    /* Dispatch dropdown filters */
+    .dispatch-dropdown-wrap {
+      position: relative;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      cursor: text;
+      transition: border-color 0.2s;
+    }
+    .dispatch-dropdown-wrap:focus-within { border-color: var(--accent); }
+    .dispatch-dropdown-wrap.active .dispatch-dd-input { display: block; }
+    .dispatch-dropdown-wrap.active .dispatch-dd-placeholder { display: none; }
+
+    .dispatch-dd-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 4px;
+    }
+    .dispatch-dd-pills:empty { margin-bottom: 0; }
+
+    .dispatch-dd-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .dispatch-dd-pill.niche {
+      background: rgba(176, 149, 86, 0.15);
+      border: 1px solid rgba(176, 149, 86, 0.35);
+      color: var(--tag-niche);
+    }
+    .dispatch-dd-pill-x {
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .dispatch-dd-pill-x:hover { opacity: 1; }
+
+    .dispatch-dd-input {
+      border: none;
+      background: none;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      padding: 4px 2px;
+      display: none;
+    }
+
+    .dispatch-dd-placeholder {
+      font-size: 13px;
+      color: var(--text-muted);
+      padding: 4px 2px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .dispatch-dd-list {
+      display: none;
+      position: absolute;
+      left: -1px;
+      right: -1px;
+      top: 100%;
+      z-index: 60;
+      background: var(--bg-card);
+      border: 1px solid var(--accent);
+      border-top: none;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      max-height: 220px;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .dispatch-dd-list.open { display: block; }
+
+    .dispatch-dd-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-bottom: 1px solid rgba(74, 62, 56, 0.5);
+      color: var(--text-primary);
+    }
+    .dispatch-dd-item:last-child { border-bottom: none; }
+    .dispatch-dd-item:hover { background: var(--bg-hover); }
+    .dispatch-dd-item.selected { background: rgba(200, 144, 126, 0.08); }
+    .dispatch-dd-item .dd-check {
+      width: 18px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .dispatch-dd-item.selected .dd-check {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .location-filter-input {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .location-filter-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .location-filter-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--bg-card);
+      box-shadow: 0 0 0 3px rgba(200, 144, 126, 0.1);
+    }
+
+    /* Clear button inside location input */
+    .loc-input-clear {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(78, 61, 54, 0.1);
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      z-index: 5;
+    }
+    .loc-input-clear:hover {
+      background: rgba(78, 61, 54, 0.2);
+      color: var(--text-primary);
+    }
+
+    /* Location autocomplete dropdown (shared between modal + dispatch) */
+    .loc-autocomplete-wrap {
+      position: relative;
+      width: 100%;
+    }
+    .loc-suggestions {
+      display: none;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      z-index: 65;
+      background: var(--bg-card);
+      border: 1px solid var(--accent);
+      border-top: none;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      max-height: 200px;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .loc-suggestions.open { display: block; }
+    .loc-suggestion-item {
+      padding: 10px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-bottom: 1px solid rgba(74, 62, 56, 0.5);
+      color: var(--text-primary);
+    }
+    .loc-suggestion-item:last-child { border-bottom: none; }
+    .loc-suggestion-item:hover { background: var(--bg-hover); }
+    .loc-suggestion-item .loc-secondary {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Stacked floating panels container */
+    .dispatch-float-stack {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      z-index: 800;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 320px;
+      max-width: calc(100% - 48px);
+      max-height: calc(100% - 48px);
+      pointer-events: none;
+    }
+
+    /* Floating nearest-creators panel on map */
+    .nearest-float {
+      width: 100%;
+      background: rgba(50, 40, 36, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(200, 144, 126, 0.3);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(78, 61, 54, 0.15);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+    }
+    .nearest-float.open {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .nearest-float-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .nearest-float-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--accent);
+      line-height: 1.3;
+    }
+    .nearest-float-close {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(78, 61, 54, 0.08);
+      color: var(--text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .nearest-float-close:hover {
+      background: rgba(78, 61, 54, 0.15);
+      color: var(--text-primary);
+    }
+    .nearest-float-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(58, 48, 43, 0.7);
+      border: 1px solid rgba(74, 62, 56, 0.6);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nearest-float-item:hover {
+      background: rgba(70, 58, 52, 0.95);
+      border-color: var(--accent);
+      box-shadow: 0 2px 12px rgba(200, 144, 126, 0.15);
+    }
+    .nearest-float-rank {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(200, 144, 126, 0.3);
+    }
+    .nearest-float-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .nearest-float-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .nearest-float-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .nearest-float-dist {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    /* Floating dispatch results panel on map */
+    .dispatch-results-float {
+      width: 100%;
+      max-height: 50vh;
+      background: rgba(50, 40, 36, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(200, 144, 126, 0.3);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(78, 61, 54, 0.15);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+      overflow-y: auto;
+    }
+    .dispatch-results-float.open {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .dispatch-results-float::-webkit-scrollbar { width: 5px; }
+    .dispatch-results-float::-webkit-scrollbar-track { background: transparent; }
+    .dispatch-results-float::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+
+    .dispatch-results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .dispatch-results-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--accent);
+    }
+    .dispatch-results-count-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .dispatch-results-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(58, 48, 43, 0.7);
+      border: 1px solid rgba(74, 62, 56, 0.6);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .dispatch-results-item:hover {
+      background: rgba(70, 58, 52, 0.95);
+      border-color: var(--accent);
+      box-shadow: 0 2px 12px rgba(200, 144, 126, 0.15);
+    }
+    .dispatch-results-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--lavender), var(--sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 2px solid rgba(200, 144, 126, 0.3);
+    }
+    .dispatch-results-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .dispatch-results-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .dispatch-results-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .dispatch-results-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ===========================
+       RADIAL INFO RING
+       =========================== */
+    .ring-overlay {
+      position: absolute;
+      z-index: 1000;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      opacity: 0;
+    }
+    .ring-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Scrim behind ring to dim map */
+    .ring-scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 999;
+      background: rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      cursor: pointer;
+    }
+    .ring-scrim.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Central avatar (expanded) */
+    .ring-avatar {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--lavender), var(--sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 30px;
+      font-weight: 700;
+      color: white;
+      overflow: hidden;
+      border: 4px solid var(--bg-card);
+      box-shadow: 0 0 0 3px var(--accent), var(--shadow-lg);
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .ring-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Name + location card below avatar */
+    .ring-name-card {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: calc(50% + 58px);
+      text-align: center;
+      z-index: 10;
+      background: rgba(50, 40, 36, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 14px;
+      padding: 10px 18px 8px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(74, 62, 56, 0.8);
+      white-space: nowrap;
+    }
+    .ring-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+    .ring-location {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Orbiting tag pills */
+    .ring-pill {
+      position: absolute;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(74, 62, 56, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 5;
+    }
+    .ring-pill.platform {
+      background: rgba(110, 154, 118, 0.88);
+      color: white;
+    }
+    .ring-pill.niche {
+      background: rgba(176, 149, 86, 0.88);
+      color: white;
+    }
+    .ring-pill.tier {
+      background: rgba(142, 120, 166, 0.88);
+      color: white;
+    }
+
+    /* Close button */
+    .ring-close-btn {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(50, 40, 36, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      color: var(--text-secondary);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .ring-close-btn:hover {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Niche vertical stack */
+    .ring-niche-stack {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 5;
+    }
+    .ring-niche-stack .ring-pill {
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+    }
+
+    /* Action buttons ring */
+    .ring-actions {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+    .ring-action-btn {
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(74, 62, 56, 0.8);
+      background: rgba(50, 40, 36, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: var(--text-primary);
+      box-shadow: var(--shadow);
+      transition: all 0.2s;
+    }
+    .ring-action-btn:hover {
+      background: rgba(70, 58, 52, 0.95);
+      box-shadow: var(--shadow-lg);
+    }
+    .ring-action-btn.danger {
+      color: var(--danger);
+    }
+    .ring-action-btn.danger:hover {
+      background: rgba(201, 123, 123, 0.1);
+    }
+
+    /* Notes pill */
+    .ring-notes {
+      position: absolute;
+      max-width: 200px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      background: rgba(255, 249, 244, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(74, 62, 56, 0.5);
+      white-space: normal;
+      z-index: 5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+
+    /* ===========================
+       MODAL
+       =========================== */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      z-index: 2001;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+
+    .modal-backdrop.open ~ .modal {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .modal-header h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-body::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .modal-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+      background: var(--text-muted);
+      border-radius: 3px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input, .form-textarea {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+
+    .form-input::placeholder, .form-textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--bg-card);
+      box-shadow: 0 0 0 3px rgba(200, 144, 126, 0.1);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Name row — side by side */
+    .name-row {
+      display: flex;
+      gap: 10px;
+    }
+    .name-row .form-group { flex: 1; }
+
+    /* Vertical checkbox list (platforms) */
+    .checkbox-list-vertical {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .checkbox-item-vertical {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .checkbox-item-vertical:hover {
+      border-color: var(--accent-light);
+      background: var(--bg-hover);
+    }
+
+    .checkbox-item-vertical.checked {
+      border-color: var(--accent);
+      background: rgba(200, 144, 126, 0.1);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .checkbox-item-vertical input[type="checkbox"] {
+      display: none;
+    }
+
+    .checkbox-item-vertical .check-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: transparent;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .checkbox-item-vertical.checked .check-icon {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .checkbox-item-vertical span.platform-label {
+      cursor: pointer;
+      flex: 1;
+    }
+
+    /* Niche dropdown field */
+    .niche-field-wrap {
+      position: relative;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      cursor: text;
+      transition: border-color 0.2s;
+    }
+    .niche-field-wrap:focus-within { border-color: var(--accent); }
+
+    .niche-pills-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 4px;
+    }
+    .niche-pills-container:empty { margin-bottom: 0; }
+
+    .niche-selected-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(176, 149, 86, 0.15);
+      border: 1px solid rgba(176, 149, 86, 0.35);
+      color: #B09556;
+    }
+    .niche-pill-x {
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .niche-pill-x:hover { opacity: 1; }
+
+    .niche-text-input {
+      border: none;
+      background: none;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      padding: 4px 2px;
+      display: none; /* hidden until dropdown is open */
+    }
+    .niche-field-wrap.active .niche-text-input { display: block; }
+    .niche-field-wrap.active .niche-placeholder { display: none; }
+
+    .niche-placeholder {
+      font-size: 13px;
+      color: var(--text-muted);
+      padding: 4px 2px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .niche-dropdown {
+      display: none;
+      position: absolute;
+      left: -1px;
+      right: -1px;
+      top: 100%;
+      z-index: 60;
+      background: var(--bg-card);
+      border: 1px solid var(--accent);
+      border-top: none;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      max-height: 220px;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .niche-dropdown.open { display: block; }
+
+    .niche-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-bottom: 1px solid rgba(74, 62, 56, 0.5);
+      color: var(--text-primary);
+    }
+    .niche-dropdown-item:last-child { border-bottom: none; }
+    .niche-dropdown-item:hover { background: var(--bg-hover); }
+    .niche-dropdown-item.selected { background: rgba(176, 149, 86, 0.08); }
+    .niche-dropdown-item.selected .niche-check {
+      color: var(--tag-niche);
+      font-weight: 700;
+    }
+    .niche-dropdown-custom { color: var(--accent); font-weight: 600; }
+
+    .niche-check {
+      width: 18px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    /* Tier — vertical radio list */
+    .radio-group-vertical {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .radio-item-vertical {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .radio-item-vertical input[type="radio"] {
+      display: none;
+    }
+
+    .radio-item-vertical .radio-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .radio-item-vertical .radio-dot::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: transparent;
+      transition: background 0.15s;
+    }
+
+    .radio-item-vertical.active {
+      border-color: var(--accent);
+      background: rgba(200, 144, 126, 0.1);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .radio-item-vertical.active .radio-dot {
+      border-color: var(--accent);
+    }
+    .radio-item-vertical.active .radio-dot::after {
+      background: var(--accent);
+    }
+
+    .radio-item-vertical:hover {
+      border-color: var(--accent-light);
+      background: var(--bg-hover);
+    }
+
+    .radio-item-vertical span {
+      cursor: pointer;
+    }
+
+    /* Legacy radio-group (kept for any other use) */
+    .radio-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .radio-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .radio-item input[type="radio"] {
+      display: none;
+    }
+
+    .radio-item.active {
+      border-color: var(--accent);
+      background: rgba(200, 144, 126, 0.1);
+      color: var(--text-primary);
+    }
+
+    .radio-item label {
+      cursor: pointer;
+      flex: 1;
+      text-align: center;
+    }
+
+    .photo-upload-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .photo-preview {
+      width: 100%;
+      height: 160px;
+      background: linear-gradient(135deg, var(--lavender), var(--sage));
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px dashed var(--border);
+    }
+
+    .photo-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-preview.empty {
+      color: var(--text-muted);
+      font-size: 48px;
+    }
+
+    .photo-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .photo-controls input[type="file"] {
+      display: none;
+    }
+
+    .tags-input-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tags-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tags-input-row input {
+      flex: 1;
+    }
+
+    .tags-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag-with-remove {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--accent);
+      color: white;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tag-remove-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .tag-remove-btn:hover {
+      opacity: 0.8;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .modal-footer .btn {
+      flex: 1;
+    }
+
+    /* ===========================
+       TOAST NOTIFICATIONS
+       =========================== */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      transform: translateX(400px);
+      animation: slideIn 0.3s ease forwards;
+      pointer-events: auto;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(400px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .toast.removing {
+      animation: slideOut 0.3s ease forwards;
+    }
+
+    @keyframes slideOut {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(400px);
+      }
+    }
+
+    .toast.success {
+      background: var(--success);
+      color: white;
+    }
+
+    .toast.error {
+      background: var(--danger);
+      color: white;
+    }
+
+    .toast.info {
+      background: var(--accent);
+      color: white;
+    }
+
+    /* ===========================
+       RESPONSIVE
+       =========================== */
+    @media (max-width: 768px) {
+      #mainContainer {
+        flex-direction: column;
+      }
+
+      #sidebar {
+        width: 100%;
+        height: 40%;
+        border-right: none;
+        border-top: 1px solid var(--border);
+      }
+
+      #mapContainer {
+        height: 60%;
+      }
+
+      /* Ring overlay adapts automatically */
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Bar -->
+  <div id="topBar">
+    <h1>Creator Roster</h1>
+    <div class="topBar-actions">
+      <button class="btn btn-secondary" id="clearMockBtn" style="font-size: 12px; opacity: 0.7;">Clear Mock Data</button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div id="mainContainer">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <!-- Tabs -->
+      <div class="sidebar-tabs">
+        <button class="tab-button active" data-tab="roster">Roster</button>
+        <button class="tab-button" data-tab="dispatch">Dispatch</button>
+      </div>
+
+      <!-- ROSTER TAB -->
+      <div id="rosterTab" class="tab-content">
+        <div class="roster-header">
+          <button class="btn btn-primary" id="addBtn" style="width: 100%;">+ Add Creator</button>
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Search creators..."
+          />
+          <div class="sort-row">
+            <label>Sort:</label>
+            <select id="sortSelect">
+              <option value="a-z">A-Z</option>
+              <option value="z-a">Z-A</option>
+              <option value="newest">Newest</option>
+            </select>
+          </div>
+        </div>
+        <div id="creatorList" class="creator-list"></div>
+      </div>
+
+      <!-- DISPATCH TAB -->
+      <div id="dispatchTab" class="tab-content" style="display: none;">
+        <div class="dispatch-filters">
+          <button id="clearAllFiltersBtn" class="clear-all-filters-btn" style="display: none;">× Clear filters</button>
+          <!-- Platform Filter -->
+          <div class="filter-section">
+            <div class="filter-title">Platform</div>
+            <div class="checkbox-group" id="platformFilter"></div>
+          </div>
+
+          <!-- Niche Filter -->
+          <div class="filter-section">
+            <div class="filter-title">Niche</div>
+            <div class="dispatch-dropdown-wrap" id="nicheFilterWrap">
+              <div class="dispatch-dd-pills" id="nicheFilterPills"></div>
+              <div class="dispatch-dd-placeholder" id="nicheFilterPlaceholder">Click to filter niches...</div>
+              <input type="text" class="dispatch-dd-input" id="nicheFilterInput" placeholder="Type to filter...">
+              <div class="dispatch-dd-list" id="nicheFilterList"></div>
+            </div>
+          </div>
+
+          <!-- Tier Filter -->
+          <div class="filter-section">
+            <div class="filter-title">Tier</div>
+            <div class="checkbox-group" id="tierFilter"></div>
+          </div>
+
+          <!-- Location — Destination Pin + Nearest Creators -->
+          <div class="filter-section">
+            <div class="filter-title">Destination</div>
+            <div class="loc-autocomplete-wrap">
+              <input
+                type="text"
+                id="locationFilterInput"
+                class="location-filter-input"
+                placeholder="Enter a location to find nearby creators..."
+                autocomplete="off"
+                style="padding-right: 32px;"
+              />
+              <button id="locationFilterClear" class="loc-input-clear" style="display: none;">&times;</button>
+              <div class="loc-suggestions" id="dispatchLocSuggestions"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="mapContainer">
+      <div id="map"></div>
+      <!-- Floating dispatch panels stacked on bottom-left -->
+      <div class="dispatch-float-stack" id="dispatchFloatStack">
+        <div id="dispatchNearest" class="nearest-float" style="display: none;"></div>
+        <div id="dispatchResultsFloat" class="dispatch-results-float" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ring Scrim (click to close) -->
+  <div class="ring-scrim" id="ringScrim"></div>
+  <!-- Ring Overlay (positioned dynamically over map) -->
+  <div class="ring-overlay" id="ringOverlay"></div>
+
+  <!-- Modal Backdrop -->
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add Creator</h2>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="modalCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="modalSaveBtn">Save</button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Hidden file input for import -->
+
+  <script>
+    // ===========================
+    // DATA LAYER (localStorage abstraction)
+    // ===========================
+    const db = (() => {
+      const key = 'creator_roster_data';
+
+      return {
+        load() {
+          try {
+            const data = localStorage.getItem(key);
+            if (!data) return [];
+            const parsed = JSON.parse(data);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (e) {
+            console.error('Failed to load data:', e);
+            return [];
+          }
+        },
+
+        save(creators) {
+          try {
+            const json = JSON.stringify(creators);
+            const size = new Blob([json]).size;
+            if (size > 4 * 1024 * 1024) {
+              showToast('Data is approaching 4MB limit', 'warning');
+            }
+            localStorage.setItem(key, json);
+          } catch (e) {
+            console.error('Failed to save data:', e);
+            showToast('Failed to save data', 'error');
+          }
+        },
+
+        persist(creators) {
+          this.save(creators);
+        }
+      };
+    })();
+
+    // ===========================
+    // CONSTANTS
+    // ===========================
+    const PLATFORMS = [
+      'Instagram',
+      'TikTok',
+      'YouTube'
+    ];
+
+    const PRESET_NICHES = [
+      'Lifestyle',
+      'Beauty',
+      'Fitness',
+      'Food & Drink',
+      'Fashion',
+      'Travel',
+      'Tech',
+      'Gaming',
+      'Parenting',
+      'Pets',
+      'Comedy',
+      'Education',
+      'Music',
+      'Outdoor & Adventure',
+      'Couples',
+      'International',
+      'Van Life'
+    ];
+
+    // Get all niches across the roster (presets + custom)
+    function getAllNiches() {
+      const custom = creators.flatMap(c => (c.niches || []).filter(n => !PRESET_NICHES.includes(n)));
+      return [...new Set([...PRESET_NICHES, ...custom])];
+    }
+
+    const TIERS = [
+      'Nano (<10K)',
+      'Micro (10K-100K)',
+      'Mid (100K-500K)',
+      'Macro (500K-1M)',
+      'Mega (1M+)'
+    ];
+
+    const PLATFORM_ICONS = {
+      'Instagram': '📸',
+      'TikTok': '🎵',
+      'YouTube': '▶️'
+    };
+
+    // ===========================
+    // STATE
+    // ===========================
+    let creators = [];
+    let currentEditingCreator = null;
+    let map = null;
+    let markers = {};
+    let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
+    let dispatchFilters = {
+      platforms: [],
+      niches: [],
+      tiers: []
+    };
+
+    // ===========================
+    // HELPERS
+    // ===========================
+    function getInitials(firstName, lastName) {
+      const first = (firstName || 'C').charAt(0).toUpperCase();
+      const last = (lastName || '').charAt(0).toUpperCase();
+      return last ? first + last : first;
+    }
+
+    function generateId() {
+      return crypto.randomUUID ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    function getFullName(creator) {
+      if (creator.firstName || creator.lastName) {
+        return `${creator.firstName || ''} ${creator.lastName || ''}`.trim();
+      }
+      return creator.name || 'Unknown';
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // ===========================
+    // GEOCODING (Nominatim)
+    // ===========================
+    let geocodingCache = {};
+    let geocodingTimeout = null;
+
+    async function geocodeLocation(location) {
+      if (geocodingCache[location]) {
+        return geocodingCache[location];
+      }
+
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`,
+          { headers: { 'User-Agent': 'CreatorRoster/1.0' } }
+        );
+        const results = await response.json();
+        if (results.length > 0) {
+          const result = {
+            lat: parseFloat(results[0].lat),
+            lng: parseFloat(results[0].lon)
+          };
+          geocodingCache[location] = result;
+          return result;
+        }
+      } catch (e) {
+        console.error('Geocoding error:', e);
+      }
+
+      return null;
+    }
+
+    function debounceGeocode(location, callback) {
+      clearTimeout(geocodingTimeout);
+      geocodingTimeout = setTimeout(() => {
+        geocodeLocation(location).then(coords => {
+          if (coords) callback(coords);
+        });
+      }, 500);
+    }
+
+    // Nominatim search returning multiple suggestions
+    let locSearchTimeout = null;
+    async function searchLocations(query) {
+      if (!query || query.length < 2) return [];
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+          { headers: { 'User-Agent': 'CreatorRoster/1.0' } }
+        );
+        return await response.json();
+      } catch (e) {
+        console.error('Location search error:', e);
+        return [];
+      }
+    }
+
+    function debounceLocSearch(query, callback) {
+      clearTimeout(locSearchTimeout);
+      locSearchTimeout = setTimeout(() => {
+        searchLocations(query).then(callback);
+      }, 300);
+    }
+
+    // Haversine distance in miles
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 3959; // Earth radius in miles
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // Dispatch destination state
+    let dispatchDestination = null; // { lat, lng, display_name }
+    let dispatchDestinationMarker = null;
+
+    // ===========================
+    // FILTERING & SORTING
+    // ===========================
+    function getFilteredCreators(searchTerm = '', sortBy = 'a-z', applyDispatchFilters = false) {
+      let filtered = creators.slice();
+
+      // Apply search filter (roster tab)
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(c => {
+          const name = getFullName(c).toLowerCase();
+          const location = (c.location || '').toLowerCase();
+          const allTags = [...(c.platforms || []), ...(c.niches || []), c.tier, ...(c.tags || [])].join(' ').toLowerCase();
+          return name.includes(term) || location.includes(term) || allTags.includes(term);
+        });
+      }
+
+      // Apply dispatch filters
+      if (applyDispatchFilters) {
+        if (dispatchFilters.platforms.length > 0) {
+          filtered = filtered.filter(c =>
+            dispatchFilters.platforms.some(p => (c.platforms || []).includes(p))
+          );
+        }
+        if (dispatchFilters.niches.length > 0) {
+          filtered = filtered.filter(c =>
+            dispatchFilters.niches.some(n => (c.niches || []).includes(n))
+          );
+        }
+        if (dispatchFilters.tiers.length > 0) {
+          filtered = filtered.filter(c => c.tier && dispatchFilters.tiers.includes(c.tier));
+        }
+      }
+
+      // Apply sorting
+      switch (sortBy) {
+        case 'z-a':
+          filtered.sort((a, b) => getFullName(b).localeCompare(getFullName(a)));
+          break;
+        case 'newest':
+          filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          break;
+        case 'a-z':
+        default:
+          filtered.sort((a, b) => getFullName(a).localeCompare(getFullName(b)));
+      }
+
+      return filtered;
+    }
+
+    // ===========================
+    // RENDER FUNCTIONS
+    // ===========================
+    function renderCreatorCard(creator) {
+      const card = document.createElement('div');
+      card.className = 'creator-card';
+      card.onclick = () => showDetailPanel(creator.id);
+
+      const avatar = document.createElement('div');
+      avatar.className = 'creator-avatar';
+      if (creator.photo) {
+        const img = document.createElement('img');
+        img.src = creator.photo;
+        avatar.appendChild(img);
+      } else {
+        avatar.textContent = getInitials(creator.firstName, creator.lastName);
+      }
+
+      const info = document.createElement('div');
+      info.className = 'creator-info';
+
+      const name = document.createElement('div');
+      name.className = 'creator-name';
+      name.textContent = getFullName(creator);
+
+      const location = document.createElement('div');
+      location.className = 'creator-location';
+      location.textContent = creator.location ? `📍 ${creator.location}` : '📍 No location';
+
+      const meta = document.createElement('div');
+      meta.className = 'creator-meta';
+      const metaParts = [];
+      if (creator.platforms && creator.platforms.length > 0) {
+        metaParts.push(creator.platforms.map(p => PLATFORM_ICONS[p] || '').join(' '));
+      }
+      if (creator.niches && creator.niches.length > 0) {
+        metaParts.push(creator.niches[0]);
+      }
+      if (creator.tier) {
+        metaParts.push(creator.tier);
+      }
+      meta.textContent = metaParts.filter(p => p).join(' | ');
+
+      info.appendChild(name);
+      info.appendChild(location);
+      info.appendChild(meta);
+
+      card.appendChild(avatar);
+      card.appendChild(info);
+
+      return card;
+    }
+
+    function renderRosterTab() {
+      const searchTerm = document.getElementById('searchInput').value;
+      const sortBy = document.getElementById('sortSelect').value;
+      const filtered = getFilteredCreators(searchTerm, sortBy, false);
+
+      const list = document.getElementById('creatorList');
+      list.innerHTML = '';
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">No creators found</div>';
+        return;
+      }
+
+      filtered.forEach(creator => {
+        list.appendChild(renderCreatorCard(creator));
+      });
+    }
+
+    function renderDispatchTab() {
+      const sortBy = document.getElementById('sortSelect').value;
+      const filtered = getFilteredCreators('', sortBy, true);
+
+      // Check if any filters are active
+      const hasFilters = dispatchFilters.platforms.length > 0 ||
+                         dispatchFilters.niches.length > 0 ||
+                         dispatchFilters.tiers.length > 0;
+
+      const panel = document.getElementById('dispatchResultsFloat');
+
+      if (!hasFilters) {
+        // No filters active — hide the panel
+        panel.classList.remove('open');
+        setTimeout(() => { panel.style.display = 'none'; }, 300);
+        updateMapMarkers();
+        // Update nearest creators if destination is set
+        if (dispatchDestination) renderNearestCreators();
+        return;
+      }
+
+      panel.innerHTML = '';
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'dispatch-results-header';
+
+      const label = document.createElement('div');
+      label.className = 'dispatch-results-label';
+      label.textContent = 'Matching Creators';
+
+      const count = document.createElement('div');
+      count.className = 'dispatch-results-count-label';
+      count.textContent = `${filtered.length} of ${creators.length}`;
+
+      header.appendChild(label);
+      header.appendChild(count);
+      panel.appendChild(header);
+
+      if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'font-size: 12px; color: var(--text-muted); text-align: center; padding: 12px 0;';
+        empty.textContent = 'No matching creators';
+        panel.appendChild(empty);
+      } else {
+        filtered.forEach(creator => {
+          const row = document.createElement('div');
+          row.className = 'dispatch-results-item';
+          row.onclick = () => showDetailPanel(creator.id);
+
+          const avatar = document.createElement('div');
+          avatar.className = 'dispatch-results-avatar';
+          if (creator.photo) {
+            avatar.innerHTML = `<img src="${creator.photo}">`;
+          } else {
+            avatar.textContent = getInitials(creator.firstName, creator.lastName);
+          }
+
+          const info = document.createElement('div');
+          info.className = 'dispatch-results-info';
+
+          const name = document.createElement('div');
+          name.className = 'dispatch-results-name';
+          name.textContent = getFullName(creator);
+
+          const meta = document.createElement('div');
+          meta.className = 'dispatch-results-meta';
+          const metaParts = [];
+          if (creator.platforms?.length) metaParts.push(creator.platforms.map(p => PLATFORM_ICONS[p] || p).join(' '));
+          if (creator.niches?.length) metaParts.push(creator.niches.slice(0, 2).join(', '));
+          if (creator.tier) metaParts.push(creator.tier);
+          meta.textContent = metaParts.join(' · ');
+
+          info.appendChild(name);
+          info.appendChild(meta);
+
+          row.appendChild(avatar);
+          row.appendChild(info);
+          panel.appendChild(row);
+        });
+      }
+
+      panel.style.display = 'flex';
+      requestAnimationFrame(() => panel.classList.add('open'));
+
+      updateMapMarkers();
+
+      // Update nearest creators if destination is set
+      if (dispatchDestination) renderNearestCreators();
+
+      // Update clear button visibility
+      if (typeof updateClearFiltersBtn === 'function') updateClearFiltersBtn();
+    }
+
+    function renderDispatchFilters() {
+      // Platform filter — checkboxes
+      const platformContainer = document.getElementById('platformFilter');
+      platformContainer.innerHTML = '';
+      PLATFORMS.forEach(platform => {
+        const row = document.createElement('div');
+        row.className = 'checkbox-row';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = platform;
+        checkbox.checked = dispatchFilters.platforms.includes(platform);
+        checkbox.onchange = (e) => {
+          if (e.target.checked) {
+            dispatchFilters.platforms.push(platform);
+          } else {
+            dispatchFilters.platforms = dispatchFilters.platforms.filter(p => p !== platform);
+          }
+          renderDispatchTab();
+          updateMapMarkers();
+        };
+
+        const label = document.createElement('label');
+        label.textContent = platform;
+
+        row.appendChild(checkbox);
+        row.appendChild(label);
+        platformContainer.appendChild(row);
+      });
+
+      // Niche filter — dropdown style
+      setupDispatchDropdown({
+        wrapId: 'nicheFilterWrap',
+        pillsId: 'nicheFilterPills',
+        placeholderId: 'nicheFilterPlaceholder',
+        inputId: 'nicheFilterInput',
+        listId: 'nicheFilterList',
+        getItems: () => getAllNiches(),
+        getSelected: () => dispatchFilters.niches,
+        toggle: (val) => {
+          if (dispatchFilters.niches.includes(val)) {
+            dispatchFilters.niches = dispatchFilters.niches.filter(n => n !== val);
+          } else {
+            dispatchFilters.niches.push(val);
+          }
+          renderDispatchTab();
+          updateMapMarkers();
+        },
+        pillClass: 'niche',
+        placeholderEmpty: 'Click to filter niches...',
+        placeholderHas: 'Click to add more...',
+        formatLabel: null
+      });
+
+      // Tier filter — checkboxes
+      const tierContainer = document.getElementById('tierFilter');
+      tierContainer.innerHTML = '';
+      TIERS.forEach(tier => {
+        const row = document.createElement('div');
+        row.className = 'checkbox-row';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = tier;
+        checkbox.checked = dispatchFilters.tiers.includes(tier);
+        checkbox.onchange = (e) => {
+          if (e.target.checked) {
+            dispatchFilters.tiers.push(tier);
+          } else {
+            dispatchFilters.tiers = dispatchFilters.tiers.filter(t => t !== tier);
+          }
+          renderDispatchTab();
+          updateMapMarkers();
+        };
+
+        const label = document.createElement('label');
+        label.textContent = tier;
+
+        row.appendChild(checkbox);
+        row.appendChild(label);
+        tierContainer.appendChild(row);
+      });
+    }
+
+    function setupDispatchDropdown(cfg) {
+      const wrap = document.getElementById(cfg.wrapId);
+      const pillsEl = document.getElementById(cfg.pillsId);
+      const placeholder = document.getElementById(cfg.placeholderId);
+      const input = document.getElementById(cfg.inputId);
+      const list = document.getElementById(cfg.listId);
+
+      // Remove old listeners by cloning
+      const newInput = input.cloneNode(true);
+      input.parentNode.replaceChild(newInput, input);
+      const newPlaceholder = placeholder.cloneNode(true);
+      placeholder.parentNode.replaceChild(newPlaceholder, placeholder);
+
+      function renderPills() {
+        pillsEl.innerHTML = '';
+        cfg.getSelected().forEach(val => {
+          const pill = document.createElement('span');
+          pill.className = 'dispatch-dd-pill ' + cfg.pillClass;
+          const displayLabel = cfg.formatLabel ? cfg.formatLabel(val) : val;
+          pill.innerHTML = `${displayLabel}<span class="dispatch-dd-pill-x">&times;</span>`;
+          pill.querySelector('.dispatch-dd-pill-x').onclick = (e) => {
+            e.stopPropagation();
+            cfg.toggle(val);
+            renderPills();
+            renderList();
+          };
+          pillsEl.appendChild(pill);
+        });
+        newPlaceholder.textContent = cfg.getSelected().length > 0 ? cfg.placeholderHas : cfg.placeholderEmpty;
+      }
+
+      function renderList() {
+        const filterText = (newInput.value || '').toLowerCase();
+        list.innerHTML = '';
+        const items = cfg.getItems();
+        const filtered = filterText ? items.filter(i => i.toLowerCase().includes(filterText)) : items;
+        const selected = cfg.getSelected();
+
+        filtered.forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'dispatch-dd-item';
+          const isSelected = selected.includes(item);
+          if (isSelected) row.classList.add('selected');
+
+          const check = document.createElement('span');
+          check.className = 'dd-check';
+          check.textContent = isSelected ? '✓' : '';
+          row.appendChild(check);
+
+          const label = document.createElement('span');
+          label.textContent = cfg.formatLabel ? cfg.formatLabel(item) : item;
+          row.appendChild(label);
+
+          row.onmousedown = (e) => {
+            e.preventDefault();
+            cfg.toggle(item);
+            newInput.value = '';
+            renderPills();
+            renderList();
+          };
+          list.appendChild(row);
+        });
+      }
+
+      newPlaceholder.onclick = () => {
+        wrap.classList.add('active');
+        newInput.focus();
+      };
+
+      newInput.onfocus = () => {
+        wrap.classList.add('active');
+        list.classList.add('open');
+        renderList();
+      };
+      newInput.onblur = () => {
+        setTimeout(() => {
+          list.classList.remove('open');
+          wrap.classList.remove('active');
+          newInput.value = '';
+        }, 150);
+      };
+      newInput.oninput = () => renderList();
+
+      renderPills();
+    }
+
+    function updateMapMarkers() {
+      // Remove all existing markers
+      Object.values(markers).forEach(marker => map.removeLayer(marker));
+      markers = {};
+
+      // Determine which creators to show
+      const sortBy = document.getElementById('sortSelect').value;
+      const creatorsToShow = getFilteredCreators('', sortBy, true);
+
+      creatorsToShow.forEach(creator => {
+        if (creator.lat && creator.lng) {
+          const iconHtml = `
+            <div style="
+              width: 42px;
+              height: 42px;
+              border-radius: 50%;
+              border: 2px solid var(--accent);
+              overflow: hidden;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 20px;
+              background: linear-gradient(135deg, var(--lavender), var(--sage));
+              color: white;
+              font-weight: 600;
+            ">
+              ${creator.photo ? `<img src="${creator.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : getInitials(creator.firstName, creator.lastName)}
+            </div>
+          `;
+
+          const icon = L.divIcon({
+            html: iconHtml,
+            className: 'creator-marker',
+            iconSize: [42, 42],
+            iconAnchor: [21, 21]
+          });
+
+          const marker = L.marker([creator.lat, creator.lng], { icon })
+            .addTo(map);
+
+          // Click marker → open profile directly (no popup)
+          marker.on('click', () => {
+            showDetailPanel(creator.id);
+          });
+
+          markers[creator.id] = marker;
+        }
+      });
+    }
+
+    function showDetailPanel(creatorId) {
+      const creator = creators.find(c => c.id === creatorId);
+      if (!creator) return;
+
+      currentEditingCreator = creatorId;
+
+      // Save map state and fly to creator
+      if (creator.lat && creator.lng) {
+        mapStateBeforeDetail = {
+          center: map.getCenter(),
+          zoom: map.getZoom()
+        };
+        map.flyTo([creator.lat, creator.lng], 10, { duration: 0.8 });
+      }
+
+      // Wait for fly animation to settle, then position ring
+      setTimeout(() => renderRing(creator), 500);
+    }
+
+    function renderRing(creator) {
+      const overlay = document.getElementById('ringOverlay');
+      const scrim = document.getElementById('ringScrim');
+      overlay.innerHTML = '';
+
+      // Get marker pixel position on map
+      const mapContainer = document.getElementById('mapContainer');
+      const mapRect = mapContainer.getBoundingClientRect();
+      let cx, cy;
+
+      if (creator.lat && creator.lng) {
+        const point = map.latLngToContainerPoint([creator.lat, creator.lng]);
+        cx = point.x;
+        cy = point.y;
+      } else {
+        cx = mapRect.width / 2;
+        cy = mapRect.height / 2;
+      }
+
+      // Position overlay over the map container
+      overlay.style.left = mapRect.left + 'px';
+      overlay.style.top = mapRect.top + 'px';
+      overlay.style.width = mapRect.width + 'px';
+      overlay.style.height = mapRect.height + 'px';
+
+      // Central avatar
+      const avatar = document.createElement('div');
+      avatar.className = 'ring-avatar';
+      avatar.style.left = cx + 'px';
+      avatar.style.top = cy + 'px';
+      if (creator.photo) {
+        avatar.innerHTML = `<img src="${creator.photo}">`;
+      } else {
+        avatar.textContent = getInitials(creator.firstName, creator.lastName);
+      }
+      overlay.appendChild(avatar);
+
+      // Close button (X) near avatar — upper right
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'ring-close-btn';
+      closeBtn.innerHTML = '&times;';
+      closeBtn.style.left = (cx + 38) + 'px';
+      closeBtn.style.top = (cy - 50) + 'px';
+      closeBtn.onclick = (e) => { e.stopPropagation(); closeDetailPanel(); };
+      overlay.appendChild(closeBtn);
+
+      // Name card below avatar
+      const nameCard = document.createElement('div');
+      nameCard.className = 'ring-name-card';
+      nameCard.style.left = cx + 'px';
+      nameCard.style.top = (cy + 58) + 'px';
+      nameCard.innerHTML = `
+        <div class="ring-name">${getFullName(creator)}</div>
+        <div class="ring-location">📍 ${creator.location || 'No location'}</div>
+      `;
+      overlay.appendChild(nameCard);
+
+      // Platforms — vertical stack to the left of the avatar
+      if (creator.platforms && creator.platforms.length > 0) {
+        const platformStack = document.createElement('div');
+        platformStack.className = 'ring-niche-stack';
+        platformStack.style.left = (cx - 70) + 'px';
+        platformStack.style.top = (cy - (creator.platforms.length * 15)) + 'px';
+        platformStack.style.alignItems = 'flex-end';
+        platformStack.style.transform = 'translateX(-100%)';
+
+        creator.platforms.forEach((p, i) => {
+          const el = document.createElement('div');
+          el.className = 'ring-pill platform';
+          el.textContent = `${PLATFORM_ICONS[p] || ''} ${p}`;
+          el.style.position = 'relative';
+          el.style.left = '0';
+          el.style.top = '0';
+          el.style.transform = 'translateX(-20px)';
+          el.style.opacity = '0';
+          platformStack.appendChild(el);
+
+          setTimeout(() => {
+            el.style.transform = 'translateX(0)';
+            el.style.opacity = '1';
+          }, 150 + i * 80);
+        });
+
+        overlay.appendChild(platformStack);
+      }
+
+      // Tier — orbiting pill below avatar
+      if (creator.tier) {
+        const radius = 175;
+        const angle = 90;
+        const rad = angle * Math.PI / 180;
+        const px = cx + Math.cos(rad) * radius;
+        const py = cy + Math.sin(rad) * radius;
+
+        const el = document.createElement('div');
+        el.className = 'ring-pill tier';
+        el.textContent = creator.tier;
+        el.style.left = px + 'px';
+        el.style.top = py + 'px';
+        el.style.transform = 'translate(-50%, -50%) scale(0)';
+        overlay.appendChild(el);
+
+        setTimeout(() => {
+          el.style.transform = 'translate(-50%, -50%) scale(1)';
+        }, 80);
+      }
+
+      // Niches — vertical stack to the right of the avatar
+      if (creator.niches && creator.niches.length > 0) {
+        const nicheStack = document.createElement('div');
+        nicheStack.className = 'ring-niche-stack';
+        nicheStack.style.left = (cx + 65) + 'px';
+        nicheStack.style.top = (cy - (creator.niches.length * 15)) + 'px';
+
+        creator.niches.forEach((niche, i) => {
+          const el = document.createElement('div');
+          el.className = 'ring-pill niche';
+          el.textContent = niche;
+          el.style.position = 'relative';
+          el.style.left = '0';
+          el.style.top = '0';
+          el.style.transform = 'translateX(20px)';
+          el.style.opacity = '0';
+          nicheStack.appendChild(el);
+
+          // Staggered slide-in from right
+          setTimeout(() => {
+            el.style.transform = 'translateX(0)';
+            el.style.opacity = '1';
+          }, 150 + i * 80);
+        });
+
+        overlay.appendChild(nicheStack);
+      }
+
+      // Action buttons below name card
+      const actions = document.createElement('div');
+      actions.className = 'ring-actions';
+      actions.style.left = cx + 'px';
+      actions.style.top = (cy + 118) + 'px';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'ring-action-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        closeDetailPanel();
+        openEditModal(creator.id);
+      };
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'ring-action-btn danger';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm('Delete this creator?')) {
+          closeDetailPanel();
+          creators = creators.filter(c => c.id !== creator.id);
+          db.persist(creators);
+          renderRosterTab();
+          renderDispatchTab();
+          updateMapMarkers();
+          showToast('Creator deleted', 'success');
+        }
+      };
+
+      actions.appendChild(editBtn);
+      actions.appendChild(deleteBtn);
+      overlay.appendChild(actions);
+
+      // Notes (if any) — position to the side
+      if (creator.notes) {
+        const notes = document.createElement('div');
+        notes.className = 'ring-notes';
+        notes.textContent = creator.notes;
+        // Position to the right or left depending on space
+        if (cx < overlay.offsetWidth / 2) {
+          notes.style.left = (cx + 130) + 'px';
+        } else {
+          notes.style.right = (overlay.offsetWidth - cx + 80) + 'px';
+        }
+        notes.style.top = (cy - 30) + 'px';
+        overlay.appendChild(notes);
+      }
+
+      // Show ring + scrim
+      overlay.classList.add('open');
+      scrim.classList.add('open');
+    }
+
+    // Make it global for marker click
+    window.showDetailPanel = showDetailPanel;
+
+    function closeDetailPanel() {
+      const overlay = document.getElementById('ringOverlay');
+      const scrim = document.getElementById('ringScrim');
+      overlay.classList.remove('open');
+      scrim.classList.remove('open');
+      currentEditingCreator = null;
+
+      // Restore map to previous view
+      if (mapStateBeforeDetail) {
+        map.flyTo(mapStateBeforeDetail.center, mapStateBeforeDetail.zoom, { duration: 0.8 });
+        mapStateBeforeDetail = null;
+      }
+
+      // Clean up after animation
+      setTimeout(() => { overlay.innerHTML = ''; }, 400);
+    }
+
+    // ===========================
+    // MODAL FUNCTIONS
+    // ===========================
+    function openAddModal() {
+      currentEditingCreator = null;
+      document.getElementById('modalTitle').textContent = 'Add Creator';
+      renderModalBody();
+      document.getElementById('modalBackdrop').classList.add('open');
+      // Scroll to top and focus first name
+      const modalBody = document.getElementById('modalBody');
+      if (modalBody) modalBody.scrollTop = 0;
+      setTimeout(() => {
+        const firstNameInput = document.getElementById('firstNameInput');
+        if (firstNameInput) firstNameInput.focus();
+      }, 50);
+    }
+
+    function openEditModal(creatorId) {
+      currentEditingCreator = creatorId;
+      document.getElementById('modalTitle').textContent = 'Edit Creator';
+      renderModalBody();
+      document.getElementById('modalBackdrop').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modalBackdrop').classList.remove('open');
+    }
+
+    function renderModalBody() {
+      const creator = currentEditingCreator ? creators.find(c => c.id === currentEditingCreator) : null;
+      const body = document.getElementById('modalBody');
+      body.innerHTML = '';
+
+      // Photo upload section
+      const photoSection = document.createElement('div');
+      photoSection.className = 'photo-upload-section';
+
+      const photoPreview = document.createElement('div');
+      photoPreview.className = creator?.photo ? 'photo-preview' : 'photo-preview empty';
+      photoPreview.id = 'photoPreview';
+      if (creator?.photo) {
+        const img = document.createElement('img');
+        img.src = creator.photo;
+        photoPreview.appendChild(img);
+      } else {
+        photoPreview.textContent = '📷';
+      }
+
+      const photoControls = document.createElement('div');
+      photoControls.className = 'photo-controls';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.id = 'photoFileInput';
+      fileInput.accept = 'image/*';
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            photoPreview.innerHTML = `<img src="${event.target.result}">`;
+            photoPreview.classList.remove('empty');
+            photoPreview.dataset.photoData = event.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      const uploadBtn = document.createElement('button');
+      uploadBtn.className = 'btn btn-secondary';
+      uploadBtn.textContent = 'Upload';
+      uploadBtn.type = 'button';
+      uploadBtn.onclick = () => fileInput.click();
+
+      const urlInput = document.createElement('input');
+      urlInput.type = 'text';
+      urlInput.className = 'form-input';
+      urlInput.placeholder = 'Or paste image URL...';
+      urlInput.style.flex = 1;
+      urlInput.value = creator?.photo || '';
+      urlInput.onchange = (e) => {
+        if (e.target.value) {
+          photoPreview.innerHTML = `<img src="${e.target.value}">`;
+          photoPreview.classList.remove('empty');
+          photoPreview.dataset.photoUrl = e.target.value;
+        }
+      };
+
+      photoControls.appendChild(uploadBtn);
+      photoControls.appendChild(urlInput);
+
+      photoSection.appendChild(photoPreview);
+      photoSection.appendChild(photoControls);
+      body.appendChild(photoSection);
+
+      // First + Last Name — side by side
+      const nameRow = document.createElement('div');
+      nameRow.className = 'name-row';
+
+      const firstNameGroup = document.createElement('div');
+      firstNameGroup.className = 'form-group';
+      const firstNameLabel = document.createElement('label');
+      firstNameLabel.className = 'form-label';
+      firstNameLabel.textContent = 'First Name';
+      const firstNameInput = document.createElement('input');
+      firstNameInput.type = 'text';
+      firstNameInput.className = 'form-input';
+      firstNameInput.id = 'firstNameInput';
+      firstNameInput.value = creator?.firstName || '';
+      firstNameGroup.appendChild(firstNameLabel);
+      firstNameGroup.appendChild(firstNameInput);
+
+      const lastNameGroup = document.createElement('div');
+      lastNameGroup.className = 'form-group';
+      const lastNameLabel = document.createElement('label');
+      lastNameLabel.className = 'form-label';
+      lastNameLabel.textContent = 'Last Name';
+      const lastNameInput = document.createElement('input');
+      lastNameInput.type = 'text';
+      lastNameInput.className = 'form-input';
+      lastNameInput.id = 'lastNameInput';
+      lastNameInput.value = creator?.lastName || '';
+      lastNameGroup.appendChild(lastNameLabel);
+      lastNameGroup.appendChild(lastNameInput);
+
+      nameRow.appendChild(firstNameGroup);
+      nameRow.appendChild(lastNameGroup);
+      body.appendChild(nameRow);
+
+      // Platforms — vertical toggle list
+      const platformsGroup = document.createElement('div');
+      platformsGroup.className = 'form-group';
+      const platformsLabel = document.createElement('label');
+      platformsLabel.className = 'form-label';
+      platformsLabel.textContent = 'Platforms';
+      const platformsList = document.createElement('div');
+      platformsList.className = 'checkbox-list-vertical';
+
+      PLATFORMS.forEach(platform => {
+        const isChecked = creator && creator.platforms && creator.platforms.includes(platform);
+        const item = document.createElement('label');
+        item.className = `checkbox-item-vertical${isChecked ? ' checked' : ''}`;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = platform;
+        checkbox.checked = isChecked;
+        checkbox.dataset.platform = platform;
+
+        const checkIcon = document.createElement('span');
+        checkIcon.className = 'check-icon';
+        checkIcon.textContent = '✓';
+
+        const icon = document.createElement('span');
+        icon.textContent = PLATFORM_ICONS[platform] || '';
+        icon.style.fontSize = '16px';
+
+        const label = document.createElement('span');
+        label.className = 'platform-label';
+        label.textContent = platform;
+
+        item.onclick = (e) => {
+          e.preventDefault();
+          checkbox.checked = !checkbox.checked;
+          item.classList.toggle('checked', checkbox.checked);
+        };
+
+        item.appendChild(checkbox);
+        item.appendChild(checkIcon);
+        item.appendChild(icon);
+        item.appendChild(label);
+        platformsList.appendChild(item);
+      });
+
+      platformsGroup.appendChild(platformsLabel);
+      platformsGroup.appendChild(platformsList);
+      body.appendChild(platformsGroup);
+
+      // Niches — dropdown multi-select with selected pills
+      const nichesGroup = document.createElement('div');
+      nichesGroup.className = 'form-group';
+      const nichesLabel = document.createElement('label');
+      nichesLabel.className = 'form-label';
+      nichesLabel.textContent = 'Niches';
+
+      // Store modal niches on body
+      body.modalNiches = (creator && creator.niches) ? [...creator.niches] : [];
+
+      // Container with selected pills + clickable input area
+      const nichesFieldWrap = document.createElement('div');
+      nichesFieldWrap.className = 'niche-field-wrap';
+      nichesFieldWrap.id = 'nichesFieldWrap';
+
+      const nichePillsContainer = document.createElement('div');
+      nichePillsContainer.id = 'nichePillsContainer';
+      nichePillsContainer.className = 'niche-pills-container';
+      nichesFieldWrap.appendChild(nichePillsContainer);
+
+      // Placeholder shown when field is inactive
+      const nichePlaceholder = document.createElement('div');
+      nichePlaceholder.className = 'niche-placeholder';
+      nichePlaceholder.id = 'nichePlaceholder';
+      nichePlaceholder.textContent = 'Click to select niches...';
+      nichePlaceholder.onclick = () => {
+        nichesFieldWrap.classList.add('active');
+        nicheTextInput.focus();
+      };
+      nichesFieldWrap.appendChild(nichePlaceholder);
+
+      const nicheTextInput = document.createElement('input');
+      nicheTextInput.type = 'text';
+      nicheTextInput.className = 'niche-text-input';
+      nicheTextInput.placeholder = 'Type to filter or add custom...';
+      nicheTextInput.id = 'nicheTextInput';
+      nichesFieldWrap.appendChild(nicheTextInput);
+
+      // Dropdown list
+      const nicheDropdown = document.createElement('div');
+      nicheDropdown.className = 'niche-dropdown';
+      nicheDropdown.id = 'nicheDropdown';
+
+      function renderNichePills() {
+        const container = document.getElementById('nichePillsContainer');
+        container.innerHTML = '';
+        body.modalNiches.forEach((n, i) => {
+          const pill = document.createElement('span');
+          pill.className = 'niche-selected-pill';
+          pill.innerHTML = `${n}<span class="niche-pill-x">&times;</span>`;
+          pill.querySelector('.niche-pill-x').onclick = (e) => {
+            e.stopPropagation();
+            body.modalNiches.splice(i, 1);
+            renderNichePills();
+            renderNicheDropdown();
+          };
+          container.appendChild(pill);
+        });
+        // Update placeholder text
+        const ph = document.getElementById('nichePlaceholder');
+        if (ph) ph.textContent = body.modalNiches.length > 0 ? 'Click to add more...' : 'Click to select niches...';
+        const input = document.getElementById('nicheTextInput');
+        if (input) input.placeholder = body.modalNiches.length > 0 ? 'Type to filter or add...' : 'Type to filter or add custom...';
+      }
+
+      function renderNicheDropdown() {
+        const dd = document.getElementById('nicheDropdown');
+        const filter = (document.getElementById('nicheTextInput')?.value || '').toLowerCase();
+        dd.innerHTML = '';
+
+        const allNiches = getAllNiches();
+        const filtered = filter ? allNiches.filter(n => n.toLowerCase().includes(filter)) : allNiches;
+
+        filtered.forEach(niche => {
+          const row = document.createElement('div');
+          row.className = 'niche-dropdown-item';
+          const isSelected = body.modalNiches.includes(niche);
+          if (isSelected) row.classList.add('selected');
+
+          const check = document.createElement('span');
+          check.className = 'niche-check';
+          check.textContent = isSelected ? '✓' : '';
+          row.appendChild(check);
+
+          const label = document.createElement('span');
+          label.textContent = niche;
+          row.appendChild(label);
+
+          row.onmousedown = (e) => {
+            e.preventDefault(); // keep focus on input
+            if (isSelected) {
+              body.modalNiches = body.modalNiches.filter(n => n !== niche);
+            } else {
+              body.modalNiches.push(niche);
+            }
+            // Clear typed text on selection
+            const ti = document.getElementById('nicheTextInput');
+            if (ti) ti.value = '';
+            renderNichePills();
+            renderNicheDropdown();
+            // Close dropdown after selection
+            const ddEl = document.getElementById('nicheDropdown');
+            const wrap = document.getElementById('nichesFieldWrap');
+            if (ddEl) ddEl.classList.remove('open');
+            if (wrap) wrap.classList.remove('active');
+            if (ti) ti.blur();
+          };
+          dd.appendChild(row);
+        });
+
+        // If user typed something not in the list, show "Add custom" option
+        if (filter && !allNiches.some(n => n.toLowerCase() === filter)) {
+          const customRow = document.createElement('div');
+          customRow.className = 'niche-dropdown-item niche-dropdown-custom';
+          customRow.innerHTML = `<span class="niche-check">+</span><span>Add "${document.getElementById('nicheTextInput').value.trim()}"</span>`;
+          customRow.onmousedown = (e) => {
+            e.preventDefault();
+            const val = document.getElementById('nicheTextInput').value.trim();
+            if (val && !body.modalNiches.includes(val)) {
+              body.modalNiches.push(val);
+            }
+            document.getElementById('nicheTextInput').value = '';
+            renderNichePills();
+            renderNicheDropdown();
+            // Close dropdown after adding custom
+            const ddEl = document.getElementById('nicheDropdown');
+            const wrap = document.getElementById('nichesFieldWrap');
+            if (ddEl) ddEl.classList.remove('open');
+            if (wrap) wrap.classList.remove('active');
+          };
+          dd.appendChild(customRow);
+        }
+      }
+
+      // Show/hide dropdown on focus/blur
+      nicheTextInput.onfocus = () => {
+        nichesFieldWrap.classList.add('active');
+        nicheDropdown.classList.add('open');
+        renderNicheDropdown();
+      };
+      nicheTextInput.onblur = () => {
+        // Delay to allow click on dropdown item
+        setTimeout(() => {
+          nicheDropdown.classList.remove('open');
+          nichesFieldWrap.classList.remove('active');
+          nicheTextInput.value = ''; // clear typed text on close
+        }, 150);
+      };
+      nicheTextInput.oninput = () => renderNicheDropdown();
+      nicheTextInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = nicheTextInput.value.trim();
+          if (val && !body.modalNiches.includes(val)) {
+            body.modalNiches.push(val);
+            nicheTextInput.value = '';
+            renderNichePills();
+            renderNicheDropdown();
+          }
+        }
+        if (e.key === 'Backspace' && !nicheTextInput.value && body.modalNiches.length > 0) {
+          body.modalNiches.pop();
+          renderNichePills();
+          renderNicheDropdown();
+        }
+      };
+
+      nichesGroup.appendChild(nichesLabel);
+      nichesGroup.appendChild(nichesFieldWrap);
+      nichesFieldWrap.appendChild(nicheDropdown);
+      body.appendChild(nichesGroup);
+
+      renderNichePills();
+
+      // Tier — vertical radio list
+      const tierGroup = document.createElement('div');
+      tierGroup.className = 'form-group';
+      const tierLabel = document.createElement('label');
+      tierLabel.className = 'form-label';
+      tierLabel.textContent = 'Tier';
+      const radioGroup = document.createElement('div');
+      radioGroup.className = 'radio-group-vertical';
+
+      TIERS.forEach(tier => {
+        const isActive = creator && creator.tier === tier;
+        const item = document.createElement('label');
+        item.className = `radio-item-vertical${isActive ? ' active' : ''}`;
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'tier';
+        radio.value = tier;
+        radio.checked = isActive;
+
+        const dot = document.createElement('span');
+        dot.className = 'radio-dot';
+
+        item.onclick = (e) => {
+          e.preventDefault();
+          document.querySelectorAll('.radio-item-vertical').forEach(r => r.classList.remove('active'));
+          document.querySelectorAll('input[name="tier"]').forEach(r => r.checked = false);
+          radio.checked = true;
+          item.classList.add('active');
+        };
+
+        const label = document.createElement('span');
+        label.textContent = tier;
+
+        item.appendChild(radio);
+        item.appendChild(dot);
+        item.appendChild(label);
+        radioGroup.appendChild(item);
+      });
+
+      tierGroup.appendChild(tierLabel);
+      tierGroup.appendChild(radioGroup);
+      body.appendChild(tierGroup);
+
+      // Location with autocomplete dropdown
+      const locationGroup = document.createElement('div');
+      locationGroup.className = 'form-group';
+      const locationLabel = document.createElement('label');
+      locationLabel.className = 'form-label';
+      locationLabel.textContent = 'Location';
+
+      const locWrap = document.createElement('div');
+      locWrap.className = 'loc-autocomplete-wrap';
+
+      const locationInput = document.createElement('input');
+      locationInput.type = 'text';
+      locationInput.className = 'form-input';
+      locationInput.id = 'locationInput';
+      locationInput.placeholder = 'City, State or Country...';
+      locationInput.value = creator?.location || '';
+      locationInput.autocomplete = 'off';
+
+      const locSuggestions = document.createElement('div');
+      locSuggestions.className = 'loc-suggestions';
+      locSuggestions.id = 'locSuggestions';
+
+      // Store selected coords on the input
+      locationInput.dataset.lat = creator?.lat || '';
+      locationInput.dataset.lng = creator?.lng || '';
+
+      locationInput.oninput = () => {
+        const q = locationInput.value.trim();
+        if (q.length < 2) {
+          locSuggestions.classList.remove('open');
+          return;
+        }
+        debounceLocSearch(q, (results) => {
+          locSuggestions.innerHTML = '';
+          if (results.length === 0) {
+            locSuggestions.classList.remove('open');
+            return;
+          }
+          results.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'loc-suggestion-item';
+            // Show a short display name
+            const parts = r.display_name.split(',');
+            const primary = parts.slice(0, 2).join(',').trim();
+            const secondary = parts.slice(2).join(',').trim();
+            item.innerHTML = `<div>${primary}</div>${secondary ? `<div class="loc-secondary">${secondary}</div>` : ''}`;
+            item.onmousedown = (e) => {
+              e.preventDefault();
+              locationInput.value = r.display_name.split(',').slice(0, 3).join(',').trim();
+              locationInput.dataset.lat = r.lat;
+              locationInput.dataset.lng = r.lon;
+              locSuggestions.classList.remove('open');
+            };
+            locSuggestions.appendChild(item);
+          });
+          locSuggestions.classList.add('open');
+        });
+      };
+
+      locationInput.onblur = () => {
+        setTimeout(() => locSuggestions.classList.remove('open'), 150);
+      };
+
+      locationInput.onfocus = () => {
+        if (locSuggestions.children.length > 0) {
+          locSuggestions.classList.add('open');
+        }
+      };
+
+      locWrap.appendChild(locationInput);
+      locWrap.appendChild(locSuggestions);
+      locationGroup.appendChild(locationLabel);
+      locationGroup.appendChild(locWrap);
+      body.appendChild(locationGroup);
+
+      // Notes
+      const notesGroup = document.createElement('div');
+      notesGroup.className = 'form-group';
+      const notesLabel = document.createElement('label');
+      notesLabel.className = 'form-label';
+      notesLabel.textContent = 'Notes';
+      const notesTextarea = document.createElement('textarea');
+      notesTextarea.className = 'form-textarea';
+      notesTextarea.id = 'notesTextarea';
+      notesTextarea.placeholder = 'Add any additional notes...';
+      notesTextarea.value = creator?.notes || '';
+      notesGroup.appendChild(notesLabel);
+      notesGroup.appendChild(notesTextarea);
+      body.appendChild(notesGroup);
+
+      // No custom tags — niches handle categorization
+    }
+
+    async function saveCreator() {
+      const photo = document.getElementById('photoPreview').dataset.photoUrl ||
+                    document.getElementById('photoPreview').dataset.photoData ||
+                    (document.getElementById('photoPreview').querySelector('img')?.src);
+
+      const firstName = document.getElementById('firstNameInput').value.trim();
+      const lastName = document.getElementById('lastNameInput').value.trim();
+
+      if (!firstName) {
+        showToast('First name is required', 'error');
+        return;
+      }
+
+      const platforms = Array.from(document.querySelectorAll('input[data-platform]:checked')).map(el => el.value);
+      const niches = document.getElementById('modalBody').modalNiches || [];
+      const tierRadio = document.querySelector('input[name="tier"]:checked');
+      const tier = tierRadio ? tierRadio.value : null;
+      const location = document.getElementById('locationInput').value.trim();
+      const notes = document.getElementById('notesTextarea').value.trim();
+      const tags = []; // Custom tags removed — niches handle categorization
+
+      let creator;
+      if (currentEditingCreator) {
+        creator = creators.find(c => c.id === currentEditingCreator);
+        creator.firstName = firstName;
+        creator.lastName = lastName;
+        creator.photo = photo || null;
+        creator.platforms = platforms;
+        creator.niches = niches;
+        creator.tier = tier;
+        creator.location = location;
+        creator.notes = notes;
+        creator.tags = tags;
+        creator.updatedAt = new Date().toISOString();
+      } else {
+        creator = {
+          id: generateId(),
+          firstName,
+          lastName,
+          photo: photo || null,
+          platforms,
+          niches,
+          tier,
+          location,
+          notes,
+          tags,
+          lat: null,
+          lng: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        creators.push(creator);
+      }
+
+      // Use pre-selected coords from autocomplete, or fall back to geocoding
+      if (location) {
+        const locInput = document.getElementById('locationInput');
+        const preLat = parseFloat(locInput?.dataset?.lat);
+        const preLng = parseFloat(locInput?.dataset?.lng);
+        if (!isNaN(preLat) && !isNaN(preLng)) {
+          creator.lat = preLat;
+          creator.lng = preLng;
+        } else {
+          const coords = await geocodeLocation(location);
+          if (coords) {
+            creator.lat = coords.lat;
+            creator.lng = coords.lng;
+          }
+        }
+      }
+
+      db.persist(creators);
+      closeModal();
+      renderRosterTab();
+      renderDispatchTab();
+      updateMapMarkers();
+      showToast('Creator saved', 'success');
+    }
+
+    function deleteCreator(creatorId) {
+      if (confirm('Are you sure you want to delete this creator?')) {
+        creators = creators.filter(c => c.id !== creatorId);
+        db.persist(creators);
+        closeDetailPanel();
+        renderRosterTab();
+        renderDispatchTab();
+        updateMapMarkers();
+        showToast('Creator deleted', 'success');
+      }
+    }
+
+    // ===========================
+    // IMPORT / EXPORT
+    // ===========================
+    function exportData() {
+      const json = JSON.stringify(creators, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `creator-roster-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Data exported', 'success');
+    }
+
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!Array.isArray(data)) throw new Error('Invalid format');
+          creators = data;
+          db.persist(creators);
+          renderRosterTab();
+          renderDispatchTab();
+          updateMapMarkers();
+          showToast('Data imported', 'success');
+        } catch (err) {
+          showToast('Import failed', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ===========================
+    // EVENT LISTENERS
+    // ===========================
+    document.getElementById('searchInput').addEventListener('input', renderRosterTab);
+    document.getElementById('sortSelect').addEventListener('change', () => {
+      renderRosterTab();
+      renderDispatchTab();
+    });
+
+    // Dispatch destination autocomplete
+    (function setupDispatchLocation() {
+      const input = document.getElementById('locationFilterInput');
+      const suggestions = document.getElementById('dispatchLocSuggestions');
+
+      input.addEventListener('input', () => {
+        const q = input.value.trim();
+        if (q.length < 2) {
+          suggestions.classList.remove('open');
+          // Clear destination if input is emptied
+          if (q.length === 0) {
+            clearDispatchDestination();
+          }
+          return;
+        }
+        debounceLocSearch(q, (results) => {
+          suggestions.innerHTML = '';
+          if (results.length === 0) {
+            suggestions.classList.remove('open');
+            return;
+          }
+          results.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'loc-suggestion-item';
+            const parts = r.display_name.split(',');
+            const primary = parts.slice(0, 2).join(',').trim();
+            const secondary = parts.slice(2).join(',').trim();
+            item.innerHTML = `<div>${primary}</div>${secondary ? `<div class="loc-secondary">${secondary}</div>` : ''}`;
+            item.onmousedown = (e) => {
+              e.preventDefault();
+              const displayName = r.display_name.split(',').slice(0, 3).join(',').trim();
+              input.value = displayName;
+              suggestions.classList.remove('open');
+              setDispatchDestination(parseFloat(r.lat), parseFloat(r.lon), displayName);
+            };
+            suggestions.appendChild(item);
+          });
+          suggestions.classList.add('open');
+        });
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => suggestions.classList.remove('open'), 150);
+      });
+
+      input.addEventListener('focus', () => {
+        if (suggestions.children.length > 0) {
+          suggestions.classList.add('open');
+        }
+      });
+    })();
+
+    // Clear button for destination input
+    document.getElementById('locationFilterClear').addEventListener('click', () => {
+      document.getElementById('locationFilterInput').value = '';
+      clearDispatchDestination();
+    });
+
+    function setDispatchDestination(lat, lng, displayName) {
+      dispatchDestination = { lat, lng, displayName };
+      document.getElementById('locationFilterClear').style.display = 'flex';
+
+      // Remove old destination marker
+      if (dispatchDestinationMarker) {
+        map.removeLayer(dispatchDestinationMarker);
+      }
+
+      // Add red pin
+      const redIcon = L.divIcon({
+        html: `<div style="
+          width: 28px; height: 28px; border-radius: 50% 50% 50% 0;
+          background: #D4A08E; border: 2px solid rgba(255,255,255,0.8);
+          transform: rotate(-45deg);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          display: flex; align-items: center; justify-content: center;
+        "><div style="
+          width: 8px; height: 8px; background: white; border-radius: 50%; transform: rotate(45deg);
+        "></div></div>`,
+        className: 'destination-marker',
+        iconSize: [28, 28],
+        iconAnchor: [14, 28]
+      });
+
+      dispatchDestinationMarker = L.marker([lat, lng], { icon: redIcon }).addTo(map);
+
+      // Fly map to show destination area
+      map.flyTo([lat, lng], 7, { duration: 1 });
+
+      // Render nearest creators
+      renderNearestCreators();
+      if (typeof updateClearFiltersBtn === 'function') updateClearFiltersBtn();
+    }
+
+    function clearDispatchDestination() {
+      dispatchDestination = null;
+      if (dispatchDestinationMarker) {
+        map.removeLayer(dispatchDestinationMarker);
+        dispatchDestinationMarker = null;
+      }
+      document.getElementById('locationFilterClear').style.display = 'none';
+      const panel = document.getElementById('dispatchNearest');
+      panel.classList.remove('open');
+      setTimeout(() => { panel.style.display = 'none'; }, 300);
+      updateMapMarkers();
+    }
+
+    function renderNearestCreators() {
+      const container = document.getElementById('dispatchNearest');
+      if (!dispatchDestination) {
+        container.classList.remove('open');
+        setTimeout(() => { container.style.display = 'none'; }, 300);
+        return;
+      }
+
+      // Get filtered creators (respecting platform/niche/tier filters) that have coordinates
+      const sortBy = document.getElementById('sortSelect').value;
+      const filtered = getFilteredCreators('', sortBy, true)
+        .filter(c => c.lat && c.lng);
+
+      // Calculate distances and sort
+      const withDist = filtered.map(c => ({
+        creator: c,
+        distance: haversineDistance(dispatchDestination.lat, dispatchDestination.lng, c.lat, c.lng)
+      })).sort((a, b) => a.distance - b.distance);
+
+      const nearest = withDist.slice(0, 3);
+
+      container.innerHTML = '';
+
+      if (nearest.length === 0) {
+        container.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px;">No creators with locations match current filters</div>';
+        container.style.display = 'flex';
+        requestAnimationFrame(() => container.classList.add('open'));
+        return;
+      }
+
+      // Header with label + close button
+      const header = document.createElement('div');
+      header.className = 'nearest-float-header';
+
+      const label = document.createElement('div');
+      label.className = 'nearest-float-label';
+      // Show just a short destination name
+      const shortDest = dispatchDestination.displayName.split(',').slice(0, 2).join(',').trim();
+      label.textContent = `Nearest to ${shortDest}`;
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'nearest-float-close';
+      closeBtn.innerHTML = '×';
+      closeBtn.onclick = () => {
+        document.getElementById('locationFilterInput').value = '';
+        clearDispatchDestination();
+      };
+
+      header.appendChild(label);
+      header.appendChild(closeBtn);
+      container.appendChild(header);
+
+      nearest.forEach((item, i) => {
+        const c = item.creator;
+        const row = document.createElement('div');
+        row.className = 'nearest-float-item';
+        row.onclick = () => showDetailPanel(c.id);
+
+        const rank = document.createElement('div');
+        rank.className = 'nearest-float-rank';
+        rank.textContent = i + 1;
+
+        const info = document.createElement('div');
+        info.className = 'nearest-float-info';
+
+        const name = document.createElement('div');
+        name.className = 'nearest-float-name';
+        name.textContent = getFullName(c);
+
+        const meta = document.createElement('div');
+        meta.className = 'nearest-float-meta';
+        const metaParts = [];
+        if (c.platforms?.length) metaParts.push(c.platforms.map(p => PLATFORM_ICONS[p] || p).join(' '));
+        if (c.niches?.length) metaParts.push(c.niches.slice(0, 2).join(', '));
+        if (c.location) metaParts.push(c.location);
+        meta.textContent = metaParts.join(' · ');
+
+        info.appendChild(name);
+        info.appendChild(meta);
+
+        const dist = document.createElement('div');
+        dist.className = 'nearest-float-dist';
+        dist.textContent = item.distance < 1 ? '< 1 mi' : Math.round(item.distance).toLocaleString() + ' mi';
+
+        row.appendChild(rank);
+        row.appendChild(info);
+        row.appendChild(dist);
+        container.appendChild(row);
+      });
+
+      container.style.display = 'flex';
+      requestAnimationFrame(() => container.classList.add('open'));
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
+        document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
+
+        if (tab === 'dispatch') {
+          renderDispatchFilters();
+          renderDispatchTab();
+        }
+      });
+    });
+
+    // Add Creator button
+    document.getElementById('addBtn').addEventListener('click', openAddModal);
+    document.getElementById('clearMockBtn').addEventListener('click', () => {
+      if (confirm('Remove all mock data? Your real creators will be kept.')) {
+        clearMockData();
+      }
+    });
+
+    // Clear All Filters
+    document.getElementById('clearAllFiltersBtn').addEventListener('click', () => {
+      dispatchFilters.platforms = [];
+      dispatchFilters.niches = [];
+      dispatchFilters.tiers = [];
+      document.getElementById('locationFilterInput').value = '';
+      clearDispatchDestination();
+      renderDispatchFilters();
+      renderDispatchTab();
+      updateMapMarkers();
+      updateClearFiltersBtn();
+    });
+
+    function updateClearFiltersBtn() {
+      const hasFilters = dispatchFilters.platforms.length > 0 ||
+                         dispatchFilters.niches.length > 0 ||
+                         dispatchFilters.tiers.length > 0 ||
+                         dispatchDestination !== null;
+      const btn = document.getElementById('clearAllFiltersBtn');
+      btn.style.display = hasFilters ? 'block' : 'none';
+    }
+
+    // Modal
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
+    document.getElementById('modalSaveBtn').addEventListener('click', saveCreator);
+    document.getElementById('modalBackdrop').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('modalBackdrop')) {
+        closeModal();
+      }
+    });
+
+    // Ring scrim — click to close
+    document.getElementById('ringScrim').addEventListener('click', closeDetailPanel);
+
+    // Esc key closes profile ring
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const ring = document.getElementById('ringOverlay');
+        if (ring && ring.style.display !== 'none') {
+          closeDetailPanel();
+        }
+      }
+    });
+
+    // ===========================
+    // MAP INITIALIZATION
+    // ===========================
+    function initMap() {
+      map = L.map('map', {
+        center: [37.0902, -95.7129],
+        zoom: 4,
+        minZoom: 2,
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0,
+        noWrap: true
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        maxZoom: 20,
+        noWrap: true
+      }).addTo(map);
+
+      updateMapMarkers();
+      fitMapToCreators();
+    }
+
+    function fitMapToCreators() {
+      const located = creators.filter(c => c.lat && c.lng);
+      if (located.length === 0) return;
+      if (located.length === 1) {
+        map.setView([located[0].lat, located[0].lng], 6);
+        return;
+      }
+      const bounds = L.latLngBounds(located.map(c => [c.lat, c.lng]));
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
+    }
+
+    // ===========================
+    // INITIALIZATION
+    // ===========================
+    function generateMockData() {
+      const mockCreators = [
+        { firstName: 'Ava', lastName: 'Martinez', platforms: ['Instagram', 'TikTok'], niches: ['Lifestyle', 'Fashion'], tier: 'Micro (10K-100K)', location: 'Los Angeles, CA', lat: 34.0522, lng: -118.2437 },
+        { firstName: 'Liam', lastName: 'Chen', platforms: ['YouTube'], niches: ['Tech', 'Gaming'], tier: 'Mid (100K-500K)', location: 'San Francisco, CA', lat: 37.7749, lng: -122.4194 },
+        { firstName: 'Sofia', lastName: 'Andersson', platforms: ['Instagram'], niches: ['Travel', 'Outdoor & Adventure'], tier: 'Macro (500K-1M)', location: 'Stockholm, Sweden', lat: 59.3293, lng: 18.0686 },
+        { firstName: 'James', lastName: 'Okafor', platforms: ['TikTok', 'YouTube'], niches: ['Comedy', 'Music'], tier: 'Mega (1M+)', location: 'Lagos, Nigeria', lat: 6.5244, lng: 3.3792 },
+        { firstName: 'Mia', lastName: 'Tanaka', platforms: ['Instagram', 'YouTube'], niches: ['Beauty', 'Fashion'], tier: 'Micro (10K-100K)', location: 'Tokyo, Japan', lat: 35.6762, lng: 139.6503 },
+        { firstName: 'Noah', lastName: 'Williams', platforms: ['TikTok'], niches: ['Fitness', 'Lifestyle'], tier: 'Nano (<10K)', location: 'Austin, TX', lat: 30.2672, lng: -97.7431 },
+        { firstName: 'Emma', lastName: 'Dubois', platforms: ['Instagram', 'TikTok'], niches: ['Food & Drink', 'Travel'], tier: 'Mid (100K-500K)', location: 'Paris, France', lat: 48.8566, lng: 2.3522 },
+        { firstName: 'Kai', lastName: 'Nakamura', platforms: ['YouTube'], niches: ['Outdoor & Adventure', 'Van Life'], tier: 'Micro (10K-100K)', location: 'Denver, CO', lat: 39.7392, lng: -104.9903 },
+        { firstName: 'Zara', lastName: 'Patel', platforms: ['Instagram'], niches: ['Beauty', 'Lifestyle'], tier: 'Macro (500K-1M)', location: 'Mumbai, India', lat: 19.076, lng: 72.8777 },
+        { firstName: 'Ethan', lastName: 'Brooks', platforms: ['TikTok', 'YouTube'], niches: ['Comedy', 'Education'], tier: 'Mid (100K-500K)', location: 'Chicago, IL', lat: 41.8781, lng: -87.6298 },
+        { firstName: 'Luna', lastName: 'Garcia', platforms: ['Instagram', 'TikTok'], niches: ['Couples', 'Travel'], tier: 'Nano (<10K)', location: 'Mexico City, Mexico', lat: 19.4326, lng: -99.1332 },
+        { firstName: 'Oliver', lastName: 'Svensson', platforms: ['YouTube'], niches: ['Tech', 'Education'], tier: 'Mega (1M+)', location: 'Berlin, Germany', lat: 52.52, lng: 13.405 },
+        { firstName: 'Isla', lastName: 'Kim', platforms: ['Instagram'], niches: ['Fashion', 'International'], tier: 'Mid (100K-500K)', location: 'Seoul, South Korea', lat: 37.5665, lng: 126.978 },
+        { firstName: 'Marcus', lastName: 'Johnson', platforms: ['TikTok'], niches: ['Fitness', 'Comedy'], tier: 'Micro (10K-100K)', location: 'Atlanta, GA', lat: 33.749, lng: -84.388 },
+        { firstName: 'Chloe', lastName: 'Moreau', platforms: ['Instagram', 'YouTube'], niches: ['Food & Drink', 'Lifestyle'], tier: 'Nano (<10K)', location: 'Montreal, Canada', lat: 45.5017, lng: -73.5673 },
+        { firstName: 'Ravi', lastName: 'Sharma', platforms: ['YouTube', 'TikTok'], niches: ['Education', 'Tech'], tier: 'Macro (500K-1M)', location: 'Bangalore, India', lat: 12.9716, lng: 77.5946 },
+        { firstName: 'Freya', lastName: 'Olsen', platforms: ['Instagram'], niches: ['Outdoor & Adventure', 'Pets'], tier: 'Micro (10K-100K)', location: 'Oslo, Norway', lat: 59.9139, lng: 10.7522 },
+        { firstName: 'Diego', lastName: 'Reyes', platforms: ['TikTok'], niches: ['Music', 'Lifestyle'], tier: 'Mid (100K-500K)', location: 'Bogota, Colombia', lat: 4.711, lng: -74.0721 },
+        { firstName: 'Harper', lastName: 'Lee', platforms: ['Instagram', 'TikTok'], niches: ['Parenting', 'Lifestyle'], tier: 'Nano (<10K)', location: 'Nashville, TN', lat: 36.1627, lng: -86.7816 },
+        { firstName: 'Aiden', lastName: 'Murphy', platforms: ['YouTube'], niches: ['Gaming', 'Comedy'], tier: 'Mega (1M+)', location: 'Dublin, Ireland', lat: 53.3498, lng: -6.2603 },
+        { firstName: 'Yuki', lastName: 'Sato', platforms: ['Instagram', 'YouTube'], niches: ['Fashion', 'Beauty'], tier: 'Mid (100K-500K)', location: 'Osaka, Japan', lat: 34.6937, lng: 135.5023 },
+        { firstName: 'Nina', lastName: 'Petrova', platforms: ['TikTok'], niches: ['Fitness', 'Van Life'], tier: 'Micro (10K-100K)', location: 'Portland, OR', lat: 45.5152, lng: -122.6784 },
+        { firstName: 'Theo', lastName: 'Costa', platforms: ['Instagram', 'TikTok'], niches: ['Travel', 'Food & Drink'], tier: 'Macro (500K-1M)', location: 'Lisbon, Portugal', lat: 38.7223, lng: -9.1393 },
+        { firstName: 'Amara', lastName: 'Diallo', platforms: ['YouTube'], niches: ['Education', 'International'], tier: 'Nano (<10K)', location: 'Dakar, Senegal', lat: 14.7167, lng: -17.4677 },
+        { firstName: 'Jack', lastName: 'Wilson', platforms: ['TikTok', 'YouTube'], niches: ['Outdoor & Adventure', 'Fitness'], tier: 'Micro (10K-100K)', location: 'Queenstown, New Zealand', lat: -45.0312, lng: 168.6626 },
+        { firstName: 'Leila', lastName: 'Hassan', platforms: ['Instagram'], niches: ['Lifestyle', 'Couples'], tier: 'Mid (100K-500K)', location: 'Dubai, UAE', lat: 25.2048, lng: 55.2708 },
+        { firstName: 'Mateo', lastName: 'Silva', platforms: ['TikTok'], niches: ['Comedy', 'Music'], tier: 'Mega (1M+)', location: 'Buenos Aires, Argentina', lat: -34.6037, lng: -58.3816 },
+        { firstName: 'Elise', lastName: 'Wagner', platforms: ['Instagram', 'YouTube'], niches: ['Pets', 'Lifestyle'], tier: 'Nano (<10K)', location: 'Vienna, Austria', lat: 48.2082, lng: 16.3738 },
+        { firstName: 'Caleb', lastName: 'Park', platforms: ['YouTube'], niches: ['Tech', 'Gaming'], tier: 'Mid (100K-500K)', location: 'Seattle, WA', lat: 47.6062, lng: -122.3321 },
+        { firstName: 'Priya', lastName: 'Nair', platforms: ['Instagram', 'TikTok'], niches: ['Beauty', 'Fashion', 'International'], tier: 'Macro (500K-1M)', location: 'London, UK', lat: 51.5074, lng: -0.1278 }
+      ];
+
+      const now = new Date().toISOString();
+      return mockCreators.map(m => ({
+        id: 'mock_' + Math.random().toString(36).substr(2, 9),
+        firstName: m.firstName,
+        lastName: m.lastName,
+        photo: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(m.firstName + m.lastName)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`,
+        platforms: m.platforms,
+        niches: m.niches,
+        tier: m.tier,
+        tags: [],
+        location: m.location,
+        lat: m.lat,
+        lng: m.lng,
+        notes: '',
+        isMock: true,
+        createdAt: now,
+        updatedAt: now
+      }));
+    }
+
+    function clearMockData() {
+      creators = creators.filter(c => !c.isMock);
+      db.persist(creators);
+      renderRosterTab();
+      renderDispatchTab();
+      updateMapMarkers();
+      fitMapToCreators();
+      showToast('Mock data cleared', 'success');
+    }
+
+    function init() {
+      creators = db.load();
+
+      // Mark any existing creators as mock if not already flagged
+      creators.forEach(c => {
+        if (!c.hasOwnProperty('isMock')) {
+          c.isMock = true;
+        }
+      });
+
+      // Seed mock data if none exists
+      if (creators.length === 0 || creators.every(c => c.isMock)) {
+        const existingMockIds = new Set(creators.map(c => c.firstName + c.lastName));
+        const newMocks = generateMockData().filter(m => !existingMockIds.has(m.firstName + m.lastName));
+        creators = [...creators, ...newMocks];
+        db.persist(creators);
+      }
+
+      renderRosterTab();
+      renderDispatchFilters();
+      initMap();
+    }
+
+    init();
+  </script>
+</body>
+</html>

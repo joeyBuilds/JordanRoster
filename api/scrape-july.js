@@ -25,7 +25,6 @@ function detectPlatform(context) {
   if (/instagram|insta(?!ll)/i.test(lc)) return 'Instagram';
   if (/tiktok|tik-tok/i.test(lc)) return 'TikTok';
   if (/youtube|yt\b/i.test(lc)) return 'YouTube';
-  if (/facebook|fb\b/i.test(lc)) return 'Facebook';
   return null;
 }
 
@@ -33,8 +32,23 @@ function detectPlatform(context) {
 function extractHandle(url) {
   if (!url) return '';
   try {
-    const match = url.match(/(?:instagram|tiktok|youtube|facebook)\.com\/@?([^/?#]+)/i);
-    return match ? match[1] : '';
+    // Instagram: instagram.com/username
+    const igMatch = url.match(/instagram\.com\/([^/?#]+)/i);
+    if (igMatch && igMatch[1] !== 'p' && igMatch[1] !== 'reel') return igMatch[1];
+
+    // TikTok: tiktok.com/@username (skip vm.tiktok.com short links)
+    const ttMatch = url.match(/tiktok\.com\/@([^/?#]+)/i);
+    if (ttMatch) return ttMatch[1];
+    // vm.tiktok.com/CODE — no handle extractable, return empty
+    if (/vm\.tiktok\.com/i.test(url)) return '';
+
+    // YouTube: youtube.com/@handle (skip /channel/ID URLs)
+    const ytHandle = url.match(/youtube\.com\/@([^/?#]+)/i);
+    if (ytHandle) return ytHandle[1];
+    // youtube.com/channel/UCXYZ — no human handle, return empty
+    if (/youtube\.com\/channel\//i.test(url)) return '';
+
+    return '';
   } catch {
     return '';
   }
@@ -124,6 +138,10 @@ module.exports = async function handler(req, res) {
     if (creatorsFromJson && creatorsFromJson.length > 0) {
       const creators = creatorsFromJson.map(normalizeCreator).filter(Boolean);
       console.log('[scraper] Returning', creators.length, 'creators from JSON data');
+
+      // ── Resolve missing handles by following short/channel URLs ──
+      await resolveHandles(creators);
+
       return res.status(200).json({
         success: true,
         source: 'json',
@@ -211,7 +229,6 @@ module.exports = async function handler(req, res) {
           if (href.includes('instagram.com')) platform = 'Instagram';
           else if (href.includes('tiktok.com')) platform = 'TikTok';
           else if (href.includes('youtube.com')) platform = 'YouTube';
-          else if (href.includes('facebook.com')) platform = 'Facebook';
 
           if (platform) {
             platforms[platform] = {
@@ -303,7 +320,6 @@ module.exports = async function handler(req, res) {
               if (href.includes('instagram.com')) platform = 'Instagram';
               else if (href.includes('tiktok.com')) platform = 'TikTok';
               else if (href.includes('youtube.com')) platform = 'YouTube';
-              else if (href.includes('facebook.com')) platform = 'Facebook';
 
               if (platform) {
                 creator.platforms[platform] = {
@@ -408,15 +424,17 @@ function normalizeCreator(raw) {
       const PLATFORM_MAP = {
         instagram: 'Instagram',
         tiktok: 'TikTok',
-        youtube: 'YouTube',
-        facebook: 'Facebook'
+        youtube: 'YouTube'
       };
       const finalName = PLATFORM_MAP[pName];
       if (!finalName) return;
 
       const url = p.platformUrl || '';
+      const extracted = extractHandle(url);
+      // Only fall back to July's username field for Instagram (it's their IG handle)
+      const handle = extracted || (pName === 'instagram' ? (raw.username || '') : '');
       platforms[finalName] = {
-        handle: extractHandle(url) || raw.username || '',
+        handle,
         url,
         followers: p.size || null,
         engagementRate: p.engagementRate || null
@@ -471,4 +489,64 @@ function normalizeDetailData(raw, existing) {
   }
 
   return result;
+}
+
+// ── Resolve missing handles by following redirect URLs ──
+// TikTok short links (vm.tiktok.com/CODE) redirect to tiktok.com/@handle
+// YouTube channel URLs (youtube.com/channel/ID) → try to find @handle from page
+
+async function resolveHandles(creators) {
+  // Collect all platform entries that need resolution
+  const tasks = [];
+  creators.forEach(creator => {
+    Object.entries(creator.platforms || {}).forEach(([platform, data]) => {
+      if (data.handle) return; // already have a handle
+      if (!data.url) return;  // no URL to resolve
+
+      if (platform === 'TikTok' && /vm\.tiktok\.com/i.test(data.url)) {
+        tasks.push({ creator, platform, data, type: 'redirect' });
+      } else if (platform === 'YouTube' && /youtube\.com\/channel\//i.test(data.url)) {
+        tasks.push({ creator, platform, data, type: 'youtube-channel' });
+      }
+    });
+  });
+
+  if (tasks.length === 0) return;
+  console.log(`[scraper] Resolving ${tasks.length} platform handles...`);
+
+  // Process in batches of 15 to avoid overwhelming servers
+  const BATCH = 15;
+  for (let i = 0; i < tasks.length; i += BATCH) {
+    const batch = tasks.slice(i, i + BATCH);
+    await Promise.allSettled(batch.map(async (task) => {
+      try {
+        if (task.type === 'redirect') {
+          // Follow redirect to get final URL (TikTok short links → tiktok.com/@handle)
+          const resp = await fetch(task.data.url, { method: 'HEAD', redirect: 'follow' });
+          const finalUrl = resp.url;
+          const handle = extractHandle(finalUrl);
+          if (handle) {
+            task.data.handle = handle;
+            task.data.url = finalUrl; // update to canonical URL
+          }
+        } else if (task.type === 'youtube-channel') {
+          // Fetch YouTube channel page and look for @handle in the HTML
+          const resp = await fetch(task.data.url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
+          });
+          const html = await resp.text();
+          // YouTube embeds the canonical @handle URL in the page
+          const handleMatch = html.match(/youtube\.com\/@([^"'<\s]+)/i);
+          if (handleMatch) {
+            task.data.handle = handleMatch[1];
+          }
+        }
+      } catch (e) {
+        // Skip failed resolutions silently
+      }
+    }));
+  }
+
+  const resolved = tasks.filter(t => t.data.handle).length;
+  console.log(`[scraper] Resolved ${resolved}/${tasks.length} handles`);
 }

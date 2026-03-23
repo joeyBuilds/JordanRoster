@@ -17,7 +17,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 
-  <!-- sql.js (SQLite in WebAssembly) — via jsdelivr which mirrors npm reliably -->
+  <!-- Supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- sql.js (kept temporarily for one-time migration from IndexedDB to Supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 
   <!-- App Styles -->
@@ -27,12 +30,7 @@
   <!-- Top Bar -->
   <div id="topBar">
     <h1><span class="title-roster">Creator Roster</span><span class="title-amp">&</span><span class="title-dispatch">Dispatch</span></h1>
-    <div class="topBar-actions">
-      <button class="btn btn-july-import" id="julyImportBtn" title="Import creators from July">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Import from July
-      </button>
-    </div>
+    <div class="topBar-actions"></div>
   </div>
 
   <!-- Main Container -->
@@ -58,27 +56,32 @@
       <!-- ROSTER TAB -->
       <div id="rosterTab" class="tab-content">
         <div class="roster-header">
-          <button class="btn btn-primary" id="addBtn" style="width: 100%;">+ Add Creator</button>
-          <input
-            type="text"
-            id="searchInput"
-            class="search-input"
-            placeholder="Search creators..."
-          />
-          <div id="rosterFilterPills" class="roster-filter-pills"></div>
-          <div class="sort-row">
-            <label>Sort:</label>
-            <select id="sortSelect">
-              <option value="a-z">A-Z</option>
-              <option value="z-a">Z-A</option>
-              <option value="newest">Newest</option>
-              <option value="age-asc">Age ↑</option>
-              <option value="age-desc">Age ↓</option>
-            </select>
+          <div class="roster-search-row">
+            <div class="search-input-wrap">
+              <input
+                type="text"
+                id="searchInput"
+                class="search-input"
+                placeholder="Search creators..."
+              />
+              <button type="button" id="searchClearBtn" class="search-clear-btn" title="Clear search">&times;</button>
+            </div>
+            <button class="btn btn-july-compact" id="julyImportBtn" title="Import from July">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
           </div>
-          <div id="storageIndicator" class="storage-indicator">
-            <div class="storage-label"><span id="storageText">Loading...</span></div>
-            <div class="storage-bar"><div class="storage-bar-fill" id="storageBarFill"></div></div>
+          <div class="roster-meta-row">
+            <div id="creatorCount" class="creator-count-label">0 creators</div>
+            <div class="sort-row">
+              <label>Sort:</label>
+              <select id="sortSelect">
+                <option value="a-z">A-Z</option>
+                <option value="z-a">Z-A</option>
+                <option value="newest">Newest</option>
+                <option value="age-asc">Age ↑</option>
+                <option value="age-desc">Age ↓</option>
+              </select>
+            </div>
           </div>
         </div>
         <div id="creatorList" class="creator-list"></div>
@@ -87,40 +90,15 @@
       <!-- DISPATCH TAB -->
       <div id="dispatchTab" class="tab-content" style="display: none;">
         <div class="dispatch-filters">
-          <!-- Niches collapsible -->
-          <div class="dispatch-collapsible">
-            <button class="dispatch-collapsible-toggle" id="nichesToggle" type="button">
-              <span class="collapsible-caret">▸</span> Niches
-              <span class="collapsible-active-count" id="nichesActiveCount"></span>
-            </button>
-            <div class="dispatch-collapsible-body" id="nichesBody">
-              <div id="dispatchNichePills" class="roster-filter-pills has-pills expanded dispatch-always-open"></div>
-            </div>
-          </div>
 
-          <!-- Demographics collapsible -->
-          <div class="dispatch-collapsible">
-            <button class="dispatch-collapsible-toggle" id="demosToggle" type="button">
-              <span class="collapsible-caret">▸</span> Demographics
-              <span class="collapsible-active-count" id="demosActiveCount"></span>
-            </button>
-            <div class="dispatch-collapsible-body" id="demosBody">
-              <div id="dispatchDemoPills" class="roster-filter-pills has-pills expanded dispatch-always-open"></div>
-            </div>
-          </div>
-
-          <!-- Age range -->
-          <div id="dispatchAgeRow" class="roster-age-range" style="padding: 0 2px;"></div>
-
-          <!-- Location — Destination Pin + Nearest Creators -->
+          <!-- WHERE — Destination (top) -->
           <div class="filter-section">
-            <div class="filter-title">Destination</div>
             <div class="loc-autocomplete-wrap">
               <input
                 type="text"
                 id="locationFilterInput"
                 class="location-filter-input"
-                placeholder="Enter a location to find nearby creators..."
+                placeholder="Where?"
                 autocomplete="off"
                 style="padding-right: 32px;"
               />
@@ -129,20 +107,93 @@
             </div>
           </div>
 
+          <!-- WHO — Natural Language Search -->
+          <div class="nl-search-section">
+            <div class="nl-search-wrap">
+              <input
+                type="text"
+                id="nlSearchInput"
+                class="nl-search-input"
+                placeholder="Who?"
+                autocomplete="off"
+              />
+              <button class="nl-search-clear" id="nlSearchClear" style="display:none;">&times;</button>
+              <div class="nl-suggestions" id="nlSuggestions"></div>
+            </div>
+            <div class="nl-search-hint" id="nlSearchHint"></div>
+          </div>
+
+          <!-- Active Filters Strip -->
+          <div id="platformTierPills" class="platform-tier-pills"></div>
+          <div id="dispatchActiveStrip" class="dispatch-active-strip"></div>
+
           <div class="filter-divider">
             <div class="divider-line divider-line-left"></div>
             <span class="divider-bloom">✿</span>
             <div class="divider-line divider-line-right"></div>
           </div>
 
-          <!-- Platform × Tier Filter -->
-          <div class="filter-section">
-            <div class="filter-title">Platform &amp; Tier</div>
-            <div id="platformTierFilter" class="platform-tier-filter"></div>
-            <div id="platformTierPills" class="platform-tier-pills"></div>
-          </div>
-        </div>
+          <!-- Collapsible filter sections -->
+          <div class="dispatch-vibes">
 
+            <!-- Platform & Tier — collapsible (excluded from score count) -->
+            <div class="dispatch-section-label dispatch-collapsible" id="platformTierLabel" onclick="toggleDispatchSection('platformTier')">
+              <span class="dispatch-caret" id="platformTierCaret">
+                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              Platform &amp; Tier <span class="collapsible-active-count" id="platformTierActiveCount"></span>
+            </div>
+            <div id="platformTierCollapsible" class="dispatch-collapsible-body">
+              <div>
+                <div id="platformTierFilter" class="platform-tier-filter"></div>
+                <!-- pills moved to active strip area above -->
+              </div>
+            </div>
+
+            <!-- Niches — collapsible -->
+            <div class="dispatch-section-label dispatch-collapsible" id="nichesLabel" onclick="toggleDispatchSection('niches')">
+              <span class="dispatch-caret" id="nichesCaret">
+                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              Niches <span class="collapsible-active-count" id="nichesActiveCount"></span>
+            </div>
+            <div id="nichesCollapsible" class="dispatch-collapsible-body">
+              <div>
+                <button class="dispatch-edit-cats-btn" onclick="openCategoryOrganizer('niche')" title="Organize niche categories">✎ Edit Niches</button>
+                <div id="dispatchNichePills" class="dispatch-pill-grid"></div>
+              </div>
+            </div>
+
+            <!-- Demographics — collapsible -->
+            <div class="dispatch-section-label dispatch-collapsible" id="demosLabel" onclick="toggleDispatchSection('demos')">
+              <span class="dispatch-caret" id="demosCaret">
+                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              Demographics <span class="collapsible-active-count" id="demosActiveCount"></span>
+            </div>
+            <div id="demosCollapsible" class="dispatch-collapsible-body">
+              <div>
+                <button class="dispatch-edit-cats-btn" onclick="openCategoryOrganizer('demographic')" title="Organize demographic categories">✎ Edit Demographics</button>
+                <div id="dispatchDemoPills" class="dispatch-pill-grid"></div>
+              </div>
+            </div>
+
+            <!-- Age Range — collapsible -->
+            <div class="dispatch-section-label dispatch-collapsible" id="ageLabel" onclick="toggleDispatchSection('age')">
+              <span class="dispatch-caret" id="ageCaret">
+                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              Age Range
+            </div>
+            <div id="ageCollapsible" class="dispatch-collapsible-body">
+              <div>
+                <div id="dispatchAgeRow" class="dispatch-age-row"></div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
       </div>
 
       <!-- RECYCLE BIN TAB -->
@@ -180,10 +231,13 @@
     <!-- Map Container -->
     <div id="mapContainer">
       <div id="map"></div>
+      <button id="fitAllBtn" class="fit-all-btn" onclick="fitMapToCreators()" title="Fit all creators in view">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+        Fit All
+      </button>
       <!-- Floating dispatch panels stacked on bottom-left -->
       <div class="dispatch-float-stack" id="dispatchFloatStack">
         <div id="dispatchNearest" class="nearest-float" style="display: none;"></div>
-        <div id="dispatchResultsFloat" class="dispatch-results-float" style="display: none;"></div>
       </div>
     </div>
   </div>
@@ -221,8 +275,6 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <!-- Hidden file input for import -->
-
   <!-- July Import Panel -->
   <div class="july-overlay" id="julyOverlay">
     <div class="july-panel">
@@ -255,7 +307,10 @@
         </div>
       </div>
       <div class="july-panel-footer">
-        <div class="july-footer-info" id="julyFooterInfo">0 selected</div>
+        <div class="july-footer-left">
+          <div class="july-footer-info" id="julyFooterInfo">0 selected</div>
+          <button class="btn btn-subtle july-select-all-btn" id="julySelectAllBtn">Select All</button>
+        </div>
         <div class="july-footer-actions">
           <button class="btn btn-secondary july-cancel-btn" id="julyCancelBtn">Cancel</button>
           <button class="btn btn-primary july-add-btn" id="julyAddBtn" disabled>Add to Roster</button>

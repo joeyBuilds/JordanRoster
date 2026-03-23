@@ -1,165 +1,39 @@
 // ===========================
-// DATABASE LAYER — sql.js (SQLite in WebAssembly)
+// DATABASE LAYER — Supabase
 // ===========================
-// Replaces localStorage with in-browser SQLite persisted to IndexedDB.
-// Provides the same `db` and `recycleBin` API as the old localStorage layer.
+// Cloud-hosted PostgreSQL via Supabase. Replaces the sql.js/IndexedDB layer.
+// Same public API: db, recycleBin, getSetting, setSetting, initDatabase, flushPersist.
 
-const IDB_NAME = 'creator_roster';
-const IDB_STORE = 'sqliteDb';
-const IDB_KEY = 'main';
+const SUPABASE_URL = 'https://imlmcbnvrkupplvgmytb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltbG1jYm52cmt1cHBsdmdteXRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMDQwMDEsImV4cCI6MjA4OTg4MDAwMX0.0QYh-ZibrJy4Sn5yryc2j236qzBdTjvAC300VgOXtxo';
 
-let sqlDb = null;
+let _supabase = null;
+let _settingsCache = {};
 let _persistTimeout = null;
-const PERSIST_DEBOUNCE_MS = 300;
+let _recycleBinCount = 0;
+const PERSIST_DEBOUNCE_MS = 500;
 
-// ── IndexedDB helpers ──
+// ── Column mapping: app (camelCase) ↔ Supabase (snake_case) ──
 
-function openIDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = () => {
-      const idb = req.result;
-      if (!idb.objectStoreNames.contains(IDB_STORE)) {
-        idb.createObjectStore(IDB_STORE);
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function loadFromIndexedDB() {
-  try {
-    const idb = await openIDB();
-    return new Promise((resolve, reject) => {
-      const tx = idb.transaction(IDB_STORE, 'readonly');
-      const store = tx.objectStore(IDB_STORE);
-      const req = store.get(IDB_KEY);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
-    });
-  } catch (e) {
-    console.error('Failed to load from IndexedDB:', e);
-    return null;
-  }
-}
-
-async function saveToIndexedDB(data) {
-  try {
-    const idb = await openIDB();
-    return new Promise((resolve, reject) => {
-      const tx = idb.transaction(IDB_STORE, 'readwrite');
-      const store = tx.objectStore(IDB_STORE);
-      const req = store.put(data, IDB_KEY);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  } catch (e) {
-    console.error('Failed to save to IndexedDB:', e);
-  }
-}
-
-// ── Debounced persist to IndexedDB ──
-
-function schedulePersist() {
-  clearTimeout(_persistTimeout);
-  _persistTimeout = setTimeout(() => {
-    if (!sqlDb) return;
-    const data = sqlDb.export();
-    saveToIndexedDB(data);
-  }, PERSIST_DEBOUNCE_MS);
-}
-
-// Force immediate persist (for export, before unload, etc.)
-function flushPersist() {
-  clearTimeout(_persistTimeout);
-  if (!sqlDb) return;
-  const data = sqlDb.export();
-  saveToIndexedDB(data);
-}
-
-// ── Schema ──
-
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS creators (
-  id TEXT PRIMARY KEY,
-  firstName TEXT NOT NULL DEFAULT '',
-  lastName TEXT DEFAULT '',
-  photo TEXT,
-  email TEXT,
-  mediaKit TEXT,
-  birthday TEXT,
-  location TEXT,
-  lat REAL,
-  lng REAL,
-  notes TEXT,
-  createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS creator_platforms (
-  creatorId TEXT NOT NULL,
-  platform TEXT NOT NULL,
-  handle TEXT DEFAULT '',
-  url TEXT DEFAULT '',
-  followers INTEGER,
-  PRIMARY KEY (creatorId, platform)
-);
-
-CREATE TABLE IF NOT EXISTS creator_niches (
-  creatorId TEXT NOT NULL,
-  niche TEXT NOT NULL,
-  PRIMARY KEY (creatorId, niche)
-);
-
-CREATE TABLE IF NOT EXISTS creator_demographics (
-  creatorId TEXT NOT NULL,
-  demographic TEXT NOT NULL,
-  PRIMARY KEY (creatorId, demographic)
-);
-
-CREATE TABLE IF NOT EXISTS recycle_bin (
-  id TEXT PRIMARY KEY,
-  creatorData TEXT NOT NULL,
-  deletedAt INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_platforms_platform ON creator_platforms(platform);
-CREATE INDEX IF NOT EXISTS idx_platforms_followers ON creator_platforms(followers);
-CREATE INDEX IF NOT EXISTS idx_niches_niche ON creator_niches(niche);
-CREATE INDEX IF NOT EXISTS idx_demographics_demographic ON creator_demographics(demographic);
-CREATE INDEX IF NOT EXISTS idx_creators_lat_lng ON creators(lat, lng);
-`;
-
-function createSchema() {
-  // exec() supports multiple statements; run() only executes the first one
-  sqlDb.exec(SCHEMA_SQL);
-}
-
-// ── Creator object ↔ SQL ──
-
-function creatorToRows(c) {
+function creatorToRow(c) {
   return {
-    main: [
-      c.id, c.firstName || '', c.lastName || '', c.photo || null,
-      c.email || null, c.mediaKit || null, c.birthday || null,
-      c.location || null, c.lat ?? null, c.lng ?? null,
-      c.notes || null, c.createdAt, c.updatedAt
-    ],
-    platforms: Object.entries(c.platforms && typeof c.platforms === 'object' ? c.platforms : {}).map(
-      ([platform, data]) => [c.id, platform, data.handle || '', data.url || '', data.followers ?? null]
-    ),
-    niches: (c.niches || []).map(n => [c.id, n]),
-    demographics: (c.demographics || []).map(d => [c.id, d])
+    id: c.id,
+    first_name: c.firstName || '',
+    last_name: c.lastName || '',
+    photo: c.photo || null,
+    email: c.email || null,
+    media_kit: c.mediaKit || null,
+    birthday: c.birthday || null,
+    location: c.location || null,
+    lat: c.lat ?? null,
+    lng: c.lng ?? null,
+    notes: c.notes || null,
+    created_at: c.createdAt,
+    updated_at: c.updatedAt
   };
 }
 
-function rowsToCreator(row, platformRows, nicheRows, demoRows) {
+function rowToCreator(row, platformRows, nicheRows, demoRows) {
   const platforms = {};
   platformRows.forEach(p => {
     platforms[p.platform] = {
@@ -171,11 +45,11 @@ function rowsToCreator(row, platformRows, nicheRows, demoRows) {
 
   return {
     id: row.id,
-    firstName: row.firstName || '',
-    lastName: row.lastName || '',
+    firstName: row.first_name || '',
+    lastName: row.last_name || '',
     photo: row.photo || null,
     email: row.email || null,
-    mediaKit: row.mediaKit || null,
+    mediaKit: row.media_kit || null,
     birthday: row.birthday || null,
     platforms,
     niches: nicheRows.map(n => n.niche),
@@ -184,59 +58,60 @@ function rowsToCreator(row, platformRows, nicheRows, demoRows) {
     lat: row.lat,
     lng: row.lng,
     notes: row.notes || null,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
-// Helper: run a SELECT and return array of objects
-function queryAll(sql, params) {
-  const stmt = sqlDb.prepare(sql);
-  if (params) stmt.bind(params);
-  const results = [];
-  while (stmt.step()) {
-    results.push(stmt.getAsObject());
-  }
-  stmt.free();
-  return results;
-}
-
-// Helper: run a statement (INSERT/UPDATE/DELETE)
-function run(sql, params) {
-  sqlDb.run(sql, params);
+function creatorRelatedRows(c) {
+  const platforms = Object.entries(c.platforms && typeof c.platforms === 'object' ? c.platforms : {}).map(
+    ([platform, data]) => ({
+      creator_id: c.id,
+      platform,
+      handle: data.handle || '',
+      url: data.url || '',
+      followers: data.followers ?? null
+    })
+  );
+  const niches = (c.niches || []).map(niche => ({ creator_id: c.id, niche }));
+  const demographics = (c.demographics || []).map(demographic => ({ creator_id: c.id, demographic }));
+  return { platforms, niches, demographics };
 }
 
 // ── Public API: db ──
 
 const db = {
-  load() {
-    const creatorRows = queryAll('SELECT * FROM creators');
-    if (creatorRows.length === 0) return [];
+  async load() {
+    const [{ data: rows, error: e1 }, { data: platforms }, { data: niches }, { data: demos }] = await Promise.all([
+      _supabase.from('creators').select('*'),
+      _supabase.from('creator_platforms').select('*'),
+      _supabase.from('creator_niches').select('*'),
+      _supabase.from('creator_demographics').select('*')
+    ]);
 
-    const allPlatforms = queryAll('SELECT * FROM creator_platforms');
-    const allNiches = queryAll('SELECT * FROM creator_niches');
-    const allDemos = queryAll('SELECT * FROM creator_demographics');
+    if (e1) { console.error('Failed to load creators:', e1); return []; }
+    if (!rows || rows.length === 0) return [];
 
     // Build lookup maps
     const platformMap = {};
-    allPlatforms.forEach(p => {
-      if (!platformMap[p.creatorId]) platformMap[p.creatorId] = [];
-      platformMap[p.creatorId].push(p);
+    (platforms || []).forEach(p => {
+      if (!platformMap[p.creator_id]) platformMap[p.creator_id] = [];
+      platformMap[p.creator_id].push(p);
     });
 
     const nicheMap = {};
-    allNiches.forEach(n => {
-      if (!nicheMap[n.creatorId]) nicheMap[n.creatorId] = [];
-      nicheMap[n.creatorId].push(n);
+    (niches || []).forEach(n => {
+      if (!nicheMap[n.creator_id]) nicheMap[n.creator_id] = [];
+      nicheMap[n.creator_id].push(n);
     });
 
     const demoMap = {};
-    allDemos.forEach(d => {
-      if (!demoMap[d.creatorId]) demoMap[d.creatorId] = [];
-      demoMap[d.creatorId].push(d);
+    (demos || []).forEach(d => {
+      if (!demoMap[d.creator_id]) demoMap[d.creator_id] = [];
+      demoMap[d.creator_id].push(d);
     });
 
-    return creatorRows.map(row => rowsToCreator(
+    return rows.map(row => rowToCreator(
       row,
       platformMap[row.id] || [],
       nicheMap[row.id] || [],
@@ -244,108 +119,124 @@ const db = {
     ));
   },
 
-  save(creators) {
-    // Wrap in a transaction for speed
-    run('BEGIN TRANSACTION');
+  async save(creators) {
     try {
-      run('DELETE FROM creator_demographics');
-      run('DELETE FROM creator_niches');
-      run('DELETE FROM creator_platforms');
-      run('DELETE FROM creators');
+      // Full wipe and re-insert (used for reset/import)
+      await _supabase.from('creators').delete().not('id', 'is', null);
 
-      const insertCreator = sqlDb.prepare(
-        `INSERT INTO creators (id, firstName, lastName, photo, email, mediaKit, birthday,
-         location, lat, lng, notes, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      );
-      const insertPlatform = sqlDb.prepare(
-        `INSERT INTO creator_platforms (creatorId, platform, handle, url, followers)
-         VALUES (?, ?, ?, ?, ?)`
-      );
-      const insertNiche = sqlDb.prepare(
-        `INSERT INTO creator_niches (creatorId, niche) VALUES (?, ?)`
-      );
-      const insertDemo = sqlDb.prepare(
-        `INSERT INTO creator_demographics (creatorId, demographic) VALUES (?, ?)`
-      );
+      if (creators.length === 0) return;
 
+      const mainRows = creators.map(creatorToRow);
+      const { error } = await _supabase.from('creators').upsert(mainRows);
+      if (error) throw error;
+
+      // Batch insert all related data
+      const allPlatforms = [];
+      const allNiches = [];
+      const allDemos = [];
       creators.forEach(c => {
-        const rows = creatorToRows(c);
-        insertCreator.run(rows.main);
-        rows.platforms.forEach(p => insertPlatform.run(p));
-        rows.niches.forEach(n => insertNiche.run(n));
-        rows.demographics.forEach(d => insertDemo.run(d));
+        const related = creatorRelatedRows(c);
+        allPlatforms.push(...related.platforms);
+        allNiches.push(...related.niches);
+        allDemos.push(...related.demographics);
       });
 
-      insertCreator.free();
-      insertPlatform.free();
-      insertNiche.free();
-      insertDemo.free();
-
-      run('COMMIT');
+      await Promise.all([
+        allPlatforms.length ? _supabase.from('creator_platforms').insert(allPlatforms) : null,
+        allNiches.length ? _supabase.from('creator_niches').insert(allNiches) : null,
+        allDemos.length ? _supabase.from('creator_demographics').insert(allDemos) : null
+      ]);
     } catch (e) {
-      run('ROLLBACK');
-      console.error('Failed to save creators:', e);
+      console.error('Failed to save all creators:', e);
     }
   },
 
   persist(creators) {
-    this.save(creators);
-    schedulePersist();
+    // Debounced sync to Supabase — fire and forget
+    clearTimeout(_persistTimeout);
+    _persistTimeout = setTimeout(() => {
+      this._syncAll(creators).catch(e => console.error('Persist failed:', e));
+    }, PERSIST_DEBOUNCE_MS);
     if (typeof updateStorageIndicator === 'function') updateStorageIndicator();
   },
 
-  // Save a single creator (upsert) — faster for single-item updates
-  upsert(creator) {
-    run('BEGIN TRANSACTION');
+  async _syncAll(creators) {
     try {
-      // Remove old related data
-      run('DELETE FROM creator_platforms WHERE creatorId = ?', [creator.id]);
-      run('DELETE FROM creator_niches WHERE creatorId = ?', [creator.id]);
-      run('DELETE FROM creator_demographics WHERE creatorId = ?', [creator.id]);
+      // Get existing IDs in Supabase
+      const { data: existing } = await _supabase.from('creators').select('id');
+      const existingIds = new Set((existing || []).map(r => r.id));
+      const currentIds = new Set(creators.map(c => c.id));
 
-      // Upsert main row
-      run(
-        `INSERT OR REPLACE INTO creators (id, firstName, lastName, photo, email, mediaKit, birthday,
-         location, lat, lng, notes, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [creator.id, creator.firstName || '', creator.lastName || '', creator.photo || null,
-         creator.email || null, creator.mediaKit || null, creator.birthday || null,
-         creator.location || null, creator.lat ?? null, creator.lng ?? null,
-         creator.notes || null, creator.createdAt, creator.updatedAt]
-      );
+      // Delete removed creators (CASCADE handles related tables)
+      const toDelete = [...existingIds].filter(id => !currentIds.has(id));
+      if (toDelete.length > 0) {
+        await _supabase.from('creators').delete().in('id', toDelete);
+      }
 
-      // Insert related data
-      const rows = creatorToRows(creator);
-      rows.platforms.forEach(p => {
-        run('INSERT INTO creator_platforms (creatorId, platform, handle, url, followers) VALUES (?, ?, ?, ?, ?)', p);
-      });
-      rows.niches.forEach(n => {
-        run('INSERT INTO creator_niches (creatorId, niche) VALUES (?, ?)', n);
-      });
-      rows.demographics.forEach(d => {
-        run('INSERT INTO creator_demographics (creatorId, demographic) VALUES (?, ?)', d);
+      if (creators.length === 0) return;
+
+      // Upsert all current creators
+      const mainRows = creators.map(creatorToRow);
+      await _supabase.from('creators').upsert(mainRows);
+
+      // Rebuild related data: delete existing, then re-insert
+      const ids = creators.map(c => c.id);
+      await Promise.all([
+        _supabase.from('creator_platforms').delete().in('creator_id', ids),
+        _supabase.from('creator_niches').delete().in('creator_id', ids),
+        _supabase.from('creator_demographics').delete().in('creator_id', ids)
+      ]);
+
+      const allPlatforms = [];
+      const allNiches = [];
+      const allDemos = [];
+      creators.forEach(c => {
+        const related = creatorRelatedRows(c);
+        allPlatforms.push(...related.platforms);
+        allNiches.push(...related.niches);
+        allDemos.push(...related.demographics);
       });
 
-      run('COMMIT');
+      await Promise.all([
+        allPlatforms.length ? _supabase.from('creator_platforms').insert(allPlatforms) : null,
+        allNiches.length ? _supabase.from('creator_niches').insert(allNiches) : null,
+        allDemos.length ? _supabase.from('creator_demographics').insert(allDemos) : null
+      ]);
     } catch (e) {
-      run('ROLLBACK');
+      console.error('Sync to Supabase failed:', e);
+    }
+  },
+
+  async upsert(creator) {
+    try {
+      const { error } = await _supabase.from('creators').upsert(creatorToRow(creator));
+      if (error) throw error;
+
+      // Delete + reinsert related data for this creator
+      await Promise.all([
+        _supabase.from('creator_platforms').delete().eq('creator_id', creator.id),
+        _supabase.from('creator_niches').delete().eq('creator_id', creator.id),
+        _supabase.from('creator_demographics').delete().eq('creator_id', creator.id)
+      ]);
+
+      const related = creatorRelatedRows(creator);
+      await Promise.all([
+        related.platforms.length ? _supabase.from('creator_platforms').insert(related.platforms) : null,
+        related.niches.length ? _supabase.from('creator_niches').insert(related.niches) : null,
+        related.demographics.length ? _supabase.from('creator_demographics').insert(related.demographics) : null
+      ]);
+    } catch (e) {
       console.error('Failed to upsert creator:', e);
     }
   },
 
-  // Delete a single creator
-  delete(creatorId) {
-    run('DELETE FROM creator_demographics WHERE creatorId = ?', [creatorId]);
-    run('DELETE FROM creator_niches WHERE creatorId = ?', [creatorId]);
-    run('DELETE FROM creator_platforms WHERE creatorId = ?', [creatorId]);
-    run('DELETE FROM creators WHERE id = ?', [creatorId]);
+  async delete(creatorId) {
+    // CASCADE handles related tables
+    await _supabase.from('creators').delete().eq('id', creatorId);
   },
 
-  // Get database size in bytes (approximate)
   getSize() {
-    if (!sqlDb) return 0;
-    return sqlDb.export().byteLength;
+    return 0; // Not meaningful for remote DB
   }
 };
 
@@ -354,144 +245,239 @@ const db = {
 const RECYCLE_EXPIRY_DAYS = 7;
 
 const recycleBin = {
-  load() {
+  async load() {
     const cutoff = Date.now() - RECYCLE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    // Purge expired entries
-    run('DELETE FROM recycle_bin WHERE deletedAt < ?', [cutoff]);
-    schedulePersist();
 
-    return queryAll('SELECT * FROM recycle_bin ORDER BY deletedAt DESC').map(row => {
-      const creator = JSON.parse(row.creatorData);
-      creator.deletedAt = row.deletedAt;
+    // Purge expired entries
+    await _supabase.from('recycle_bin').delete().lt('deleted_at', cutoff);
+
+    const { data: rows } = await _supabase.from('recycle_bin')
+      .select('*')
+      .order('deleted_at', { ascending: false });
+
+    const items = (rows || []).map(row => {
+      const creator = row.creator_data;
+      creator.deletedAt = row.deleted_at;
       return creator;
     });
+
+    _recycleBinCount = items.length;
+    return items;
   },
 
-  save(items) {
-    run('DELETE FROM recycle_bin');
-    items.forEach(item => {
-      const { deletedAt, ...creatorData } = item;
-      run(
-        'INSERT INTO recycle_bin (id, creatorData, deletedAt) VALUES (?, ?, ?)',
-        [item.id, JSON.stringify(creatorData), deletedAt]
-      );
+  async add(creator) {
+    const { deletedAt, ...cleanCreator } = creator;
+    await _supabase.from('recycle_bin').upsert({
+      id: creator.id,
+      creator_data: cleanCreator,
+      deleted_at: Date.now()
     });
-    schedulePersist();
+    _recycleBinCount++;
   },
 
-  add(creator) {
-    const { deletedAt, ...cleanCreator } = creator; // strip any existing deletedAt
-    run(
-      'INSERT OR REPLACE INTO recycle_bin (id, creatorData, deletedAt) VALUES (?, ?, ?)',
-      [creator.id, JSON.stringify(cleanCreator), Date.now()]
-    );
-    schedulePersist();
-  },
+  async restore(creatorId) {
+    const { data: rows } = await _supabase.from('recycle_bin')
+      .select('*')
+      .eq('id', creatorId);
 
-  restore(creatorId) {
-    const rows = queryAll('SELECT * FROM recycle_bin WHERE id = ?', [creatorId]);
-    if (rows.length === 0) return null;
+    if (!rows || rows.length === 0) return null;
 
-    const creator = JSON.parse(rows[0].creatorData);
+    const creator = rows[0].creator_data;
     creator.updatedAt = new Date().toISOString();
-    run('DELETE FROM recycle_bin WHERE id = ?', [creatorId]);
-    schedulePersist();
+    await _supabase.from('recycle_bin').delete().eq('id', creatorId);
+    _recycleBinCount = Math.max(0, _recycleBinCount - 1);
     return creator;
   },
 
-  permanentDelete(creatorId) {
-    run('DELETE FROM recycle_bin WHERE id = ?', [creatorId]);
-    schedulePersist();
+  async permanentDelete(creatorId) {
+    await _supabase.from('recycle_bin').delete().eq('id', creatorId);
+    _recycleBinCount = Math.max(0, _recycleBinCount - 1);
   },
 
-  emptyAll() {
-    run('DELETE FROM recycle_bin');
-    schedulePersist();
+  async emptyAll() {
+    await _supabase.from('recycle_bin').delete().not('id', 'is', null);
+    _recycleBinCount = 0;
   },
 
   count() {
-    const cutoff = Date.now() - RECYCLE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-    const rows = queryAll('SELECT COUNT(*) as cnt FROM recycle_bin WHERE deletedAt >= ?', [cutoff]);
-    return rows[0]?.cnt || 0;
+    return _recycleBinCount;
   }
 };
 
-// ── Public API: settings (replaces localStorage key-value for categories, etc.) ──
+// ── Public API: settings (cached in memory, synced to Supabase) ──
 
 function getSetting(key, defaultValue) {
-  const rows = queryAll('SELECT value FROM settings WHERE key = ?', [key]);
-  if (rows.length === 0) return defaultValue;
-  try {
-    return JSON.parse(rows[0].value);
-  } catch {
-    return rows[0].value;
-  }
+  const cached = _settingsCache[key];
+  if (cached === undefined) return defaultValue;
+  return cached;
 }
 
 function setSetting(key, value) {
-  run(
-    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-    [key, JSON.stringify(value)]
-  );
-  schedulePersist();
+  _settingsCache[key] = value;
+  // Fire and forget to Supabase
+  _supabase.from('settings')
+    .upsert({ key, value })
+    .then(({ error }) => {
+      if (error) console.error('Failed to save setting:', key, error);
+    });
 }
 
-// ── localStorage migration ──
+// Force persist — triggers any pending debounced sync immediately
+function flushPersist() {
+  // No-op for Supabase — writes are already remote
+}
 
-function migrateFromLocalStorage() {
-  // Check if there's existing localStorage data to migrate
-  const oldCreators = localStorage.getItem('creator_roster_data');
-  if (!oldCreators) return false;
+// ── Migration from old SQLite/IndexedDB ──
 
-  console.log('Migrating from localStorage to SQLite...');
-
+async function _migrateFromIndexedDB() {
   try {
-    // Migrate creators
-    const creators = JSON.parse(oldCreators);
-    if (Array.isArray(creators) && creators.length > 0) {
-      db.save(creators);
+    if (typeof initSqlJs === 'undefined') {
+      console.log('sql.js not available — skipping IndexedDB migration');
+      return false;
     }
 
-    // Migrate recycle bin
-    const oldBin = localStorage.getItem('creator_roster_recyclebin');
-    if (oldBin) {
-      const binItems = JSON.parse(oldBin);
-      if (Array.isArray(binItems)) {
-        binItems.forEach(item => {
-          const { deletedAt, ...creatorData } = item;
-          run(
-            'INSERT OR REPLACE INTO recycle_bin (id, creatorData, deletedAt) VALUES (?, ?, ?)',
-            [item.id, JSON.stringify(creatorData), deletedAt || Date.now()]
-          );
-        });
+    // Try to load old database from IndexedDB
+    const savedData = await new Promise((resolve) => {
+      const req = indexedDB.open('creator_roster', 1);
+      req.onupgradeneeded = () => {
+        const idb = req.result;
+        if (!idb.objectStoreNames.contains('sqliteDb')) {
+          idb.createObjectStore('sqliteDb');
+        }
+      };
+      req.onsuccess = () => {
+        const idb = req.result;
+        try {
+          const tx = idb.transaction('sqliteDb', 'readonly');
+          const store = tx.objectStore('sqliteDb');
+          const getReq = store.get('main');
+          getReq.onsuccess = () => resolve(getReq.result || null);
+          getReq.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      };
+      req.onerror = () => resolve(null);
+    });
+
+    if (!savedData) {
+      console.log('No IndexedDB data found — nothing to migrate');
+      return false;
+    }
+
+    console.log('Found old SQLite data in IndexedDB. Migrating to Supabase...');
+    if (typeof showToast === 'function') showToast('Migrating data to cloud...', 'info');
+
+    // Load old SQLite database
+    const SQL = await initSqlJs({
+      locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${file}`
+    });
+    const oldDb = new SQL.Database(new Uint8Array(savedData));
+
+    function oldQueryAll(sql) {
+      try {
+        const stmt = oldDb.prepare(sql);
+        const results = [];
+        while (stmt.step()) results.push(stmt.getAsObject());
+        stmt.free();
+        return results;
+      } catch (e) {
+        return [];
       }
+    }
+
+    const oldCreators = oldQueryAll('SELECT * FROM creators');
+    const oldPlatforms = oldQueryAll('SELECT * FROM creator_platforms');
+    const oldNiches = oldQueryAll('SELECT * FROM creator_niches');
+    const oldDemos = oldQueryAll('SELECT * FROM creator_demographics');
+    const oldBin = oldQueryAll('SELECT * FROM recycle_bin');
+    const oldSettings = oldQueryAll('SELECT * FROM settings');
+
+    if (oldCreators.length === 0) {
+      console.log('No creators in old database');
+      oldDb.close();
+      return false;
+    }
+
+    console.log(`Migrating ${oldCreators.length} creators...`);
+
+    // Build lookup maps from old data
+    const platformMap = {};
+    oldPlatforms.forEach(p => {
+      if (!platformMap[p.creatorId]) platformMap[p.creatorId] = [];
+      platformMap[p.creatorId].push(p);
+    });
+
+    const nicheMap = {};
+    oldNiches.forEach(n => {
+      if (!nicheMap[n.creatorId]) nicheMap[n.creatorId] = [];
+      nicheMap[n.creatorId].push(n);
+    });
+
+    const demoMap = {};
+    oldDemos.forEach(d => {
+      if (!demoMap[d.creatorId]) demoMap[d.creatorId] = [];
+      demoMap[d.creatorId].push(d);
+    });
+
+    // Convert old format to app format
+    const creators = oldCreators.map(row => ({
+      id: row.id,
+      firstName: row.firstName || '',
+      lastName: row.lastName || '',
+      photo: row.photo || null,
+      email: row.email || null,
+      mediaKit: row.mediaKit || null,
+      birthday: row.birthday || null,
+      platforms: (() => {
+        const p = {};
+        (platformMap[row.id] || []).forEach(pr => {
+          p[pr.platform] = { handle: pr.handle || '', url: pr.url || '', followers: pr.followers };
+        });
+        return p;
+      })(),
+      niches: (nicheMap[row.id] || []).map(n => n.niche),
+      demographics: (demoMap[row.id] || []).map(d => d.demographic),
+      location: row.location || null,
+      lat: row.lat,
+      lng: row.lng,
+      notes: row.notes || null,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt
+    }));
+
+    // Write to Supabase
+    await db.save(creators);
+
+    // Migrate recycle bin
+    if (oldBin.length > 0) {
+      const binRows = oldBin.map(row => ({
+        id: row.id,
+        creator_data: JSON.parse(row.creatorData),
+        deleted_at: row.deletedAt
+      }));
+      await _supabase.from('recycle_bin').upsert(binRows);
+      _recycleBinCount = binRows.length;
     }
 
     // Migrate settings
-    const settingsKeys = [
-      'creator_roster_niche_categories',
-      'creator_roster_demographic_categories',
-      'deletedNiches',
-      'deletedDemographics'
-    ];
+    if (oldSettings.length > 0) {
+      const settingsRows = oldSettings.map(s => {
+        let value;
+        try { value = JSON.parse(s.value); } catch { value = s.value; }
+        return { key: s.key, value };
+      });
+      await _supabase.from('settings').upsert(settingsRows);
+      settingsRows.forEach(s => { _settingsCache[s.key] = s.value; });
+    }
 
-    settingsKeys.forEach(key => {
-      const val = localStorage.getItem(key);
-      if (val) {
-        setSetting(key, JSON.parse(val));
-      }
-    });
-
-    // Persist immediately
-    flushPersist();
-
-    // Clear old localStorage (keep a migration flag)
-    localStorage.setItem('creator_roster_migrated_to_sqlite', 'true');
-
+    oldDb.close();
     console.log('Migration complete!');
+    if (typeof showToast === 'function') showToast(`Migrated ${creators.length} creators to cloud!`, 'success');
     return true;
   } catch (e) {
-    console.error('Migration failed:', e);
+    console.error('Migration from IndexedDB failed:', e);
+    if (typeof showToast === 'function') showToast('Migration failed — check console', 'error');
     return false;
   }
 }
@@ -499,34 +485,28 @@ function migrateFromLocalStorage() {
 // ── Initialization ──
 
 async function initDatabase() {
-  if (typeof initSqlJs === 'undefined') {
-    throw new Error('sql.js not loaded — check script tag in index.html');
+  if (typeof window.supabase === 'undefined') {
+    throw new Error('Supabase client not loaded — check script tag in index.html');
   }
 
-  // Load sql.js WASM
-  const SQL = await initSqlJs({
-    locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${file}`
+  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Load settings into cache
+  const { data: settingsRows } = await _supabase.from('settings').select('*');
+  (settingsRows || []).forEach(s => {
+    _settingsCache[s.key] = s.value;
   });
 
-  // Try loading existing DB from IndexedDB
-  const savedData = await loadFromIndexedDB();
-  if (savedData) {
-    try {
-      sqlDb = new SQL.Database(new Uint8Array(savedData));
-      // Ensure schema is up to date (IF NOT EXISTS is safe)
-      createSchema();
-    } catch (e) {
-      console.error('Failed to load saved DB, creating new:', e);
-      sqlDb = new SQL.Database();
-      createSchema();
-      migrateFromLocalStorage();
-    }
-  } else {
-    sqlDb = new SQL.Database();
-    createSchema();
-    migrateFromLocalStorage();
-  }
+  // Load recycle bin count
+  const { count } = await _supabase.from('recycle_bin')
+    .select('*', { count: 'exact', head: true });
+  _recycleBinCount = count || 0;
 
-  // Persist on page unload
-  window.addEventListener('beforeunload', flushPersist);
+  // Check if Supabase has any creators — if not, try migration from old IndexedDB
+  const { count: creatorCount } = await _supabase.from('creators')
+    .select('*', { count: 'exact', head: true });
+
+  if (creatorCount === 0) {
+    await _migrateFromIndexedDB();
+  }
 }

@@ -139,9 +139,6 @@ module.exports = async function handler(req, res) {
       const creators = creatorsFromJson.map(normalizeCreator).filter(Boolean);
       console.log('[scraper] Returning', creators.length, 'creators from JSON data');
 
-      // ── Resolve missing handles by following short/channel URLs ──
-      await resolveHandles(creators);
-
       return res.status(200).json({
         success: true,
         source: 'json',
@@ -436,8 +433,8 @@ function normalizeCreator(raw) {
       platforms[finalName] = {
         handle,
         url,
-        followers: p.size || null,
-        engagementRate: p.engagementRate || null
+        followers: p.size ?? null,
+        engagementRate: p.engagementRate ?? p.engagement_rate ?? p.engagement ?? null
       };
     });
   }
@@ -460,12 +457,19 @@ function normalizeCreator(raw) {
     location = raw.location;
   }
 
+  // ── Coordinates ──
+  // Pass through any lat/lng July provides so we don't need to re-geocode
+  const lat = raw.lat ?? raw.latitude ?? raw.coordinates?.lat ?? raw.geo?.lat ?? null;
+  const lng = raw.lng ?? raw.lon ?? raw.longitude ?? raw.coordinates?.lng ?? raw.coordinates?.lon ?? raw.geo?.lng ?? raw.geo?.lon ?? null;
+
   return {
     name,
     photo,
     platforms,
     niches,
     location,
+    lat: lat !== null ? parseFloat(lat) : null,
+    lng: lng !== null ? parseFloat(lng) : null,
     bio: raw.bio || raw.description || null,
     detailUrl: null, // roster page has all the data we need
     username: raw.username || null,
@@ -514,15 +518,23 @@ async function resolveHandles(creators) {
   if (tasks.length === 0) return;
   console.log(`[scraper] Resolving ${tasks.length} platform handles...`);
 
-  // Process in batches of 15 to avoid overwhelming servers
-  const BATCH = 15;
+  // Helper: fetch with a per-request timeout (AbortController)
+  function fetchWithTimeout(url, opts = {}, timeoutMs = 4000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...opts, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+  }
+
+  // Process in batches of 10 with per-request timeouts to stay within Vercel limits
+  const BATCH = 10;
   for (let i = 0; i < tasks.length; i += BATCH) {
     const batch = tasks.slice(i, i + BATCH);
     await Promise.allSettled(batch.map(async (task) => {
       try {
         if (task.type === 'redirect') {
           // Follow redirect to get final URL (TikTok short links → tiktok.com/@handle)
-          const resp = await fetch(task.data.url, { method: 'HEAD', redirect: 'follow' });
+          const resp = await fetchWithTimeout(task.data.url, { method: 'HEAD', redirect: 'follow' }, 4000);
           const finalUrl = resp.url;
           const handle = extractHandle(finalUrl);
           if (handle) {
@@ -531,9 +543,9 @@ async function resolveHandles(creators) {
           }
         } else if (task.type === 'youtube-channel') {
           // Fetch YouTube channel page and look for @handle in the HTML
-          const resp = await fetch(task.data.url, {
+          const resp = await fetchWithTimeout(task.data.url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' }
-          });
+          }, 5000);
           const html = await resp.text();
           // YouTube embeds the canonical @handle URL in the page
           const handleMatch = html.match(/youtube\.com\/@([^"'<\s]+)/i);
@@ -542,7 +554,7 @@ async function resolveHandles(creators) {
           }
         }
       } catch (e) {
-        // Skip failed resolutions silently
+        // Skip failed/timed-out resolutions silently
       }
     }));
   }

@@ -1775,6 +1775,7 @@ function updateMapMarkers() {
       const tooltipText = (isDispatch && hasDispatchFilters) ?
         `${getFullName(creator)} (${scoreText})` :
         getFullName(creator);
+      marker._tooltipText = tooltipText;
       marker.bindTooltip(tooltipText, {
         direction: 'top',
         offset: [0, -30],
@@ -1869,6 +1870,16 @@ function _arrangeMarkerRings() {
       const inner = el.querySelector('.marker-inner');
       if (inner) inner.style.transform = '';
     }
+    // Reset tooltip offset to default
+    if (info.marker._tooltipText) {
+      info.marker.unbindTooltip();
+      info.marker.bindTooltip(info.marker._tooltipText, {
+        direction: 'top',
+        offset: [0, -30],
+        className: 'creator-tooltip',
+        opacity: 1
+      });
+    }
   });
   _ringFormations = [];
 
@@ -1931,7 +1942,7 @@ function _arrangeMarkerRings() {
       const offsetX = Math.cos(angle) * ringRadius - (entry.px.x - cx);
       const offsetY = Math.sin(angle) * ringRadius - (entry.px.y - cy);
 
-      _ringFormations.push({ marker: entry.marker });
+      _ringFormations.push({ marker: entry.marker, offsetX, offsetY });
 
       const el = entry.marker.getElement();
       if (el) {
@@ -1940,6 +1951,14 @@ function _arrangeMarkerRings() {
           inner.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
         }
       }
+      // Shift tooltip to follow the visually offset pin
+      entry.marker.unbindTooltip();
+      entry.marker.bindTooltip(entry.marker._tooltipText || '', {
+        direction: 'top',
+        offset: [offsetX, offsetY - 30],
+        className: 'creator-tooltip',
+        opacity: 1
+      });
     });
   });
 }

@@ -39,7 +39,8 @@ function rowToCreator(row, platformRows, nicheRows, demoRows) {
     platforms[p.platform] = {
       handle: p.handle || '',
       url: p.url || '',
-      followers: p.followers
+      followers: p.followers,
+      engagementRate: p.engagement_rate ?? null
     };
   });
 
@@ -70,7 +71,8 @@ function creatorRelatedRows(c) {
       platform,
       handle: data.handle || '',
       url: data.url || '',
-      followers: data.followers ?? null
+      followers: data.followers ?? null,
+      engagement_rate: data.engagementRate ?? null
     })
   );
   const niches = (c.niches || []).map(niche => ({ creator_id: c.id, niche }));

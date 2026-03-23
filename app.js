@@ -1875,7 +1875,7 @@ function _arrangeMarkerRings() {
   // Only form rings when zoomed in enough that co-located pins actually overlap.
   // At wide zoom, markers stay at their real positions — no grouping needed.
   const zoom = map.getZoom();
-  if (zoom < 7) return;
+  if (zoom < 5) return;
 
   const entries = [];
   for (const id in markers) {
@@ -1887,7 +1887,7 @@ function _arrangeMarkerRings() {
 
   // Threshold: how close (in pixels) markers need to be to form a ring
   // At high zoom only truly co-located markers should group
-  const threshold = Math.max(20, 50 - (zoom - 7) * 5);
+  const threshold = Math.max(20, 50 - (zoom - 5) * 5);
 
   // Find groups of overlapping markers
   const groups = [];

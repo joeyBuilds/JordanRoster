@@ -1493,7 +1493,7 @@ body.dispatch-mode .title-amp {
 }
 .creator-meta-chip {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 4px;
   font-size: 11px;
   font-weight: 500;
@@ -1508,6 +1508,15 @@ body.dispatch-mode .title-amp {
 .meta-dot.ig { background: var(--color-instagram); }
 .meta-dot.tt { background: var(--color-tiktok); }
 .meta-dot.yt { background: var(--color-youtube); }
+.creator-meta-chip.ig { color: var(--color-instagram); }
+.creator-meta-chip.tt { color: var(--color-tiktok); }
+.creator-meta-chip.yt { color: var(--color-youtube); }
+.eng-inline {
+  font-size: 9px;
+  opacity: 0.55;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
 
 .creator-meta-links {
   display: flex;

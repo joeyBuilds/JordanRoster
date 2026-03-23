@@ -298,9 +298,15 @@ function migratePlatforms(creator) {
 }
 
 function getCreatorPlatforms(creator) {
-  if (Array.isArray(creator.platforms)) return creator.platforms;
-  if (creator.platforms && typeof creator.platforms === 'object') return Object.keys(creator.platforms);
-  return [];
+  let list;
+  if (Array.isArray(creator.platforms)) list = creator.platforms;
+  else if (creator.platforms && typeof creator.platforms === 'object') list = Object.keys(creator.platforms);
+  else return [];
+  // Always return in canonical order: Instagram → TikTok → YouTube
+  return list.slice().sort((a, b) => {
+    const ia = PLATFORMS.indexOf(a), ib = PLATFORMS.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
 }
 
 function getHandle(creator, platform) {
@@ -716,21 +722,18 @@ function renderCreatorCard(creator) {
   body.appendChild(location);
 
   // Platform meta line — compact dots + follower counts
-  const platforms = getCreatorPlatforms(creator).slice().sort((a, b) => {
-    const ia = PLATFORMS.indexOf(a), ib = PLATFORMS.indexOf(b);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
+  const platforms = getCreatorPlatforms(creator);
   if (platforms.length > 0) {
     const metaLine = document.createElement('div');
     metaLine.className = 'creator-meta-line';
     platforms.forEach((p, idx) => {
       const chip = document.createElement('div');
-      chip.className = 'creator-meta-chip';
       const dotClass = p === 'Instagram' ? 'ig' : p === 'TikTok' ? 'tt' : p === 'YouTube' ? 'yt' : '';
+      chip.className = 'creator-meta-chip ' + dotClass;
       const followers = getFollowers(creator, p);
       const followerText = followers !== null ? formatFollowers(followers) : p;
       const engRate = getEngagementRate(creator, p);
-      const engText = engRate !== null ? ` <span class="eng-inline">&middot; ${formatEngagementRate(engRate)}</span>` : '';
+      const engText = engRate !== null ? ` <span class="eng-inline">${formatEngagementRate(engRate)}</span>` : '';
       chip.innerHTML = `<span class="meta-dot ${dotClass}"></span>${followerText}${engText}`;
       metaLine.appendChild(chip);
     });

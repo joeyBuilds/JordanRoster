@@ -3058,7 +3058,9 @@ a.creator-platform-chip:hover {
 .ring-scrim {
   position: fixed;
   z-index: 999;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;

@@ -1959,8 +1959,15 @@ function showDetailPanel(creatorId) {
 
   currentEditingCreator = creatorId;
 
-  // No map zoom — just render the ring right where the pin is
-  renderRing(creator);
+  // Pan map to center the creator so ring elements don't get clipped
+  if (creator.lat && creator.lng) {
+    const marker = markers[creator.id];
+    const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
+    map.once('moveend', () => renderRing(creator));
+    map.panTo(latLng, { animate: true, duration: 0.3 });
+  } else {
+    renderRing(creator);
+  }
 }
 
 function renderRing(creator) {

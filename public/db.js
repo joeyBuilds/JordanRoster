@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS creator_platforms (
   handle TEXT DEFAULT '',
   url TEXT DEFAULT '',
   followers INTEGER,
+  engagementRate REAL,
   PRIMARY KEY (creatorId, platform)
 );
 
@@ -139,6 +140,8 @@ CREATE INDEX IF NOT EXISTS idx_creators_lat_lng ON creators(lat, lng);
 function createSchema() {
   // exec() supports multiple statements; run() only executes the first one
   sqlDb.exec(SCHEMA_SQL);
+  // Migrate: add engagementRate column if upgrading from older schema
+  try { run('ALTER TABLE creator_platforms ADD COLUMN engagementRate REAL'); } catch (_) { /* already exists */ }
 }
 
 // ── Creator object ↔ SQL ──
@@ -152,7 +155,7 @@ function creatorToRows(c) {
       c.notes || null, c.createdAt, c.updatedAt
     ],
     platforms: Object.entries(c.platforms && typeof c.platforms === 'object' ? c.platforms : {}).map(
-      ([platform, data]) => [c.id, platform, data.handle || '', data.url || '', data.followers ?? null]
+      ([platform, data]) => [c.id, platform, data.handle || '', data.url || '', data.followers ?? null, data.engagementRate ?? null]
     ),
     niches: (c.niches || []).map(n => [c.id, n]),
     demographics: (c.demographics || []).map(d => [c.id, d])
@@ -165,7 +168,8 @@ function rowsToCreator(row, platformRows, nicheRows, demoRows) {
     platforms[p.platform] = {
       handle: p.handle || '',
       url: p.url || '',
-      followers: p.followers
+      followers: p.followers,
+      engagementRate: p.engagementRate ?? null
     };
   });
 
@@ -259,8 +263,8 @@ const db = {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       const insertPlatform = sqlDb.prepare(
-        `INSERT INTO creator_platforms (creatorId, platform, handle, url, followers)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO creator_platforms (creatorId, platform, handle, url, followers, engagementRate)
+         VALUES (?, ?, ?, ?, ?, ?)`
       );
       const insertNiche = sqlDb.prepare(
         `INSERT INTO creator_niches (creatorId, niche) VALUES (?, ?)`

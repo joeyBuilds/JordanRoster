@@ -1923,7 +1923,7 @@ function _arrangeMarkerRings() {
 
     // Ring radius scales with group size — enough room for avatar circles
     const markerSize = 28 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marker-scale')) || 1);
-    const ringRadius = Math.max(markerSize + 4, group.length * (markerSize * 0.55));
+    const ringRadius = Math.max(markerSize * 0.75, group.length * (markerSize * 0.35));
 
     // Place each marker around the ring via CSS transform on inner element
     group.forEach((entry, i) => {

@@ -1862,17 +1862,17 @@ function updateRosterMarkerFading() {
 let _ringFormations = []; // track offset markers for cleanup
 
 function _arrangeMarkerRings() {
-  // Reset any previous offsets
+  // Reset any previous CSS offsets
   _ringFormations.forEach(info => {
-    if (info.marker && info.originalLatLng) {
-      info.marker.setLatLng(info.originalLatLng);
+    const el = info.marker.getElement();
+    if (el) {
+      const inner = el.querySelector('.marker-inner');
+      if (inner) inner.style.transform = '';
     }
   });
   _ringFormations = [];
 
-  // Don't arrange rings at low zoom — pixel offsets become huge geographic jumps
   const zoom = map.getZoom();
-  if (zoom < 8) return;
   const entries = [];
   for (const id in markers) {
     const m = markers[id];
@@ -1908,7 +1908,8 @@ function _arrangeMarkerRings() {
     }
   }
 
-  // For each group, arrange markers in a ring around their centroid
+  // For each group, arrange markers in a ring using CSS transforms (not lat/lng changes)
+  // This prevents geographic displacement at any zoom level
   groups.forEach(group => {
     // Calculate centroid in pixel space
     let cx = 0, cy = 0;
@@ -1920,21 +1921,21 @@ function _arrangeMarkerRings() {
     const markerSize = 28 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marker-scale')) || 1);
     const ringRadius = Math.max(markerSize + 4, group.length * (markerSize * 0.55));
 
-    // Place each marker around the ring
+    // Place each marker around the ring via CSS transform on inner element
     group.forEach((entry, i) => {
       const angle = (2 * Math.PI * i / group.length) - Math.PI / 2; // start from top
-      const offsetX = Math.cos(angle) * ringRadius;
-      const offsetY = Math.sin(angle) * ringRadius;
+      const offsetX = Math.cos(angle) * ringRadius - (entry.px.x - cx);
+      const offsetY = Math.sin(angle) * ringRadius - (entry.px.y - cy);
 
-      const targetPx = L.point(cx + offsetX, cy + offsetY);
-      const targetLatLng = map.layerPointToLatLng(targetPx);
+      _ringFormations.push({ marker: entry.marker });
 
-      _ringFormations.push({
-        marker: entry.marker,
-        originalLatLng: entry.latLng
-      });
-
-      entry.marker.setLatLng(targetLatLng);
+      const el = entry.marker.getElement();
+      if (el) {
+        const inner = el.querySelector('.marker-inner');
+        if (inner) {
+          inner.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+        }
+      }
     });
   });
 }

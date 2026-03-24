@@ -1212,7 +1212,8 @@ function renderDispatchFilterPills() {
       filtered.forEach(item => {
         const pill = document.createElement('button');
         const isActive = selectedArr.includes(item);
-        pill.className = 'dispatch-pill' + (isActive ? ` active ${type}` : '');
+        const colorClass = getCategoryColorClass(catName);
+        pill.className = 'dispatch-pill cat-' + colorClass + (isActive ? ` active ${type}` : '');
         pill.textContent = item;
         pill.addEventListener('click', () => onToggle(item));
         pills.appendChild(pill);
@@ -1240,7 +1241,7 @@ function renderDispatchFilterPills() {
       filteredUncat.forEach(item => {
         const pill = document.createElement('button');
         const isActive = selectedArr.includes(item);
-        pill.className = 'dispatch-pill' + (isActive ? ` active ${type}` : '');
+        pill.className = 'dispatch-pill cat-other' + (isActive ? ` active ${type}` : '');
         pill.textContent = item;
         pill.addEventListener('click', () => onToggle(item));
         pills.appendChild(pill);

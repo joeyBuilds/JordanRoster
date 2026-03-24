@@ -2674,6 +2674,39 @@ a.creator-platform-chip:hover {
   font-weight: 600;
   animation: pillBounce 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+/* Category-colored dispatch pills — subtle tint at rest, vivid when active */
+.dispatch-pill.cat-entertainment { border-color: rgba(187,130,180,0.25); color: rgba(187,130,180,0.85); }
+.dispatch-pill.cat-lifestyle     { border-color: rgba(200,170,120,0.25); color: rgba(200,170,120,0.85); }
+.dispatch-pill.cat-food          { border-color: rgba(200,140,100,0.25); color: rgba(200,140,100,0.85); }
+.dispatch-pill.cat-travel        { border-color: rgba(120,170,160,0.25); color: rgba(120,170,160,0.85); }
+.dispatch-pill.cat-people        { border-color: rgba(210,160,160,0.25); color: rgba(210,160,160,0.85); }
+.dispatch-pill.cat-fitness       { border-color: rgba(140,180,130,0.25); color: rgba(140,180,130,0.85); }
+.dispatch-pill.cat-home          { border-color: rgba(180,160,130,0.25); color: rgba(180,160,130,0.85); }
+.dispatch-pill.cat-tech          { border-color: rgba(130,160,190,0.25); color: rgba(130,160,190,0.85); }
+.dispatch-pill.cat-creative      { border-color: rgba(170,150,200,0.25); color: rgba(170,150,200,0.85); }
+.dispatch-pill.cat-identity      { border-color: rgba(180,140,180,0.25); color: rgba(180,140,180,0.85); }
+.dispatch-pill.cat-culture       { border-color: rgba(140,165,180,0.25); color: rgba(140,165,180,0.85); }
+.dispatch-pill.cat-age           { border-color: rgba(170,155,140,0.25); color: rgba(170,155,140,0.85); }
+.dispatch-pill.cat-representation{ border-color: rgba(155,175,155,0.25); color: rgba(155,175,155,0.85); }
+.dispatch-pill.cat-other         { border-color: rgba(160,155,150,0.2);  color: rgba(160,155,150,0.75); }
+
+/* Active states — filled background matching category */
+.dispatch-pill.active.cat-entertainment { background: rgba(187,130,180,0.25); border-color: rgba(187,130,180,0.6); color: rgb(220,175,215); }
+.dispatch-pill.active.cat-lifestyle     { background: rgba(200,170,120,0.25); border-color: rgba(200,170,120,0.6); color: rgb(225,200,155); }
+.dispatch-pill.active.cat-food          { background: rgba(200,140,100,0.25); border-color: rgba(200,140,100,0.6); color: rgb(225,175,140); }
+.dispatch-pill.active.cat-travel        { background: rgba(120,170,160,0.25); border-color: rgba(120,170,160,0.6); color: rgb(160,205,195); }
+.dispatch-pill.active.cat-people        { background: rgba(210,160,160,0.25); border-color: rgba(210,160,160,0.6); color: rgb(230,190,190); }
+.dispatch-pill.active.cat-fitness       { background: rgba(140,180,130,0.25); border-color: rgba(140,180,130,0.6); color: rgb(175,210,165); }
+.dispatch-pill.active.cat-home          { background: rgba(180,160,130,0.25); border-color: rgba(180,160,130,0.6); color: rgb(210,195,170); }
+.dispatch-pill.active.cat-tech          { background: rgba(130,160,190,0.25); border-color: rgba(130,160,190,0.6); color: rgb(170,195,220); }
+.dispatch-pill.active.cat-creative      { background: rgba(170,150,200,0.25); border-color: rgba(170,150,200,0.6); color: rgb(200,185,225); }
+.dispatch-pill.active.cat-identity      { background: rgba(180,140,180,0.25); border-color: rgba(180,140,180,0.6); color: rgb(210,175,210); }
+.dispatch-pill.active.cat-culture       { background: rgba(140,165,180,0.25); border-color: rgba(140,165,180,0.6); color: rgb(175,200,215); }
+.dispatch-pill.active.cat-age           { background: rgba(170,155,140,0.25); border-color: rgba(170,155,140,0.6); color: rgb(205,190,175); }
+.dispatch-pill.active.cat-representation{ background: rgba(155,175,155,0.25); border-color: rgba(155,175,155,0.6); color: rgb(190,210,190); }
+.dispatch-pill.active.cat-other         { background: rgba(160,155,150,0.2);  border-color: rgba(160,155,150,0.5); color: rgb(195,190,185); }
+
+/* Legacy active styles as fallback */
 .dispatch-pill.active.niche {
   background: rgba(var(--tag-niche-rgb), 0.22);
   border-color: rgba(var(--tag-niche-rgb), 0.55);

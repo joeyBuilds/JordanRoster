@@ -1972,7 +1972,8 @@ function _arrangeMarkerRings() {
       if (el) {
         const inner = el.querySelector('.marker-inner');
         if (inner) {
-          inner.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+          const scale = getComputedStyle(document.documentElement).getPropertyValue('--marker-scale') || '1';
+          inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
         }
       }
       // Shift tooltip to follow the visually offset pin

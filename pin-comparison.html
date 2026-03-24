@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pin Visibility Comparison</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg-primary: #F7F0E8;
+    --bg-secondary: #FFF9F4;
+    --accent: #C8907E;
+    --text-primary: #4E3D36;
+    --text-secondary: #7D6B63;
+  }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+  }
+  header {
+    text-align: center;
+    padding: 36px 20px 8px;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 24px 32px 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .card {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(78,61,54,0.08);
+    position: relative;
+  }
+  .card.current { outline: 2.5px solid var(--accent); }
+  .card.current::after {
+    content: 'CURRENT';
+    position: absolute; top: 12px; right: 12px; z-index: 1000;
+    background: var(--accent); color: white;
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em;
+    padding: 3px 10px; border-radius: 10px;
+  }
+  .map-box { height: 320px; width: 100%; }
+  .card-info { padding: 16px 20px; }
+  .card-info h3 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 500; font-size: 1.1rem; margin-bottom: 4px;
+  }
+  .card-info .desc {
+    font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;
+  }
+
+  /* ===== Option A: Current (baseline) ===== */
+  #mapA .leaflet-tile {
+    filter: brightness(0.97) saturate(1.2) contrast(1.08);
+  }
+  .style-current .avatar-marker {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 2.5px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    background-size: cover; background-position: center;
+  }
+
+  /* ===== Option B: Glow pins, bright map ===== */
+  #mapB .leaflet-tile {
+    filter: brightness(0.97) saturate(1.2) contrast(1.08);
+  }
+  .style-glow .avatar-marker {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.95);
+    box-shadow:
+      0 0 0 2px rgba(200,144,126,0.4),
+      0 2px 12px 2px rgba(0,0,0,0.55),
+      0 0 20px 4px rgba(255,255,255,0.2);
+    background-size: cover; background-position: center;
+  }
+
+  /* ===== Option C: Darker map, same pins ===== */
+  #mapC .leaflet-tile {
+    filter: brightness(0.78) saturate(1.1) contrast(1.12);
+  }
+  .style-dark .avatar-marker {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 2.5px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    background-size: cover; background-position: center;
+  }
+
+  /* ===== Option D: Both combined ===== */
+  #mapD .leaflet-tile {
+    filter: brightness(0.85) saturate(1.15) contrast(1.1);
+  }
+  .style-both .avatar-marker {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.95);
+    box-shadow:
+      0 0 0 2px rgba(200,144,126,0.4),
+      0 2px 12px 2px rgba(0,0,0,0.55),
+      0 0 20px 4px rgba(255,255,255,0.2);
+    background-size: cover; background-position: center;
+  }
+
+  /* Cluster markers per style */
+  .style-current .cluster-marker,
+  .style-dark .cluster-marker {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: rgba(200,144,126,0.75);
+    border: 2.5px solid rgba(255,255,255,0.8);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600; font-size: 0.85rem; color: white;
+  }
+  .style-glow .cluster-marker,
+  .style-both .cluster-marker {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: rgba(200,144,126,0.8);
+    border: 3px solid rgba(255,255,255,0.95);
+    box-shadow:
+      0 0 0 2px rgba(200,144,126,0.4),
+      0 2px 12px 2px rgba(0,0,0,0.55),
+      0 0 20px 4px rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600; font-size: 0.85rem; color: white;
+  }
+
+  .leaflet-tile {
+    margin: -0.5px; padding: 0.5px;
+    outline: 1px solid transparent;
+    will-change: transform;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pin Visibility Options</h1>
+  <p>Compare how creator avatars look with different shadow and brightness treatments on the satellite map.</p>
+</header>
+
+<div class="grid">
+  <!-- A: Current -->
+  <div class="card current">
+    <div class="map-box" id="mapA"></div>
+    <div class="card-info">
+      <h3>Current — No Changes</h3>
+      <div class="desc">Baseline: thin white border + light shadow. Pins can get lost in busy satellite areas.</div>
+    </div>
+  </div>
+
+  <!-- B: Glow pins -->
+  <div class="card">
+    <div class="map-box" id="mapB"></div>
+    <div class="card-info">
+      <h3>Glowing Pins — Bright Map</h3>
+      <div class="desc">Thicker border + warm accent ring + strong drop shadow with a soft white halo. Map stays vivid.</div>
+    </div>
+  </div>
+
+  <!-- C: Darker map -->
+  <div class="card">
+    <div class="map-box" id="mapC"></div>
+    <div class="card-info">
+      <h3>Darker Map — Same Pins</h3>
+      <div class="desc">Map dimmed to ~78% brightness. Pins naturally stand out more. Moodier, more cinematic feel.</div>
+    </div>
+  </div>
+
+  <!-- D: Both -->
+  <div class="card">
+    <div class="map-box" id="mapD"></div>
+    <div class="card-info">
+      <h3>Both — Glow Pins + Dimmed Map</h3>
+      <div class="desc">Moderate dim (~85%) paired with glowing pins. Maximum readability while keeping the imagery beautiful.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const creators = [
+  { lat: 47.61, lng: -122.33, photo: 'https://i.pravatar.cc/80?img=1' },
+  { lat: 34.05, lng: -118.24, photo: 'https://i.pravatar.cc/80?img=2' },
+  { lat: 40.71, lng: -74.00,  photo: 'https://i.pravatar.cc/80?img=3' },
+  { lat: 29.76, lng: -95.37,  photo: 'https://i.pravatar.cc/80?img=4' },
+  { lat: 41.88, lng: -87.63,  photo: 'https://i.pravatar.cc/80?img=5' },
+  { lat: 25.76, lng: -80.19,  photo: 'https://i.pravatar.cc/80?img=6' },
+  { lat: 33.75, lng: -84.39,  photo: 'https://i.pravatar.cc/80?img=7' },
+  { lat: 39.95, lng: -75.17,  photo: 'https://i.pravatar.cc/80?img=8' },
+  // Cluster group — nearby Denver
+  { lat: 39.74, lng: -104.99, photo: 'https://i.pravatar.cc/80?img=9' },
+  { lat: 39.68, lng: -104.85, photo: 'https://i.pravatar.cc/80?img=10' },
+  { lat: 39.80, lng: -105.05, photo: 'https://i.pravatar.cc/80?img=11' },
+];
+
+const styles = [
+  { id: 'mapA', cls: 'style-current' },
+  { id: 'mapB', cls: 'style-glow' },
+  { id: 'mapC', cls: 'style-dark' },
+  { id: 'mapD', cls: 'style-both' },
+];
+
+const tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const labelsUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+
+styles.forEach(s => {
+  const container = document.getElementById(s.id);
+  container.parentElement.classList.add(s.cls);
+
+  const m = L.map(s.id, {
+    center: [38, -97], zoom: 4,
+    zoomControl: false, attributionControl: false,
+    dragging: true, scrollWheelZoom: false
+  });
+
+  L.tileLayer(tileUrl, { maxZoom: 18, noWrap: true }).addTo(m);
+  L.tileLayer(labelsUrl, { maxZoom: 18, noWrap: true, pane: 'overlayPane' }).addTo(m);
+
+  creators.forEach(c => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="avatar-marker" style="background-image:url('${c.photo}')"></div>`,
+      iconSize: [42, 42], iconAnchor: [21, 21]
+    });
+    L.marker([c.lat, c.lng], { icon }).addTo(m);
+  });
+
+  // Fake cluster marker near Denver
+  const clusterIcon = L.divIcon({
+    className: '',
+    html: `<div class="cluster-marker">3</div>`,
+    iconSize: [40, 40], iconAnchor: [20, 20]
+  });
+  L.marker([39.74, lng = -104.99], { icon: clusterIcon }).addTo(m);
+});
+</script>
+</body>
+</html>

@@ -1531,16 +1531,17 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .creator-meta-chip {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 4px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
 }
-.creator-meta-chip .eng-inline {
-  font-size: 10px;
+.eng-inline {
+  font-size: 9px;
+  opacity: 0.55;
   font-weight: 400;
-  color: var(--mocha);
+  color: var(--text-secondary);
   opacity: 0.7;
 }
 .meta-dot {
@@ -1552,6 +1553,9 @@ body.shift-held #mapContainer .leaflet-container {
 .meta-dot.ig { background: var(--color-instagram); }
 .meta-dot.tt { background: var(--color-tiktok); }
 .meta-dot.yt { background: var(--color-youtube); }
+.creator-meta-chip.ig { color: var(--color-instagram); }
+.creator-meta-chip.tt { color: var(--color-tiktok); }
+.creator-meta-chip.yt { color: var(--color-youtube); }
 
 .creator-meta-links {
   display: flex;
@@ -3102,15 +3106,40 @@ a.creator-platform-chip:hover {
 .ring-scrim {
   position: fixed;
   z-index: 999;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.3s ease;
   pointer-events: none;
   cursor: pointer;
 }
 .ring-scrim.open {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Radial spotlight glow behind the ring */
+.ring-spotlight {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  transform: translate(-50%, -50%) scale(0.7);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(200, 144, 126, 0.25) 0%,
+    rgba(187, 167, 207, 0.12) 35%,
+    rgba(155, 181, 160, 0.06) 60%,
+    transparent 80%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.ring-overlay.open .ring-spotlight {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 /* Ring column — single centered vertical layout */
@@ -3386,48 +3415,52 @@ a.ring-platform-chip:hover {
   margin-top: 2px;
 }
 
-/* Tag pills (niches & demographics) */
+/* Tag pills (niches & demographics) — category-colored */
 .ring-pill {
-  padding: 5px 12px;
+  padding: 5px 13px;
   border-radius: 20px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
-  box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.3),
-    0 0 1px rgba(255, 255, 255, 0.1) inset;
-  border: 1px solid rgba(74, 62, 56, 0.6);
+  color: rgba(255,255,255,0.92);
+  cursor: pointer;
+  border: 1px solid transparent;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.ring-pill.niche {
-  background: rgba(var(--tag-niche-rgb), 0.88);
-  color: white;
-  cursor: pointer;
-  transition: filter 0.15s ease, transform 0.15s ease;
+.ring-pill:hover {
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  filter: brightness(1.15);
 }
-.ring-pill.niche:hover {
-  filter: brightness(1.3);
-  transform: scale(1.08);
-}
-.ring-pill.demographic {
-  background: rgba(var(--tag-demographic-rgb), 0.88);
-  color: white;
-  cursor: pointer;
-  transition: filter 0.15s ease, transform 0.15s ease;
-}
-.ring-pill.demographic:hover {
-  filter: brightness(1.3);
-  transform: scale(1.08);
-}
+
+/* Niche category colors */
+.ring-pill.cat-entertainment { background: rgba(187, 130, 180, 0.7); border-color: rgba(187,130,180,0.3); }
+.ring-pill.cat-lifestyle     { background: rgba(200, 170, 120, 0.7); border-color: rgba(200,170,120,0.3); }
+.ring-pill.cat-food          { background: rgba(200, 140, 100, 0.7); border-color: rgba(200,140,100,0.3); }
+.ring-pill.cat-travel        { background: rgba(120, 170, 160, 0.7); border-color: rgba(120,170,160,0.3); }
+.ring-pill.cat-people        { background: rgba(210, 160, 160, 0.7); border-color: rgba(210,160,160,0.3); }
+.ring-pill.cat-fitness       { background: rgba(140, 180, 130, 0.7); border-color: rgba(140,180,130,0.3); }
+.ring-pill.cat-home          { background: rgba(180, 160, 130, 0.7); border-color: rgba(180,160,130,0.3); }
+.ring-pill.cat-tech          { background: rgba(130, 160, 190, 0.7); border-color: rgba(130,160,190,0.3); }
+.ring-pill.cat-creative      { background: rgba(170, 150, 200, 0.7); border-color: rgba(170,150,200,0.3); }
+/* Demographic category colors */
+.ring-pill.cat-identity       { background: rgba(180, 140, 180, 0.7); border-color: rgba(180,140,180,0.3); }
+.ring-pill.cat-culture        { background: rgba(140, 165, 180, 0.7); border-color: rgba(140,165,180,0.3); }
+.ring-pill.cat-age            { background: rgba(170, 155, 140, 0.7); border-color: rgba(170,155,140,0.3); }
+.ring-pill.cat-representation { background: rgba(155, 175, 155, 0.7); border-color: rgba(155,175,155,0.3); }
+/* Fallback */
+.ring-pill.cat-other         { background: rgba(160, 155, 150, 0.55); border-color: rgba(160,155,150,0.25); }
 
 /* Dense mode: 2-column wrapped grid with scroll for 8+ pills */
 .ring-side-col-dense {
   flex-direction: row !important;
   flex-wrap: wrap;
-  max-height: 280px;
+  max-height: 340px;
   overflow-y: auto;
-  width: 200px;
+  width: 220px;
   gap: 4px !important;
   padding: 4px 2px;
   justify-content: flex-end;
@@ -4787,15 +4820,7 @@ a.ring-platform-chip:hover {
   border-color: rgba(var(--tag-demographic-rgb), 0.5);
 }
 
-.ring-pill.niche, .ring-pill.demographic {
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.ring-pill.niche:hover, .ring-pill.demographic:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  filter: brightness(1.1);
-}
+/* ring-pill hover now handled in main .ring-pill block */
 
 /* ===========================
    TOAST NOTIFICATIONS

@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Map Experience — Roster ↔ Dispatch</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #2C2320;
+      --bg-secondary: #342A26;
+      --bg-card: #3A302B;
+      --accent: #D4A08E;
+      --text-primary: #F0E4DC;
+      --text-secondary: #C4B0A4;
+      --text-muted: #8A7A70;
+      --border: #4A3E38;
+      --success: #8EAE8B;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --lavender: #BBA7CF;
+      --sage: #9BB5A0;
+      --rose: #D4A0A0;
+      --mocha: #C09A8A;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ═══ Top controls ═══ */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .mode-btn {
+      padding: 10px 24px;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+    .mode-btn.active {
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+    .mode-btn[data-mode="dispatch"].active {
+      border-color: var(--rose);
+      background: rgba(212,160,160,0.12);
+      color: var(--rose);
+    }
+
+    /* ═══ Map canvas ═══ */
+    .map-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.8s ease;
+      background:
+        radial-gradient(ellipse at 50% 45%, rgba(74,62,56,0.3) 0%, transparent 60%),
+        var(--bg-primary);
+    }
+
+    /* Fake map terrain — soft topo lines */
+    .map-terrain {
+      position: absolute;
+      inset: 0;
+      opacity: 0.08;
+      background:
+        radial-gradient(ellipse at 35% 30%, var(--sage) 0%, transparent 40%),
+        radial-gradient(ellipse at 65% 55%, var(--lavender) 0%, transparent 35%),
+        radial-gradient(ellipse at 50% 70%, var(--mocha) 0%, transparent 30%);
+      transition: opacity 0.8s ease;
+    }
+
+    /* Map sepia overlay — lighter in dispatch */
+    .map-sepia {
+      position: absolute;
+      inset: 0;
+      background: rgba(44, 35, 32, 0.15);
+      mix-blend-mode: color;
+      transition: opacity 0.8s ease;
+      pointer-events: none;
+    }
+
+    /* ═══ Proximity rings ═══ */
+    .proximity-rings {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    .prox-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px dashed rgba(212, 160, 160, 0.25);
+      transform: translate(-50%, -50%);
+      transition: all 0.6s ease;
+    }
+    .prox-ring-label {
+      position: absolute;
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--rose);
+      opacity: 0.5;
+      white-space: nowrap;
+      transform: translateX(-50%);
+    }
+    .prox-ring.r1 { width: 120px; height: 120px; }
+    .prox-ring.r2 { width: 220px; height: 220px; border-style: dotted; border-color: rgba(212,160,160,0.15); }
+    .prox-ring.r3 { width: 340px; height: 340px; border-style: dotted; border-color: rgba(212,160,160,0.08); }
+
+    /* ═══ Dispatch destination pin ═══ */
+    .dest-pin {
+      position: absolute;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--rose);
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 20;
+      box-shadow: 0 0 12px rgba(212,160,160,0.4);
+    }
+    .dest-pin::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid var(--rose);
+      opacity: 0.3;
+    }
+    .dest-pin::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid var(--rose);
+      opacity: 0;
+      animation: none;
+    }
+    .dest-pin-label {
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--rose);
+      white-space: nowrap;
+      background: rgba(44, 35, 32, 0.85);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(212,160,160,0.3);
+    }
+
+    /* ═══ Creator markers ═══ */
+    .marker {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+      cursor: pointer;
+    }
+    .marker-inner {
+      position: relative;
+      width: 48px;
+      height: 48px;
+    }
+    .marker-avatar {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      overflow: hidden;
+      transition: all 0.6s ease;
+    }
+
+    /* Decorative orbit dots (roster mode) */
+    .marker-orbits {
+      position: absolute;
+      inset: 0;
+      transition: opacity 0.4s ease;
+    }
+    .marker-orbits circle {
+      transition: all 0.6s ease;
+    }
+
+    /* Marker tooltip */
+    .marker-name {
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      background: rgba(44, 35, 32, 0.9);
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    .marker:hover .marker-name { opacity: 1; }
+
+    /* ── Score ring (dispatch mode, appears around avatar) ── */
+    .marker-score-ring {
+      position: absolute;
+      top: 0; left: 0;
+      width: 48px; height: 48px;
+      transform: rotate(-90deg);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .marker-score-ring circle {
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+    }
+    .marker-score-ring .ring-bg { stroke: rgba(74,62,56,0.4); }
+    .marker-score-ring .ring-fill { transition: stroke-dashoffset 0.8s cubic-bezier(0.34,1.56,0.64,1), stroke 0.4s ease; }
+
+    /* ── Score badge on marker ── */
+    .marker-score-badge {
+      position: absolute;
+      bottom: 0; right: -2px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700;
+      border: 2px solid var(--bg-primary);
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 15;
+    }
+
+    /* ═══ Map control buttons ═══ */
+    .map-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 30;
+    }
+    .map-ctrl-btn {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: rgba(58, 48, 43, 0.9);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(8px);
+    }
+    .map-ctrl-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+    .map-ctrl-btn svg {
+      width: 18px; height: 18px;
+    }
+
+    /* Zoom-to-fit glow in dispatch */
+    .map-ctrl-btn.fit-btn {
+      transition: all 0.3s ease;
+    }
+
+    /* ═══ Nearest panel (dispatch mode) ═══ */
+    .nearest-panel {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(58, 48, 43, 0.92);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      backdrop-filter: blur(10px);
+      z-index: 30;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+      pointer-events: none;
+      min-width: 200px;
+    }
+    .nearest-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--rose);
+      margin-bottom: 8px;
+    }
+    .nearest-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+    }
+    .nearest-item + .nearest-item {
+      border-top: 1px solid rgba(74,62,56,0.5);
+    }
+    .nearest-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; color: white;
+      flex-shrink: 0;
+    }
+    .nearest-info {
+      flex: 1; min-width: 0;
+    }
+    .nearest-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+    .nearest-dist { font-size: 10px; color: var(--text-muted); }
+    .nearest-score {
+      font-size: 10px; font-weight: 600;
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    /* ═══ DISPATCH MODE TRANSFORMS ═══ */
+
+    body.dispatch .map-wrap {
+      background:
+        radial-gradient(ellipse at 50% 45%, rgba(92,61,61,0.3) 0%, transparent 60%),
+        #2A1F1F;
+    }
+    body.dispatch .map-terrain { opacity: 0.05; }
+
+    /* Destination appears */
+    body.dispatch .dest-pin { opacity: 1; }
+    body.dispatch .dest-pin::after {
+      opacity: 0.3;
+      animation: destPulse 2s ease-out infinite;
+    }
+    @keyframes destPulse {
+      0% { transform: scale(1); opacity: 0.3; }
+      100% { transform: scale(3); opacity: 0; }
+    }
+
+    /* Proximity rings appear */
+    body.dispatch .proximity-rings { opacity: 1; }
+
+    /* Score rings appear on markers */
+    body.dispatch .marker-score-ring { opacity: 1; }
+
+    /* Score badges appear */
+    body.dispatch .marker-score-badge {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Per-marker scoring */
+    body.dispatch .marker[data-score="full"] .marker-avatar {
+      border-color: var(--success);
+      box-shadow: 0 0 14px rgba(142,174,139,0.35), 0 0 30px rgba(142,174,139,0.15);
+    }
+    body.dispatch .marker[data-score="full"] .marker-score-badge {
+      background: var(--success); color: white;
+    }
+
+    body.dispatch .marker[data-score="high"] .marker-avatar {
+      border-color: var(--sage);
+      box-shadow: 0 0 10px rgba(155,181,160,0.2);
+    }
+    body.dispatch .marker[data-score="high"] .marker-score-badge {
+      background: var(--sage); color: white;
+    }
+
+    body.dispatch .marker[data-score="mid"] .marker-avatar {
+      border-color: var(--accent);
+      box-shadow: 0 0 6px rgba(212,160,142,0.15);
+    }
+    body.dispatch .marker[data-score="mid"] .marker-score-badge {
+      background: var(--accent); color: white;
+    }
+
+    body.dispatch .marker[data-score="low"] {
+      opacity: 0.35;
+      filter: grayscale(0.3);
+    }
+    body.dispatch .marker[data-score="low"] .marker-avatar {
+      border-color: var(--text-muted);
+      box-shadow: none;
+    }
+    body.dispatch .marker[data-score="low"] .marker-score-badge {
+      background: var(--text-muted); color: var(--bg-primary);
+    }
+
+    body.dispatch .marker[data-score="none"] {
+      opacity: 0.15;
+      filter: grayscale(0.5);
+    }
+    body.dispatch .marker[data-score="none"] .marker-avatar {
+      border-color: var(--border);
+      box-shadow: none;
+    }
+    body.dispatch .marker[data-score="none"] .marker-score-badge {
+      background: var(--border); color: var(--text-muted);
+    }
+
+    /* Decorative orbits dim in dispatch */
+    body.dispatch .marker-orbits { opacity: 0.2; }
+
+    /* Nearest panel slides in */
+    body.dispatch .nearest-panel {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+      transition-delay: 0.3s;
+    }
+
+    /* Fit button glows in dispatch */
+    body.dispatch .fit-btn {
+      border-color: rgba(212,160,160,0.3);
+      color: var(--rose);
+    }
+    body.dispatch .fit-btn:hover {
+      border-color: var(--rose);
+      background: rgba(212,160,160,0.1);
+    }
+
+    /* Stagger marker transitions */
+    .marker:nth-child(1) { transition-delay: 0s; }
+    .marker:nth-child(2) { transition-delay: 0.05s; }
+    .marker:nth-child(3) { transition-delay: 0.08s; }
+    .marker:nth-child(4) { transition-delay: 0.12s; }
+    .marker:nth-child(5) { transition-delay: 0.16s; }
+    .marker:nth-child(6) { transition-delay: 0.2s; }
+
+    .marker:nth-child(1) .marker-score-badge { transition-delay: 0.3s; }
+    .marker:nth-child(2) .marker-score-badge { transition-delay: 0.35s; }
+    .marker:nth-child(3) .marker-score-badge { transition-delay: 0.38s; }
+    .marker:nth-child(4) .marker-score-badge { transition-delay: 0.42s; }
+    .marker:nth-child(5) .marker-score-badge { transition-delay: 0.46s; }
+    .marker:nth-child(6) .marker-score-badge { transition-delay: 0.5s; }
+
+    /* ═══ Legend ═══ */
+    .legend {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      background: rgba(58, 48, 43, 0.9);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      backdrop-filter: blur(10px);
+      z-index: 30;
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity 0.5s ease 0.4s;
+    }
+    body.dispatch .legend { opacity: 1; }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--text-muted);
+    }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 2px solid; flex-shrink: 0;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="mode-btn active" data-mode="roster" onclick="setMode('roster')">Roster</button>
+    <button class="mode-btn" data-mode="dispatch" onclick="setMode('dispatch')">Dispatch — Nashville, IG Micro, Lifestyle</button>
+  </div>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div class="map-terrain"></div>
+    <div class="map-sepia"></div>
+
+    <!-- Dispatch destination -->
+    <div class="dest-pin" style="top: 48%; left: 52%;">
+      <div class="dest-pin-label">Nashville, TN</div>
+    </div>
+
+    <!-- Proximity rings centered on Nashville -->
+    <div class="proximity-rings" style="top: 48%; left: 52%; position: absolute;">
+      <div class="prox-ring r1" style="top: 50%; left: 50%;"></div>
+      <div class="prox-ring-label" style="top: calc(50% - 62px); left: 50%;">50 mi</div>
+      <div class="prox-ring r2" style="top: 50%; left: 50%;"></div>
+      <div class="prox-ring-label" style="top: calc(50% - 112px); left: 50%;">150 mi</div>
+      <div class="prox-ring r3" style="top: 50%; left: 50%;"></div>
+      <div class="prox-ring-label" style="top: calc(50% - 172px); left: 50%;">300 mi</div>
+    </div>
+
+    <!-- Creator markers -->
+
+    <!-- Ava — Nashville — 4/4 -->
+    <div class="marker" data-score="full" style="top: 46%; left: 53%;">
+      <div class="marker-inner">
+        <svg class="marker-orbits" viewBox="0 0 48 48" fill="none" style="position:absolute;top:0;left:0;width:48px;height:48px">
+          <circle cx="24" cy="4" r="2.5" fill="#9BB5A0" opacity="0.3"/>
+          <circle cx="42" cy="14" r="2" fill="#D4A0A0" opacity="0.3"/>
+          <circle cx="6" cy="14" r="2.5" fill="#BBA7CF" opacity="0.3"/>
+        </svg>
+        <svg class="marker-score-ring" viewBox="0 0 48 48">
+          <circle class="ring-bg" cx="24" cy="24" r="21"/>
+          <circle class="ring-fill" cx="24" cy="24" r="21" stroke="#8EAE8B" stroke-dasharray="132" stroke-dashoffset="0"/>
+        </svg>
+        <div class="marker-avatar" style="background: linear-gradient(135deg, var(--lavender), var(--sage))">AM</div>
+        <div class="marker-score-badge">4</div>
+      </div>
+      <div class="marker-name">Ava Martinez</div>
+    </div>
+
+    <!-- Elena — Memphis — 3/4 -->
+    <div class="marker" data-score="high" style="top: 50%; left: 49%;">
+      <div class="marker-inner">
+        <svg class="marker-orbits" viewBox="0 0 48 48" fill="none" style="position:absolute;top:0;left:0;width:48px;height:48px">
+          <circle cx="24" cy="4" r="2" fill="#D4A0A0" opacity="0.3"/>
+          <circle cx="44" cy="34" r="2" fill="#9BB5A0" opacity="0.3"/>
+        </svg>
+        <svg class="marker-score-ring" viewBox="0 0 48 48">
+          <circle class="ring-bg" cx="24" cy="24" r="21"/>
+          <circle class="ring-fill" cx="24" cy="24" r="21" stroke="#9BB5A0" stroke-dasharray="132" stroke-dashoffset="33"/>
+        </svg>
+        <div class="marker-avatar" style="background: linear-gradient(135deg, var(--rose), var(--lavender))">EC</div>
+        <div class="marker-score-badge">3</div>
+      </div>
+      <div class="marker-name">Elena Cruz</div>
+    </div>
+
+    <!-- Jordan — Seattle — 3/4 -->
+    <div class="marker" data-score="high" style="top: 22%; left: 15%;">
+      <div class="marker-inner">
+        <svg class="marker-orbits" viewBox="0 0 48 48" fill="none" style="position:absolute;top:0;left:0;width:48px;height:48px">
+          <circle cx="4" cy="34" r="2" fill="#BBA7CF" opacity="0.3"/>
+          <circle cx="42" cy="14" r="2.5" fill="#9BB5A0" opacity="0.3"/>
+        </svg>
+        <svg class="marker-score-ring" viewBox="0 0 48 48">
+          <circle class="ring-bg" cx="24" cy="24" r="21"/>
+          <circle class="ring-fill" cx="24" cy="24" r="21" stroke="#9BB5A0" stroke-dasharray="132" stroke-dashoffset="33"/>
+        </svg>
+        <div class="marker-avatar" style="background: linear-gradient(135deg, var(--rose), var(--mocha))">JK</div>
+        <div class="marker-score-badge">3</div>
+      </div>
+      <div class="marker-name">Jordan Kim</div>
+    </div>
+
+    <!-- Luna — Portland — 2/4 -->
+    <div class="marker" data-score="mid" style="top: 25%; left: 12%;">
+      <div class="marker-inner">
+        <svg class="marker-orbits" viewBox="0 0 48 48" fill="none" style="position:absolute;top:0;left:0;width:48px;height:48px">
+          <circle cx="24" cy="46" r="2" fill="#9BB5A0" opacity="0.3"/>
+          <circle cx="6" cy="14" r="2" fill="#D4A0A0" opacity="0.3"/>
+        </svg>
+        <svg class="marker-score-ring" viewBox="0 0 48 48">
+          <circle class="ring-bg" cx="24" cy="24" r="21"/>
+          <circle class="ring-fill" cx="24" cy="24" r="21" stroke="#D4A08E" stroke-dasharray="132" stroke-dashoffset="66"/>
+        </svg>
+        <div class="marker-avatar" style="background: linear-gradient(135deg, var(--sage), var(--lavender))">LW</div>
+        <div class="marker-score-badge">2</div>
+      </div>
+      <div class="marker-name">Luna Wells</div>
+    </div>
+
+    <!-- Maya — Austin — 1/4 -->
+    <div class="marker" data-score="low" style="top: 65%; left: 40%;">
+      <div class="marker-inner">
+        <svg class="marker-orbits" viewBox="0 0 48 48" fill="none" style="position:absolute;top:0;left:0;width:48px;height:48px">
+          <circle cx="24" cy="4" r="2" fill="#BBA7CF" opacity="0.3"/>
+          <circle cx="44" cy="34" r="2" fill="#D4A0A0" opacity="0.3"/>
+        </svg>
+        <svg class="marker-score-ring" viewBox="0 0 48 48">
+          <circle class="ring-bg" cx="24" cy="24" r="21"/>
+          <circle class="ring-fill" cx="24" cy="24" r="21" stroke="#8A7A70" stroke-dasharray="132" stroke-dashoffset="99"/>
+        </svg>
+        <div class="marker-avatar" style="background: linear-gradient(135deg, #C09A8A, var(--rose))">MS</div>
+        <div class="marker-score-badge">1</div>
+      </div>
+      <div class="marker-name">Maya Singh</div>
+    </div>
+
+    <!-- Theo — Denver — 0/4 -->
+    <div class="marker" data-score="none" style="top: 38%; left: 30%;">
+      <div class="marker-inner">
+        <svg class="marker-orbits" viewBox="0 0 48 48" fill="none" style="position:absolute;top:0;left:0;width:48px;height:48px">
+          <circle cx="42" cy="14" r="2" fill="#9BB5A0" opacity="0.3"/>
+          <circle cx="4" cy="34" r="2" fill="#BBA7CF" opacity="0.3"/>
+        </svg>
+        <svg class="marker-score-ring" viewBox="0 0 48 48">
+          <circle class="ring-bg" cx="24" cy="24" r="21"/>
+          <circle class="ring-fill" cx="24" cy="24" r="21" stroke="#8A7A70" stroke-dasharray="132" stroke-dashoffset="132"/>
+        </svg>
+        <div class="marker-avatar" style="background: linear-gradient(135deg, var(--mocha), var(--lavender))">TR</div>
+        <div class="marker-score-badge">0</div>
+      </div>
+      <div class="marker-name">Theo Ramirez</div>
+    </div>
+
+    <!-- Map controls -->
+    <div class="map-controls">
+      <button class="map-ctrl-btn" title="Zoom in">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="map-ctrl-btn" title="Zoom out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <div style="height: 4px;"></div>
+      <button class="map-ctrl-btn fit-btn" title="Zoom to fit all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Nearest creators panel (dispatch only) -->
+    <div class="nearest-panel">
+      <div class="nearest-title">Nearest to Nashville</div>
+
+      <div class="nearest-item">
+        <div class="nearest-avatar" style="background: linear-gradient(135deg, var(--lavender), var(--sage))">AM</div>
+        <div class="nearest-info">
+          <div class="nearest-name">Ava Martinez</div>
+          <div class="nearest-dist">12 mi away</div>
+        </div>
+        <div class="nearest-score" style="background: rgba(142,174,139,0.2); color: var(--success);">4/4</div>
+      </div>
+
+      <div class="nearest-item">
+        <div class="nearest-avatar" style="background: linear-gradient(135deg, var(--rose), var(--lavender))">EC</div>
+        <div class="nearest-info">
+          <div class="nearest-name">Elena Cruz</div>
+          <div class="nearest-dist">195 mi away</div>
+        </div>
+        <div class="nearest-score" style="background: rgba(155,181,160,0.2); color: var(--sage);">3/4</div>
+      </div>
+
+      <div class="nearest-item">
+        <div class="nearest-avatar" style="background: linear-gradient(135deg, #C09A8A, var(--rose))">MS</div>
+        <div class="nearest-info">
+          <div class="nearest-name">Maya Singh</div>
+          <div class="nearest-dist">660 mi away</div>
+        </div>
+        <div class="nearest-score" style="background: rgba(138,122,112,0.2); color: var(--text-muted);">1/4</div>
+      </div>
+    </div>
+
+    <!-- Legend (dispatch only) -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="border-color: var(--success); background: rgba(142,174,139,0.3);"></div> Full match</div>
+      <div class="legend-item"><div class="legend-dot" style="border-color: var(--sage); background: rgba(155,181,160,0.2);"></div> High match</div>
+      <div class="legend-item"><div class="legend-dot" style="border-color: var(--accent);"></div> Partial</div>
+      <div class="legend-item"><div class="legend-dot" style="border-color: var(--text-muted); opacity: 0.4;"></div> Low / None</div>
+    </div>
+
+  </div>
+
+  <script>
+    function setMode(mode) {
+      document.body.classList.toggle('dispatch', mode === 'dispatch');
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+    }
+  </script>
+
+</body>
+</html>

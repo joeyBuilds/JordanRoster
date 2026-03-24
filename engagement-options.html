@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Engagement Rate Display Options</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #F7F0E8; --bg-secondary: #FFF9F4; --accent: #C8907E;
+    --text-primary: #4E3D36; --text-secondary: #7D6B63;
+    --success: #8EAE8B; --danger: #C97B7B;
+    --lavender: #BBA7CF; --sage: #9BB5A0; --rose: #D4A0A0; --mocha: #A67F72;
+    --tag-platform: #6E9A76; --tag-niche: #B09556; --tag-tier: #8E78A6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg-primary); color: var(--text-primary); padding: 24px; }
+
+  h1 { font-family: 'Playfair Display', serif; font-size: 26px; margin-bottom: 6px; text-align: center; }
+  .subtitle { text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 32px; }
+
+  .section { margin-bottom: 48px; }
+  .section-title { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 4px; }
+  .section-desc { color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+
+  .options-grid { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+  .option-card {
+    background: var(--bg-secondary); border-radius: 16px; padding: 20px;
+    border: 2px solid transparent; cursor: default; position: relative;
+    box-shadow: 0 2px 12px rgba(78,61,54,0.08);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .option-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(200,144,126,0.18); }
+  .option-label {
+    position: absolute; top: -10px; left: 16px; background: var(--accent); color: white;
+    font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 10px;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .option-desc { font-size: 12px; color: var(--text-secondary); margin-top: 12px; max-width: 320px; line-height: 1.5; }
+  .pro { color: var(--success); font-weight: 600; }
+  .con { color: var(--danger); font-weight: 600; }
+
+  /* ─── Roster Card Mocks ─── */
+  .mock-card {
+    display: flex; gap: 10px; padding: 10px; border-radius: 10px;
+    background: var(--bg-secondary); border-left: 3px solid var(--accent);
+    box-shadow: 0 1px 6px rgba(78,61,54,0.06), inset 0 1px 0 rgba(255,255,255,0.7);
+    width: 300px;
+  }
+  .mock-avatar {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--lavender) 0%, var(--sage) 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 14px; border: 2px solid var(--bg-secondary);
+  }
+  .mock-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .mock-name { font-size: 14px; font-weight: 600; }
+  .mock-location { font-size: 11px; color: var(--text-secondary); }
+  .mock-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-secondary); flex-wrap: wrap; }
+  .meta-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+  .meta-dot.ig { background: #E1306C; }
+  .meta-dot.tt { background: #00F2EA; }
+  .meta-chip { display: flex; align-items: center; gap: 0; }
+
+  /* Engagement-specific card styles */
+  .eng-inline { font-size: 10px; color: var(--mocha); opacity: 0.7; margin-left: 1px; }
+  .eng-bar-wrap { width: 100%; height: 3px; background: rgba(78,61,54,0.08); border-radius: 2px; margin-top: 3px; }
+  .eng-bar { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--sage), var(--success)); }
+  .eng-bar-label { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-secondary); margin-top: 1px; }
+  .eng-badge {
+    font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 6px;
+    background: rgba(142,174,139,0.15); color: var(--success); white-space: nowrap;
+  }
+  .eng-sparkline { display: flex; align-items: flex-end; gap: 1px; height: 14px; }
+  .eng-sparkline span { width: 3px; background: var(--sage); border-radius: 1px; opacity: 0.6; }
+
+  /* ─── Ring Mocks ─── */
+  .mock-ring-wrap {
+    background: rgba(50, 40, 36, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-radius: 20px; padding: 24px 32px; display: flex; flex-direction: column;
+    align-items: center; gap: 12px; position: relative; min-width: 280px;
+  }
+  .ring-platforms-row { display: flex; gap: 6px; }
+  .ring-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+    border-radius: 12px; font-size: 11px; color: white; font-weight: 500;
+    text-decoration: none;
+  }
+  .ring-chip.ig { background: rgba(225,48,108,0.85); }
+  .ring-chip.tt { background: rgba(0,242,234,0.25); color: #00F2EA; }
+  .ring-chip-text { display: flex; flex-direction: column; }
+  .ring-chip-handle { font-size: 10px; opacity: 0.85; }
+  .ring-chip-followers { font-size: 12px; font-weight: 700; }
+
+  .ring-avatar {
+    width: 90px; height: 90px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--lavender) 0%, var(--sage) 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 28px;
+    border: 4px solid var(--bg-secondary);
+    box-shadow: 0 0 0 3px var(--accent), 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .ring-name-card {
+    background: rgba(50,40,36,0.92); backdrop-filter: blur(12px);
+    border-radius: 14px; padding: 10px 20px 8px; text-align: center;
+  }
+  .ring-name { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; color: white; }
+  .ring-loc { font-size: 12px; color: rgba(255,255,255,0.6); }
+
+  /* Ring engagement-specific styles */
+  .ring-eng-row {
+    display: flex; gap: 6px; align-items: center; justify-content: center;
+  }
+  .ring-eng-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    background: rgba(142,174,139,0.2); color: var(--success);
+    backdrop-filter: blur(8px);
+  }
+  .ring-eng-pill .label { font-weight: 400; opacity: 0.8; font-size: 10px; }
+  .ring-eng-pill.ig { background: rgba(225,48,108,0.15); color: #E1306C; }
+  .ring-eng-pill.tt { background: rgba(0,242,234,0.15); color: #00F2EA; }
+
+  .ring-eng-badge-inline {
+    font-size: 10px; font-weight: 600; color: var(--success);
+    margin-left: 4px; opacity: 0.85;
+  }
+
+  .ring-eng-arc-container { position: relative; }
+  .ring-eng-arc-label {
+    position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; font-weight: 700; color: var(--success);
+    background: rgba(50,40,36,0.9); padding: 1px 6px; border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .ring-chip-eng {
+    font-size: 9px; opacity: 0.7; font-weight: 400; margin-top: -1px;
+  }
+
+  /* Side pills for ring */
+  .ring-side-col {
+    position: absolute; display: flex; flex-direction: column; gap: 5px; top: 60px;
+  }
+  .ring-side-col.left { right: calc(100% + 10px); align-items: flex-end; }
+  .ring-side-col.right { left: calc(100% + 10px); align-items: flex-start; }
+  .ring-pill {
+    padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    backdrop-filter: blur(8px); white-space: nowrap;
+  }
+  .ring-pill.niche { background: rgba(176,149,86,0.88); color: white; }
+  .ring-pill.tier { background: rgba(142,120,166,0.88); color: white; }
+
+  .divider { width: 80%; height: 1px; background: rgba(255,255,255,0.1); margin: 2px 0; }
+
+  /* Comparison table */
+  .compare-table { width: 100%; max-width: 700px; margin: 24px auto 0; border-collapse: collapse; font-size: 13px; }
+  .compare-table th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--accent); font-weight: 600; }
+  .compare-table td { padding: 8px 12px; border-bottom: 1px solid rgba(78,61,54,0.1); vertical-align: top; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .check { color: var(--success); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>Engagement Rate Display Options</h1>
+<p class="subtitle">Comparing approaches for the Roster Card (subtle) and the Radial Ring (prominent)</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- SECTION 1: ROSTER CARD OPTIONS                     -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">Roster Card — Subtle Treatments</h2>
+  <p class="section-desc">These live in the sidebar roster list. Engagement should be glanceable but not compete with the name/location/follower hierarchy.</p>
+
+  <div class="options-grid">
+
+    <!-- Option A: Inline Percentage -->
+    <div class="option-card">
+      <span class="option-label">Option A</span>
+      <div class="mock-card">
+        <div class="mock-avatar">SM</div>
+        <div class="mock-card-body">
+          <div class="mock-name">Sarah Martinez</div>
+          <div class="mock-location">📍 Seattle, WA</div>
+          <div class="mock-meta">
+            <div class="mock-meta-chip"><span class="meta-dot ig"></span>84.2K <span class="eng-inline">· 3.2%</span></div>
+            <div class="mock-meta-chip"><span class="meta-dot tt"></span>121K <span class="eng-inline">· 5.8%</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="option-desc">
+        <span class="pro">Inline after follower count.</span> Engagement rate tucks right next to the follower number with a dot separator, lighter weight. Minimal layout shift — the meta line stays one row.
+      </p>
+    </div>
+
+    <!-- Option B: Micro Badge -->
+    <div class="option-card">
+      <span class="option-label">Option B</span>
+      <div class="mock-card">
+        <div class="mock-avatar">SM</div>
+        <div class="mock-card-body">
+          <div class="mock-name">Sarah Martinez</div>
+          <div class="mock-location">📍 Seattle, WA</div>
+          <div class="mock-meta">
+            <div class="mock-meta-chip"><span class="meta-dot ig"></span>84.2K</div>
+            <div class="mock-meta-chip"><span class="meta-dot tt"></span>121K</div>
+            <span class="eng-badge">⌀ 4.5%</span>
+          </div>
+        </div>
+      </div>
+      <p class="option-desc">
+        <span class="pro">Averaged engagement badge.</span> A single ⌀ (avg) pill at the end of the meta line. Keeps the card ultra-clean by showing one blended number. Uses the green badge chip matching the "cozy" palette.
+      </p>
+    </div>
+
+    <!-- Option C: Thin Bar -->
+    <div class="option-card">
+      <span class="option-label">Option C</span>
+      <div class="mock-card">
+        <div class="mock-avatar">SM</div>
+        <div class="mock-card-body">
+          <div class="mock-name">Sarah Martinez</div>
+          <div class="mock-location">📍 Seattle, WA</div>
+          <div class="mock-meta">
+            <div class="mock-meta-chip"><span class="meta-dot ig"></span>84.2K</div>
+            <div class="mock-meta-chip"><span class="meta-dot tt"></span>121K</div>
+          </div>
+          <div class="eng-bar-wrap"><div class="eng-bar" style="width: 45%"></div></div>
+          <div class="eng-bar-label"><span>Engagement</span><span>4.5%</span></div>
+        </div>
+      </div>
+      <p class="option-desc">
+        <span class="pro">Thin progress bar.</span> A 3px sage-green bar below the meta line gives a quick visual feel for engagement level. The percentage sits at the right edge. Adds one extra row of height to each card.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- SECTION 2: RADIAL RING OPTIONS                     -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">Radial Ring — Prominent Treatments</h2>
+  <p class="section-desc">The ring is the detail view, so engagement can take more space here. These options range from integrated to dedicated.</p>
+
+  <div class="options-grid">
+
+    <!-- Ring Option A: Inside Platform Chips -->
+    <div class="option-card" style="padding: 28px 20px;">
+      <span class="option-label">Option A</span>
+      <div class="mock-ring-wrap">
+        <div class="ring-platforms-row">
+          <div class="ring-chip ig">
+            <span class="ring-chip-text">
+              <span class="ring-chip-handle">@sarahmartinez</span>
+              <span class="ring-chip-followers">84.2K</span>
+              <span class="ring-chip-eng">3.2% eng</span>
+            </span>
+          </div>
+          <div class="ring-chip tt">
+            <span class="ring-chip-text">
+              <span class="ring-chip-handle">@sarahm</span>
+              <span class="ring-chip-followers">121K</span>
+              <span class="ring-chip-eng">5.8% eng</span>
+            </span>
+          </div>
+        </div>
+        <div class="ring-avatar">SM</div>
+        <div class="ring-name-card">
+          <div class="ring-name">Sarah Martinez</div>
+          <div class="ring-loc">📍 Seattle, WA</div>
+        </div>
+      </div>
+      <p class="option-desc">
+        <span class="pro">Third line inside each platform chip.</span> Engagement rate sits below the follower count in a lighter, smaller font. No new UI elements — keeps the chip as the single source of truth for each platform. Chips grow slightly taller.
+      </p>
+    </div>
+
+    <!-- Ring Option B: Dedicated Engagement Row -->
+    <div class="option-card" style="padding: 28px 20px;">
+      <span class="option-label">Option B</span>
+      <div class="mock-ring-wrap">
+        <div class="ring-platforms-row">
+          <div class="ring-chip ig">
+            <span class="ring-chip-text">
+              <span class="ring-chip-handle">@sarahmartinez</span>
+              <span class="ring-chip-followers">84.2K</span>
+            </span>
+          </div>
+          <div class="ring-chip tt">
+            <span class="ring-chip-text">
+              <span class="ring-chip-handle">@sarahm</span>
+              <span class="ring-chip-followers">121K</span>
+            </span>
+          </div>
+        </div>
+        <div class="ring-eng-row">
+          <div class="ring-eng-pill ig"><span class="label">IG</span> 3.2%</div>
+          <div class="ring-eng-pill tt"><span class="label">TT</span> 5.8%</div>
+        </div>
+        <div class="ring-avatar">SM</div>
+        <div class="ring-name-card">
+          <div class="ring-name">Sarah Martinez</div>
+          <div class="ring-loc">📍 Seattle, WA</div>
+        </div>
+      </div>
+      <p class="option-desc">
+        <span class="pro">Dedicated engagement pill row.</span> A new row between platforms and avatar with color-coded engagement pills. Visually distinct — makes engagement a first-class data point. The ring grows taller by ~24px.
+      </p>
+    </div>
+
+    <!-- Ring Option C: Arc Around Avatar -->
+    <div class="option-card" style="padding: 28px 20px;">
+      <span class="option-label">Option C</span>
+      <div class="mock-ring-wrap">
+        <div class="ring-platforms-row">
+          <div class="ring-chip ig">
+            <span class="ring-chip-text">
+              <span class="ring-chip-handle">@sarahmartinez</span>
+              <span class="ring-chip-followers">84.2K</span>
+            </span>
+          </div>
+          <div class="ring-chip tt">
+            <span class="ring-chip-text">
+              <span class="ring-chip-handle">@sarahm</span>
+              <span class="ring-chip-followers">121K</span>
+            </span>
+          </div>
+        </div>
+        <div class="ring-eng-arc-container">
+          <svg width="106" height="106" viewBox="0 0 106 106" style="position:absolute; top:-8px; left:-8px; pointer-events:none;">
+            <circle cx="53" cy="53" r="49" fill="none" stroke="rgba(142,174,139,0.15)" stroke-width="3"/>
+            <circle cx="53" cy="53" r="49" fill="none" stroke="var(--success)" stroke-width="3"
+              stroke-dasharray="308" stroke-dashoffset="170" stroke-linecap="round"
+              transform="rotate(-90 53 53)"/>
+          </svg>
+          <div class="ring-avatar" style="position:relative;">SM</div>
+          <div class="ring-eng-arc-label">⌀ 4.5% eng</div>
+        </div>
+        <div class="ring-name-card">
+          <div class="ring-name">Sarah Martinez</div>
+          <div class="ring-loc">📍 Seattle, WA</div>
+        </div>
+      </div>
+      <p class="option-desc">
+        <span class="pro">Arc gauge around the avatar.</span> A green progress arc wraps the avatar circle (similar to the existing dispatch score ring), with the averaged engagement shown in a tiny label below. Elegant, but since you already use the arc for dispatch scoring, this could feel cluttered when both are active.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- COMPARISON TABLE                                    -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2 class="section-title">Quick Comparison</h2>
+  <table class="compare-table">
+    <tr>
+      <th></th>
+      <th>Card A (Inline)</th>
+      <th>Card B (Badge)</th>
+      <th>Card C (Bar)</th>
+    </tr>
+    <tr>
+      <td>Per-platform rates</td>
+      <td class="check">✓</td>
+      <td>Averaged</td>
+      <td>Averaged</td>
+    </tr>
+    <tr>
+      <td>Card height change</td>
+      <td>None</td>
+      <td>None</td>
+      <td>+16px</td>
+    </tr>
+    <tr>
+      <td>Visual weight</td>
+      <td>Lightest</td>
+      <td>Light</td>
+      <td>Medium</td>
+    </tr>
+    <tr>
+      <th></th>
+      <th>Ring A (In-chip)</th>
+      <th>Ring B (Pill row)</th>
+      <th>Ring C (Arc)</th>
+    </tr>
+    <tr>
+      <td>Per-platform rates</td>
+      <td class="check">✓</td>
+      <td class="check">✓</td>
+      <td>Averaged</td>
+    </tr>
+    <tr>
+      <td>New UI elements</td>
+      <td>None (chip grows)</td>
+      <td>New row</td>
+      <td>SVG arc overlay</td>
+    </tr>
+    <tr>
+      <td>Dispatch conflict</td>
+      <td>None</td>
+      <td>None</td>
+      <td>Overlaps score ring</td>
+    </tr>
+    <tr>
+      <td>Visual weight</td>
+      <td>Lightest</td>
+      <td>Medium</td>
+      <td>Medium-Heavy</td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>

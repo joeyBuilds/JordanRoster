@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sidebar Card Concepts — Creator Roster</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #2C2320;
+      --bg-secondary: #342A26;
+      --bg-card: #3A302B;
+      --bg-hover: #463A34;
+      --bg-input: #322824;
+      --accent: #D4A08E;
+      --accent-light: #E0B8A8;
+      --text-primary: #F0E4DC;
+      --text-secondary: #C4B0A4;
+      --text-muted: #8A7A70;
+      --border: #4A3E38;
+      --success: #8EAE8B;
+      --danger: #C97B7B;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --lavender: #BBA7CF;
+      --sage: #9BB5A0;
+      --rose: #D4A0A0;
+      --mocha: #C09A8A;
+      --color-instagram: #E1306C;
+      --color-tiktok: #00F2EA;
+      --color-youtube: #FF0000;
+      --tag-niche: #C4A85A;
+      --tag-niche-rgb: 196, 168, 90;
+      --tag-demographic: #7B96B5;
+      --tag-demographic-rgb: 123, 150, 181;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .page-subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-bottom: 48px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+
+    .concepts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .concept {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .concept-label {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      color: var(--accent);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .concept-label span {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    /* Simulated sidebar */
+    .sidebar-sim {
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      width: 100%;
+      max-width: 380px;
+    }
+    .sidebar-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sidebar-header .count {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px;
+      color: var(--text-primary);
+    }
+    .sidebar-header .sort {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px;
+    }
+
+    /* ═══════════════════════════════════
+       CONCEPT A — "Whisper Cards"
+       Minimal at rest, info surfaces on hover
+       ═══════════════════════════════════ */
+
+    .card-a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      position: relative;
+      border: 1px solid transparent;
+    }
+    .card-a:hover {
+      background: var(--bg-card);
+      border-color: var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    }
+
+    .card-a .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--lavender), var(--sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-a .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Platform dot indicators — tiny colored dots along avatar edge */
+    .card-a .platform-dots {
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 3px;
+    }
+    .card-a .platform-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      border: 1.5px solid var(--bg-secondary);
+    }
+    .card-a .platform-dot.ig { background: var(--color-instagram); }
+    .card-a .platform-dot.tt { background: var(--color-tiktok); }
+    .card-a .platform-dot.yt { background: var(--color-youtube); }
+
+    .card-a .card-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .card-a .name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-a .location {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Hover-revealed meta */
+    .card-a .hover-meta {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .card-a:hover .hover-meta {
+      opacity: 1;
+    }
+    .card-a .hover-chip {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(200, 144, 126, 0.15);
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════
+       CONCEPT B — "Warm Dossier"
+       Compact but informative, warm left accent
+       ═══════════════════════════════════ */
+
+    .card-b {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+    }
+    .card-b:hover {
+      transform: translateX(2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      border-left-color: var(--rose);
+    }
+
+    .card-b .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--lavender), var(--sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+    .card-b .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .card-b .card-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .card-b .name-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .card-b .name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-b .tier {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--lavender);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .card-b .location {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Compact inline platform + follower count */
+    .card-b .meta-line {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 2px;
+    }
+    .card-b .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .card-b .meta-chip .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .card-b .meta-chip .dot.ig { background: var(--color-instagram); }
+    .card-b .meta-chip .dot.tt { background: var(--color-tiktok); }
+    .card-b .meta-chip .dot.yt { background: var(--color-youtube); }
+
+    /* ═══════════════════════════════════
+       CONCEPT C — "Breath Cards"
+       Maximum whitespace, name prominence,
+       info appears in a gentle expand on hover
+       ═══════════════════════════════════ */
+
+    .card-c {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: transparent;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+      position: relative;
+      border: 1px solid transparent;
+      overflow: hidden;
+    }
+    .card-c:hover {
+      background: var(--bg-card);
+      border-color: var(--border);
+      padding-bottom: 44px;
+    }
+
+    .card-c .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--lavender), var(--sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      font-weight: 600;
+      color: white;
+      overflow: hidden;
+      transition: all 0.35s ease;
+    }
+    .card-c .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .card-c:hover .avatar {
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .card-c .card-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .card-c .name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.2px;
+    }
+    .card-c .whisper {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+
+    /* Expanding detail tray */
+    .card-c .expand-tray {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0 16px 10px 72px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+    .card-c:hover .expand-tray {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .card-c .tray-pill {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .card-c .tray-pill.platform {
+      background: rgba(142, 174, 139, 0.15);
+      color: var(--sage);
+    }
+    .card-c .tray-pill.niche {
+      background: rgba(196, 168, 90, 0.12);
+      color: var(--tag-niche);
+    }
+    .card-c .tray-pill.tier {
+      background: rgba(187, 167, 207, 0.15);
+      color: var(--lavender);
+    }
+
+    /* ═══════════════════════════════════
+       DISPATCH GLOW STATES (applied to all)
+       Shows how cards transform when
+       dispatch filters are active
+       ═══════════════════════════════════ */
+
+    .dispatch-demo {
+      margin-top: 48px;
+    }
+    .dispatch-demo .concept-label {
+      color: var(--rose);
+    }
+
+    /* Active match glow on concept B (most likely candidate) */
+    .card-b.match-high {
+      border-left-color: var(--success);
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(142, 174, 139, 0.08) 100%);
+      box-shadow: 0 0 0 1px rgba(142, 174, 139, 0.2), 0 2px 12px rgba(142, 174, 139, 0.08);
+    }
+    .card-b.match-high .name {
+      color: #F5EDE8;
+    }
+    .card-b.match-high::after {
+      content: '★';
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-size: 11px;
+      color: var(--success);
+      opacity: 0.8;
+    }
+    .card-b.match-med {
+      opacity: 0.85;
+      border-left-color: var(--accent);
+    }
+    .card-b.match-low {
+      opacity: 0.4;
+      filter: grayscale(0.3);
+    }
+
+    /* Dispatch-mode card-a glow */
+    .card-a.match-high {
+      background: rgba(142, 174, 139, 0.06);
+      border-color: rgba(142, 174, 139, 0.2);
+    }
+    .card-a.match-high .avatar {
+      box-shadow: 0 0 0 2px var(--success);
+    }
+    .card-a.match-high .name {
+      color: #F5EDE8;
+    }
+    .card-a.match-low {
+      opacity: 0.35;
+    }
+
+    /* Dispatch mode card-c glow */
+    .card-c.match-high {
+      background: rgba(142, 174, 139, 0.05);
+      border-color: rgba(142, 174, 139, 0.15);
+    }
+    .card-c.match-high .avatar {
+      box-shadow: 0 0 0 2px var(--success), 0 0 12px rgba(142, 174, 139, 0.2);
+    }
+    .card-c.match-low {
+      opacity: 0.3;
+    }
+
+    /* Dividers */
+    .bloom-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 0;
+      user-select: none;
+    }
+    .bloom-divider .line {
+      height: 1px;
+      width: 50px;
+    }
+    .bloom-divider .line.l { background: linear-gradient(to right, transparent, rgba(212, 130, 154, 0.4)); }
+    .bloom-divider .line.r { background: linear-gradient(to left, transparent, rgba(212, 130, 154, 0.4)); }
+    .bloom-divider .bloom {
+      font-size: 14px;
+      color: #D4829A;
+      opacity: 0.5;
+      margin: 0 6px;
+    }
+
+    /* Simple space divider for concept A & C */
+    .space-divider {
+      height: 1px;
+      margin: 0 16px;
+      background: linear-gradient(to right, transparent, var(--border), transparent);
+      opacity: 0.3;
+    }
+
+    .section-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      padding: 12px 16px;
+      background: rgba(200, 144, 126, 0.05);
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(200, 144, 126, 0.1);
+      margin-top: 8px;
+    }
+    .section-note strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-title">Sidebar Card Concepts</div>
+  <div class="page-subtitle">
+    Three approaches to the creator card at rest.<br>
+    Hover over each card to see how it responds to attention.
+  </div>
+
+  <div class="concepts-grid">
+
+    <!-- ═══ CONCEPT A: Whisper Cards ═══ -->
+    <div class="concept">
+      <div class="concept-label">
+        A — Whisper Cards
+        <span>Invisible borders at rest. Cards are just names floating in space — the sidebar feels like a calm list. Platform dots on the avatar give a glanceable signal. Hover reveals tier chip.</span>
+      </div>
+
+      <div class="sidebar-sim">
+        <div class="sidebar-header">
+          <div class="count">24 creators</div>
+          <div class="sort">Sort: A-Z</div>
+        </div>
+        <div class="card-list">
+          <div class="card-a">
+            <div class="avatar" style="position:relative">
+              AM
+              <div class="platform-dots">
+                <div class="platform-dot ig"></div>
+                <div class="platform-dot tt"></div>
+              </div>
+            </div>
+            <div class="card-text">
+              <div class="name">Ava Martinez</div>
+              <div class="location">Nashville, TN</div>
+            </div>
+            <div class="hover-meta">
+              <div class="hover-chip">Micro</div>
+            </div>
+          </div>
+
+          <div class="space-divider"></div>
+
+          <div class="card-a">
+            <div class="avatar" style="position:relative; background: linear-gradient(135deg, var(--rose), var(--mocha))">
+              JK
+              <div class="platform-dots">
+                <div class="platform-dot ig"></div>
+                <div class="platform-dot yt"></div>
+              </div>
+            </div>
+            <div class="card-text">
+              <div class="name">Jordan Kim</div>
+              <div class="location">Seattle, WA</div>
+            </div>
+            <div class="hover-meta">
+              <div class="hover-chip">Mid</div>
+            </div>
+          </div>
+
+          <div class="space-divider"></div>
+
+          <div class="card-a">
+            <div class="avatar" style="position:relative; background: linear-gradient(135deg, var(--sage), var(--lavender))">
+              LW
+              <div class="platform-dots">
+                <div class="platform-dot ig"></div>
+                <div class="platform-dot tt"></div>
+                <div class="platform-dot yt"></div>
+              </div>
+            </div>
+            <div class="card-text">
+              <div class="name">Luna Wells</div>
+              <div class="location">Portland, OR</div>
+            </div>
+            <div class="hover-meta">
+              <div class="hover-chip">Macro</div>
+            </div>
+          </div>
+
+          <div class="space-divider"></div>
+
+          <div class="card-a">
+            <div class="avatar" style="position:relative; background: linear-gradient(135deg, #C09A8A, var(--rose))">
+              MS
+              <div class="platform-dots">
+                <div class="platform-dot tt"></div>
+              </div>
+            </div>
+            <div class="card-text">
+              <div class="name">Maya Singh</div>
+              <div class="location">Austin, TX</div>
+            </div>
+            <div class="hover-meta">
+              <div class="hover-chip">Nano</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-note">
+        <strong>Feng shui take:</strong> Maximum calm. The eye rests. Each card is a single breath. But — you sacrifice at-a-glance detail. Best paired with a robust ring/detail view that shows everything when you click in.
+      </div>
+    </div>
+
+    <!-- ═══ CONCEPT B: Warm Dossier ═══ -->
+    <div class="concept">
+      <div class="concept-label">
+        B — Warm Dossier
+        <span>A compact card that shows name, location, platforms, and follower counts — but in a warm, curated way. The left accent bar adds a thread of color. Close to current design, but decluttered.</span>
+      </div>
+
+      <div class="sidebar-sim">
+        <div class="sidebar-header">
+          <div class="count">24 creators</div>
+          <div class="sort">Sort: A-Z</div>
+        </div>
+        <div class="card-list">
+          <div class="card-b">
+            <div class="avatar">AM</div>
+            <div class="card-body">
+              <div class="name-row">
+                <div class="name">Ava Martinez</div>
+                <div class="tier">Micro</div>
+              </div>
+              <div class="location">Nashville, TN</div>
+              <div class="meta-line">
+                <div class="meta-chip"><div class="dot ig"></div>54K</div>
+                <div class="meta-chip"><div class="dot tt"></div>12K</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-b">
+            <div class="avatar" style="background: linear-gradient(135deg, var(--rose), var(--mocha))">JK</div>
+            <div class="card-body">
+              <div class="name-row">
+                <div class="name">Jordan Kim</div>
+                <div class="tier">Mid</div>
+              </div>
+              <div class="location">Seattle, WA</div>
+              <div class="meta-line">
+                <div class="meta-chip"><div class="dot ig"></div>230K</div>
+                <div class="meta-chip"><div class="dot yt"></div>180K</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-b">
+            <div class="avatar" style="background: linear-gradient(135deg, var(--sage), var(--lavender))">LW</div>
+            <div class="card-body">
+              <div class="name-row">
+                <div class="name">Luna Wells</div>
+                <div class="tier">Macro</div>
+              </div>
+              <div class="location">Portland, OR</div>
+              <div class="meta-line">
+                <div class="meta-chip"><div class="dot ig"></div>620K</div>
+                <div class="meta-chip"><div class="dot tt"></div>410K</div>
+                <div class="meta-chip"><div class="dot yt"></div>95K</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-b">
+            <div class="avatar" style="background: linear-gradient(135deg, #C09A8A, var(--rose))">MS</div>
+            <div class="card-body">
+              <div class="name-row">
+                <div class="name">Maya Singh</div>
+                <div class="tier">Nano</div>
+              </div>
+              <div class="location">Austin, TX</div>
+              <div class="meta-line">
+                <div class="meta-chip"><div class="dot tt"></div>8.2K</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-note">
+        <strong>Feng shui take:</strong> The most practical. You can answer "who is this person, roughly?" without clicking in. The colored dots + follower counts let you triage fast. Closest to your current design, just with the noise turned down.
+      </div>
+    </div>
+
+    <!-- ═══ CONCEPT C: Breath Cards ═══ -->
+    <div class="concept">
+      <div class="concept-label">
+        C — Breath Cards
+        <span>Pure serenity at rest — just avatar, name, and a whisper of location. Hover gently expands the card to reveal platform and niche pills. The card literally breathes open.</span>
+      </div>
+
+      <div class="sidebar-sim">
+        <div class="sidebar-header">
+          <div class="count">24 creators</div>
+          <div class="sort">Sort: A-Z</div>
+        </div>
+        <div class="card-list">
+          <div class="card-c">
+            <div class="avatar">AM</div>
+            <div class="card-text">
+              <div class="name">Ava Martinez</div>
+              <div class="whisper">Nashville, TN</div>
+            </div>
+            <div class="expand-tray">
+              <div class="tray-pill platform">Instagram · 54K</div>
+              <div class="tray-pill platform">TikTok · 12K</div>
+              <div class="tray-pill niche">Lifestyle</div>
+            </div>
+          </div>
+
+          <div class="card-c">
+            <div class="avatar" style="background: linear-gradient(135deg, var(--rose), var(--mocha))">JK</div>
+            <div class="card-text">
+              <div class="name">Jordan Kim</div>
+              <div class="whisper">Seattle, WA</div>
+            </div>
+            <div class="expand-tray">
+              <div class="tray-pill platform">Instagram · 230K</div>
+              <div class="tray-pill platform">YouTube · 180K</div>
+              <div class="tray-pill niche">Outdoor</div>
+              <div class="tray-pill niche">Travel</div>
+            </div>
+          </div>
+
+          <div class="card-c">
+            <div class="avatar" style="background: linear-gradient(135deg, var(--sage), var(--lavender))">LW</div>
+            <div class="card-text">
+              <div class="name">Luna Wells</div>
+              <div class="whisper">Portland, OR</div>
+            </div>
+            <div class="expand-tray">
+              <div class="tray-pill platform">Instagram · 620K</div>
+              <div class="tray-pill platform">TikTok · 410K</div>
+              <div class="tray-pill platform">YouTube · 95K</div>
+              <div class="tray-pill niche">Beauty</div>
+            </div>
+          </div>
+
+          <div class="card-c">
+            <div class="avatar" style="background: linear-gradient(135deg, #C09A8A, var(--rose))">MS</div>
+            <div class="card-text">
+              <div class="name">Maya Singh</div>
+              <div class="whisper">Austin, TX</div>
+            </div>
+            <div class="expand-tray">
+              <div class="tray-pill platform">TikTok · 8.2K</div>
+              <div class="tray-pill niche">Food</div>
+              <div class="tray-pill niche">Comedy</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-note">
+        <strong>Feng shui take:</strong> The most beautiful at rest. The breathing expansion is delightful. But — rapid scanning is slower because info is hidden until hover. Best for smaller rosters or a "browse" mindset.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DISPATCH MODE DEMO ═══ -->
+  <div class="dispatch-demo">
+    <div class="page-title" style="margin-top: 64px;">Dispatch Glow</div>
+    <div class="page-subtitle">
+      When dispatch filters are active, matching creators surface — non-matches recede.<br>
+      Here's how each concept handles "Instagram, Micro-Mid, Nashville area."
+    </div>
+
+    <div class="concepts-grid">
+
+      <div class="concept">
+        <div class="concept-label" style="color: var(--rose)">
+          A — with dispatch glow
+        </div>
+        <div class="sidebar-sim" style="border-color: rgba(212, 160, 160, 0.3);">
+          <div class="sidebar-header">
+            <div class="count" style="color: var(--rose)">2 matches</div>
+            <div class="sort" style="color: var(--text-muted)">of 24</div>
+          </div>
+          <div class="card-list">
+            <div class="card-a match-high">
+              <div class="avatar" style="position:relative">
+                AM
+                <div class="platform-dots">
+                  <div class="platform-dot ig"></div>
+                  <div class="platform-dot tt"></div>
+                </div>
+              </div>
+              <div class="card-text">
+                <div class="name">Ava Martinez</div>
+                <div class="location">Nashville, TN</div>
+              </div>
+            </div>
+            <div class="space-divider"></div>
+            <div class="card-a match-high">
+              <div class="avatar" style="position:relative; background: linear-gradient(135deg, var(--rose), var(--mocha))">
+                JK
+                <div class="platform-dots">
+                  <div class="platform-dot ig"></div>
+                  <div class="platform-dot yt"></div>
+                </div>
+              </div>
+              <div class="card-text">
+                <div class="name">Jordan Kim</div>
+                <div class="location">Seattle, WA</div>
+              </div>
+            </div>
+            <div class="space-divider"></div>
+            <div class="card-a match-low">
+              <div class="avatar" style="position:relative; background: linear-gradient(135deg, var(--sage), var(--lavender))">
+                LW
+                <div class="platform-dots">
+                  <div class="platform-dot ig"></div>
+                  <div class="platform-dot tt"></div>
+                  <div class="platform-dot yt"></div>
+                </div>
+              </div>
+              <div class="card-text">
+                <div class="name">Luna Wells</div>
+                <div class="location">Portland, OR</div>
+              </div>
+            </div>
+            <div class="space-divider"></div>
+            <div class="card-a match-low">
+              <div class="avatar" style="position:relative; background: linear-gradient(135deg, #C09A8A, var(--rose))">
+                MS
+                <div class="platform-dots">
+                  <div class="platform-dot tt"></div>
+                </div>
+              </div>
+              <div class="card-text">
+                <div class="name">Maya Singh</div>
+                <div class="location">Austin, TX</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="concept">
+        <div class="concept-label" style="color: var(--rose)">
+          B — with dispatch glow
+        </div>
+        <div class="sidebar-sim" style="border-color: rgba(212, 160, 160, 0.3);">
+          <div class="sidebar-header">
+            <div class="count" style="color: var(--rose)">2 matches</div>
+            <div class="sort" style="color: var(--text-muted)">of 24</div>
+          </div>
+          <div class="card-list">
+            <div class="card-b match-high">
+              <div class="avatar">AM</div>
+              <div class="card-body">
+                <div class="name-row">
+                  <div class="name">Ava Martinez</div>
+                  <div class="tier" style="color: var(--success)">Micro</div>
+                </div>
+                <div class="location">Nashville, TN</div>
+                <div class="meta-line">
+                  <div class="meta-chip"><div class="dot ig"></div>54K</div>
+                  <div class="meta-chip"><div class="dot tt"></div>12K</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-b match-med">
+              <div class="avatar" style="background: linear-gradient(135deg, var(--rose), var(--mocha))">JK</div>
+              <div class="card-body">
+                <div class="name-row">
+                  <div class="name">Jordan Kim</div>
+                  <div class="tier">Mid</div>
+                </div>
+                <div class="location">Seattle, WA</div>
+                <div class="meta-line">
+                  <div class="meta-chip"><div class="dot ig"></div>230K</div>
+                  <div class="meta-chip"><div class="dot yt"></div>180K</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-b match-low">
+              <div class="avatar" style="background: linear-gradient(135deg, var(--sage), var(--lavender))">LW</div>
+              <div class="card-body">
+                <div class="name-row">
+                  <div class="name">Luna Wells</div>
+                  <div class="tier">Macro</div>
+                </div>
+                <div class="location">Portland, OR</div>
+                <div class="meta-line">
+                  <div class="meta-chip"><div class="dot ig"></div>620K</div>
+                  <div class="meta-chip"><div class="dot tt"></div>410K</div>
+                  <div class="meta-chip"><div class="dot yt"></div>95K</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-b match-low">
+              <div class="avatar" style="background: linear-gradient(135deg, #C09A8A, var(--rose))">MS</div>
+              <div class="card-body">
+                <div class="name-row">
+                  <div class="name">Maya Singh</div>
+                  <div class="tier">Nano</div>
+                </div>
+                <div class="location">Austin, TX</div>
+                <div class="meta-line">
+                  <div class="meta-chip"><div class="dot tt"></div>8.2K</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="concept">
+        <div class="concept-label" style="color: var(--rose)">
+          C — with dispatch glow
+        </div>
+        <div class="sidebar-sim" style="border-color: rgba(212, 160, 160, 0.3);">
+          <div class="sidebar-header">
+            <div class="count" style="color: var(--rose)">2 matches</div>
+            <div class="sort" style="color: var(--text-muted)">of 24</div>
+          </div>
+          <div class="card-list">
+            <div class="card-c match-high">
+              <div class="avatar">AM</div>
+              <div class="card-text">
+                <div class="name">Ava Martinez</div>
+                <div class="whisper">Nashville, TN</div>
+              </div>
+            </div>
+
+            <div class="card-c match-high" style="opacity: 0.75;">
+              <div class="avatar" style="background: linear-gradient(135deg, var(--rose), var(--mocha))">JK</div>
+              <div class="card-text">
+                <div class="name">Jordan Kim</div>
+                <div class="whisper">Seattle, WA</div>
+              </div>
+            </div>
+
+            <div class="card-c match-low">
+              <div class="avatar" style="background: linear-gradient(135deg, var(--sage), var(--lavender))">LW</div>
+              <div class="card-text">
+                <div class="name">Luna Wells</div>
+                <div class="whisper">Portland, OR</div>
+              </div>
+            </div>
+
+            <div class="card-c match-low">
+              <div class="avatar" style="background: linear-gradient(135deg, #C09A8A, var(--rose))">MS</div>
+              <div class="card-text">
+                <div class="name">Maya Singh</div>
+                <div class="whisper">Austin, TX</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

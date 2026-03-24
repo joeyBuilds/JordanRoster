@@ -163,6 +163,27 @@ function getCategoryForItem(item, categories) {
   return null;
 }
 
+// Map category name → CSS class suffix for ring pill coloring
+function getCategoryColorClass(categoryName) {
+  if (!categoryName) return 'other';
+  const map = {
+    'Content & Entertainment': 'entertainment',
+    'Lifestyle & Wellness': 'lifestyle',
+    'Food & Drink': 'food',
+    'Travel & Adventure': 'travel',
+    'People & Relationships': 'people',
+    'Sports & Fitness': 'fitness',
+    'Home & DIY': 'home',
+    'Tech & Business': 'tech',
+    'Creative': 'creative',
+    'Gender & Identity': 'identity',
+    'Culture & Background': 'culture',
+    'Age & Generation': 'age',
+    'Representation': 'representation'
+  };
+  return map[categoryName] || 'other';
+}
+
 // Deleted presets — persisted so preset demographics can be permanently removed
 // Niches no longer have the preset/custom distinction, so only demographics need this
 // Initialized in init() after database is ready
@@ -2255,51 +2276,73 @@ function renderRing(creator) {
 
   infoSection.appendChild(contactCard);
 
-  // Left column: Niches (absolutely positioned, top-aligned with contact card)
+  // Left column: Niches — category-colored pills that fan out
   if (hasNiches) {
     const nicheCol = document.createElement('div');
-    const sortedNiches = [...creator.niches].sort((a, b) => a.localeCompare(b));
+    const nicheCategories = loadTagCategories('niche');
+    // Sort by category then alphabetically within category
+    const sortedNiches = [...creator.niches].sort((a, b) => {
+      const catA = getCategoryForItem(a, nicheCategories) || 'zzz';
+      const catB = getCategoryForItem(b, nicheCategories) || 'zzz';
+      if (catA !== catB) return catA.localeCompare(catB);
+      return a.localeCompare(b);
+    });
     const many = sortedNiches.length > 7;
     nicheCol.className = 'ring-side-col ring-side-col-left' + (many ? ' ring-side-col-dense' : '');
+    const mid = sortedNiches.length / 2;
     sortedNiches.forEach((niche, i) => {
       const el = document.createElement('div');
-      el.className = 'ring-pill niche';
+      const cat = getCategoryForItem(niche, nicheCategories);
+      const colorClass = getCategoryColorClass(cat);
+      el.className = 'ring-pill niche cat-' + colorClass;
       el.textContent = niche;
       el.onclick = (e) => { e.stopPropagation(); openTagModal(niche, 'niche'); };
+      // Fan offset: pills near center are closer, edges curve away
+      const fanOffset = Math.round((Math.abs(i - mid) / mid) * 8);
       el.style.opacity = '0';
-      el.style.transform = 'translateX(-12px)';
-      el.style.transition = 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      el.style.transform = `translateX(-${16 + fanOffset}px)`;
+      el.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
       nicheCol.appendChild(el);
       setTimeout(() => {
         el.style.opacity = '1';
         el.style.transform = 'translateX(0)';
-        setTimeout(() => { el.style.opacity = ''; el.style.transform = ''; el.style.transition = ''; }, 250);
-      }, 100 + i * 30);
+        setTimeout(() => { el.style.opacity = ''; el.style.transform = ''; el.style.transition = ''; }, 300);
+      }, 80 + i * 35);
     });
     infoSection.appendChild(nicheCol);
   }
 
-  // Right column: Demographics (absolutely positioned, top-aligned with contact card)
+  // Right column: Demographics — category-colored pills that fan out
   if (hasDemographics) {
     const demoCol = document.createElement('div');
-    const sortedDemos = [...creator.demographics].sort((a, b) => a.localeCompare(b));
+    const demoCategories = loadTagCategories('demographic');
+    const sortedDemos = [...creator.demographics].sort((a, b) => {
+      const catA = getCategoryForItem(a, demoCategories) || 'zzz';
+      const catB = getCategoryForItem(b, demoCategories) || 'zzz';
+      if (catA !== catB) return catA.localeCompare(catB);
+      return a.localeCompare(b);
+    });
     const manyDemos = sortedDemos.length > 7;
     demoCol.className = 'ring-side-col ring-side-col-right' + (manyDemos ? ' ring-side-col-dense' : '');
     const baseDelay = hasNiches ? Math.min(creator.niches.length, 7) : 0;
+    const dMid = sortedDemos.length / 2;
     sortedDemos.forEach((demographic, i) => {
       const el = document.createElement('div');
-      el.className = 'ring-pill demographic';
+      const cat = getCategoryForItem(demographic, demoCategories);
+      const colorClass = getCategoryColorClass(cat);
+      el.className = 'ring-pill demographic cat-' + colorClass;
       el.textContent = demographic;
       el.onclick = (e) => { e.stopPropagation(); openTagModal(demographic, 'demographic'); };
+      const fanOffset = Math.round((Math.abs(i - dMid) / Math.max(dMid, 1)) * 8);
       el.style.opacity = '0';
-      el.style.transform = 'translateX(12px)';
-      el.style.transition = 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      el.style.transform = `translateX(${16 + fanOffset}px)`;
+      el.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
       demoCol.appendChild(el);
       setTimeout(() => {
         el.style.opacity = '1';
         el.style.transform = 'translateX(0)';
-        setTimeout(() => { el.style.opacity = ''; el.style.transform = ''; el.style.transition = ''; }, 250);
-      }, 100 + (baseDelay + i) * 30);
+        setTimeout(() => { el.style.opacity = ''; el.style.transform = ''; el.style.transition = ''; }, 300);
+      }, 80 + (baseDelay + i) * 35);
     });
     infoSection.appendChild(demoCol);
   }

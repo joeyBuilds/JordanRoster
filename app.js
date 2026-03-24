@@ -754,7 +754,7 @@ function renderCreatorCard(creator) {
       const followers = getFollowers(creator, p);
       const followerText = followers !== null ? formatFollowers(followers) : p;
       const engRate = getEngagementRate(creator, p);
-      const engText = engRate !== null ? `<span class="eng-inline"> · ${formatEngagementRate(engRate)}</span>` : '';
+      const engText = engRate !== null ? `<span style="color:#B0A090;font-size:10px;font-style:italic"> · ${formatEngagementRate(engRate)}</span>` : '';
       chip.innerHTML = `<span class="meta-dot ${dotClass}"></span>${followerText}${engText}`;
       metaLine.appendChild(chip);
     });

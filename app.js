@@ -1893,7 +1893,11 @@ function _arrangeMarkerRings() {
     const el = info.marker.getElement();
     if (el) {
       const inner = el.querySelector('.marker-inner');
-      if (inner) inner.style.transform = '';
+      if (inner) {
+        inner.classList.remove('ring-offset');
+        inner.style.removeProperty('--ring-tx');
+        inner.style.removeProperty('--ring-ty');
+      }
     }
     // Reset tooltip offset to default
     if (info.marker._tooltipText) {
@@ -1973,8 +1977,11 @@ function _arrangeMarkerRings() {
       if (el) {
         const inner = el.querySelector('.marker-inner');
         if (inner) {
-          const scale = getComputedStyle(document.documentElement).getPropertyValue('--marker-scale') || '1';
-          inner.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+          // Use CSS custom properties so translate composes with the
+          // scale(var(--marker-scale)) in the stylesheet rule
+          inner.style.setProperty('--ring-tx', offsetX + 'px');
+          inner.style.setProperty('--ring-ty', offsetY + 'px');
+          inner.classList.add('ring-offset');
         }
       }
       // Shift tooltip to follow the visually offset pin

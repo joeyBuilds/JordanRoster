@@ -446,6 +446,10 @@ body.shift-held #mapContainer .leaflet-container {
   transform: scale(var(--marker-scale, 1));
   transform-origin: center 28px;
 }
+/* Ring-grouped markers: translate + scale compose via CSS */
+.creator-marker .marker-inner.ring-offset {
+  transform: translate(var(--ring-tx, 0), var(--ring-ty, 0)) scale(var(--marker-scale, 1));
+}
 
 /* Avatar wrapper — positions glow behind avatar */
 .marker-avatar-wrap {
@@ -1539,10 +1543,10 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .eng-inline {
   font-size: 9px;
-  opacity: 0.55;
   font-weight: 400;
   color: var(--text-secondary);
-  opacity: 0.7;
+  opacity: 0.5;
+  margin-left: 1px;
 }
 .meta-dot {
   width: 6px;

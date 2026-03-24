@@ -66,14 +66,17 @@ function rowToCreator(row, platformRows, nicheRows, demoRows) {
 
 function creatorRelatedRows(c) {
   const platforms = Object.entries(c.platforms && typeof c.platforms === 'object' ? c.platforms : {}).map(
-    ([platform, data]) => ({
-      creator_id: c.id,
-      platform,
-      handle: data.handle || '',
-      url: data.url || '',
-      followers: data.followers ?? null,
-      engagement_rate: data.engagementRate ?? null
-    })
+    ([platform, data]) => {
+      const row = {
+        creator_id: c.id,
+        platform,
+        handle: data.handle || '',
+        url: data.url || '',
+        followers: data.followers ?? null
+      };
+      if (data.engagementRate != null) row.engagement_rate = data.engagementRate;
+      return row;
+    }
   );
   const niches = (c.niches || []).map(niche => ({ creator_id: c.id, niche }));
   const demographics = (c.demographics || []).map(demographic => ({ creator_id: c.id, demographic }));

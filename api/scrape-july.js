@@ -137,7 +137,10 @@ module.exports = async function handler(req, res) {
     // ── Step 3: If JSON extraction worked, use that data ──
     if (creatorsFromJson && creatorsFromJson.length > 0) {
       const creators = creatorsFromJson.map(normalizeCreator).filter(Boolean);
-      console.log('[scraper] Returning', creators.length, 'creators from JSON data');
+      console.log('[scraper] Normalized', creators.length, 'creators from JSON data');
+
+      // Resolve missing handles (TikTok short links, YouTube channel URLs)
+      await resolveHandles(creators);
 
       return res.status(200).json({
         success: true,
@@ -332,6 +335,9 @@ module.exports = async function handler(req, res) {
         }));
       }
     }
+
+    // Resolve missing handles (TikTok short links, YouTube channel URLs)
+    await resolveHandles(creators);
 
     console.log('[scraper] Returning', creators.length, 'creators from HTML parsing');
     return res.status(200).json({

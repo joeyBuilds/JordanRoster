@@ -270,6 +270,7 @@ let creators = [];
 let currentEditingCreator = null;
 let map = null;
 let markers = {};
+let _dispatchMatchedIds = new Set(); // IDs of creators matching current dispatch filters
 let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
 let dispatchFilters = {
   platformTiers: [],  // [{platform: 'Instagram', tier: 'Micro (10K-100K)'}, ...]
@@ -360,9 +361,18 @@ function getEngagementRate(creator, platform) {
 
 function formatEngagementRate(rate) {
   if (rate === null || rate === undefined) return '';
-  // Rate may come as decimal (0.032) or percentage (3.2)
-  const pct = rate < 1 ? rate * 100 : rate;
-  return pct.toFixed(1) + '%';
+  // Rates are stored as percentage values (e.g. 5.4 = 5.4%, 0.79 = 0.79%)
+  // Floor anything under 1% to display as 1%
+  const display = rate < 1 ? 1 : rate;
+  return display.toFixed(1) + '%';
+}
+
+// Normalize engagement rate to consistent percentage scale for sorting
+// Uses raw value (no 1% floor) so sort order stays accurate
+function getNormalizedEngagementRate(creator, platform) {
+  const rate = getEngagementRate(creator, platform);
+  if (rate === null || rate === undefined) return null;
+  return rate;
 }
 
 function formatFollowers(count) {
@@ -693,6 +703,42 @@ function getFilteredCreators(searchTerm = '', sortBy = 'a-z', applyDispatchFilte
     case 'age-desc':
       filtered.sort((a, b) => (getCreatorAge(b) ?? -1) - (getCreatorAge(a) ?? -1));
       break;
+    case 'ig-desc':
+      filtered.sort((a, b) => (getFollowers(b, 'Instagram') ?? -1) - (getFollowers(a, 'Instagram') ?? -1));
+      break;
+    case 'ig-asc':
+      filtered.sort((a, b) => (getFollowers(a, 'Instagram') ?? Infinity) - (getFollowers(b, 'Instagram') ?? Infinity));
+      break;
+    case 'tt-desc':
+      filtered.sort((a, b) => (getFollowers(b, 'TikTok') ?? -1) - (getFollowers(a, 'TikTok') ?? -1));
+      break;
+    case 'tt-asc':
+      filtered.sort((a, b) => (getFollowers(a, 'TikTok') ?? Infinity) - (getFollowers(b, 'TikTok') ?? Infinity));
+      break;
+    case 'yt-desc':
+      filtered.sort((a, b) => (getFollowers(b, 'YouTube') ?? -1) - (getFollowers(a, 'YouTube') ?? -1));
+      break;
+    case 'yt-asc':
+      filtered.sort((a, b) => (getFollowers(a, 'YouTube') ?? Infinity) - (getFollowers(b, 'YouTube') ?? Infinity));
+      break;
+    case 'ig-eng-desc':
+      filtered.sort((a, b) => (getNormalizedEngagementRate(b, 'Instagram') ?? -1) - (getNormalizedEngagementRate(a, 'Instagram') ?? -1));
+      break;
+    case 'ig-eng-asc':
+      filtered.sort((a, b) => (getNormalizedEngagementRate(a, 'Instagram') ?? Infinity) - (getNormalizedEngagementRate(b, 'Instagram') ?? Infinity));
+      break;
+    case 'tt-eng-desc':
+      filtered.sort((a, b) => (getNormalizedEngagementRate(b, 'TikTok') ?? -1) - (getNormalizedEngagementRate(a, 'TikTok') ?? -1));
+      break;
+    case 'tt-eng-asc':
+      filtered.sort((a, b) => (getNormalizedEngagementRate(a, 'TikTok') ?? Infinity) - (getNormalizedEngagementRate(b, 'TikTok') ?? Infinity));
+      break;
+    case 'yt-eng-desc':
+      filtered.sort((a, b) => (getNormalizedEngagementRate(b, 'YouTube') ?? -1) - (getNormalizedEngagementRate(a, 'YouTube') ?? -1));
+      break;
+    case 'yt-eng-asc':
+      filtered.sort((a, b) => (getNormalizedEngagementRate(a, 'YouTube') ?? Infinity) - (getNormalizedEngagementRate(b, 'YouTube') ?? Infinity));
+      break;
     case 'a-z':
     default:
       filtered.sort((a, b) => getFullName(a).localeCompare(getFullName(b)));
@@ -747,6 +793,12 @@ function renderCreatorCard(creator) {
   if (platforms.length > 0) {
     const metaLine = document.createElement('div');
     metaLine.className = 'creator-meta-line';
+    // Detect current sort to show indicator on the relevant stat
+    const curSort = document.getElementById('sortSelect')?.value || '';
+    const sortPlatformKey = curSort.startsWith('ig') ? 'Instagram' : curSort.startsWith('tt') ? 'TikTok' : curSort.startsWith('yt') ? 'YouTube' : '';
+    const sortIsEng = curSort.includes('eng');
+    const sortIsDesc = curSort.includes('desc');
+    const sortArrow = sortIsDesc ? '↓' : '↑';
     platforms.forEach((p, idx) => {
       const chip = document.createElement('div');
       const dotClass = p === 'Instagram' ? 'ig' : p === 'TikTok' ? 'tt' : p === 'YouTube' ? 'yt' : '';
@@ -754,8 +806,17 @@ function renderCreatorCard(creator) {
       const followers = getFollowers(creator, p);
       const followerText = followers !== null ? formatFollowers(followers) : p;
       const engRate = getEngagementRate(creator, p);
-      const engText = engRate !== null ? `<span style="color:#B0A090;font-size:10px;font-style:italic"> · ${formatEngagementRate(engRate)}</span>` : '';
-      chip.innerHTML = `<span class="meta-dot ${dotClass}"></span>${followerText}${engText}`;
+      const engText = engRate !== null ? `<span class="eng-inline"> · ${formatEngagementRate(engRate)}</span>` : '';
+      // Sort indicator: small arrow next to the stat being sorted
+      const isActivePlatform = p === sortPlatformKey;
+      let followerIndicator = '';
+      let engIndicator = '';
+      if (isActivePlatform && !sortIsEng) {
+        followerIndicator = `<span class="sort-indicator">${sortArrow}</span>`;
+      } else if (isActivePlatform && sortIsEng && engRate !== null) {
+        engIndicator = `<span class="sort-indicator">${sortArrow}</span>`;
+      }
+      chip.innerHTML = `<span class="meta-dot ${dotClass}"></span>${followerText}${followerIndicator}${engText}${engIndicator}`;
       metaLine.appendChild(chip);
     });
     body.appendChild(metaLine);
@@ -923,6 +984,13 @@ function renderDispatchTab() {
                      dispatchFilters.ageMax !== null ||
                      nlRegionFilter !== null;
 
+  // Sync the Who? clear button — show × when any filters are active OR input has text
+  const nlClearBtn = document.getElementById('nlSearchClear');
+  const nlInput = document.getElementById('nlSearchInput');
+  if (nlClearBtn) {
+    nlClearBtn.style.display = (hasFilters || (nlInput && nlInput.value.trim())) ? '' : 'none';
+  }
+
   // Reuse the match float panel (same as roster, different color)
   const matchPanel = document.getElementById('matchFloatPanel');
   const matchBody = document.getElementById('matchFloatBody');
@@ -931,7 +999,11 @@ function renderDispatchTab() {
   if (!hasFilters) {
     matchPanel.classList.remove('visible', 'dispatch-mode');
     matchBody.innerHTML = '';
-    updateMapMarkers();
+    // Only rebuild markers if we were previously showing dispatch matches
+    if (_dispatchMatchedIds.size > 0) {
+      _dispatchMatchedIds = new Set();
+      updateMapMarkers();
+    }
     if (dispatchDestination) renderNearestCreators();
     return;
   }
@@ -952,22 +1024,51 @@ function renderDispatchTab() {
       return { creator, ...score };
     });
 
-    // Sort: best matches first, then alphabetically within same score
+    // Secondary sort within same score tier
+    const secondarySort = document.getElementById('dispatchSecondarySort')?.value || 'alpha';
+    function secondaryCmp(a, b) {
+      switch (secondarySort) {
+        case 'ig-eng-desc': return (getNormalizedEngagementRate(b.creator, 'Instagram') ?? -1) - (getNormalizedEngagementRate(a.creator, 'Instagram') ?? -1);
+        case 'tt-eng-desc': return (getNormalizedEngagementRate(b.creator, 'TikTok') ?? -1) - (getNormalizedEngagementRate(a.creator, 'TikTok') ?? -1);
+        case 'yt-eng-desc': return (getNormalizedEngagementRate(b.creator, 'YouTube') ?? -1) - (getNormalizedEngagementRate(a.creator, 'YouTube') ?? -1);
+        case 'ig-eng-asc': return (getNormalizedEngagementRate(a.creator, 'Instagram') ?? Infinity) - (getNormalizedEngagementRate(b.creator, 'Instagram') ?? Infinity);
+        case 'tt-eng-asc': return (getNormalizedEngagementRate(a.creator, 'TikTok') ?? Infinity) - (getNormalizedEngagementRate(b.creator, 'TikTok') ?? Infinity);
+        case 'yt-eng-asc': return (getNormalizedEngagementRate(a.creator, 'YouTube') ?? Infinity) - (getNormalizedEngagementRate(b.creator, 'YouTube') ?? Infinity);
+        case 'ig-desc': return (getFollowers(b.creator, 'Instagram') ?? -1) - (getFollowers(a.creator, 'Instagram') ?? -1);
+        case 'tt-desc': return (getFollowers(b.creator, 'TikTok') ?? -1) - (getFollowers(a.creator, 'TikTok') ?? -1);
+        case 'yt-desc': return (getFollowers(b.creator, 'YouTube') ?? -1) - (getFollowers(a.creator, 'YouTube') ?? -1);
+        case 'ig-asc': return (getFollowers(a.creator, 'Instagram') ?? Infinity) - (getFollowers(b.creator, 'Instagram') ?? Infinity);
+        case 'tt-asc': return (getFollowers(a.creator, 'TikTok') ?? Infinity) - (getFollowers(b.creator, 'TikTok') ?? Infinity);
+        case 'yt-asc': return (getFollowers(a.creator, 'YouTube') ?? Infinity) - (getFollowers(b.creator, 'YouTube') ?? Infinity);
+        case 'alpha':
+        default: return getFullName(a.creator).localeCompare(getFullName(b.creator));
+      }
+    }
+
+    // Sort: best matches first, then secondary sort within same score
     scored.sort((a, b) => {
       if (b.pct !== a.pct) return b.pct - a.pct;
-      return getFullName(a.creator).localeCompare(getFullName(b.creator));
+      return secondaryCmp(a, b);
     });
 
+    let prevMatchCount = null;
     scored.forEach((entry, i) => {
       const { creator, matchCount, totalFilters, pct, matchDetails, missedDetails } = entry;
 
-      // Spacer between cards (no bloom — blooms reserved for section dividers)
-      if (i > 0) {
+      // Score-group divider when matchCount changes
+      if (i > 0 && matchCount !== prevMatchCount) {
+        const divider = document.createElement('div');
+        divider.className = 'dispatch-score-divider';
+        divider.innerHTML = `<span class="dispatch-score-divider-label">${matchCount}/${totalFilters}</span>`;
+        matchBody.appendChild(divider);
+      } else if (i > 0) {
+        // Spacer between cards within same score group
         const spacer = document.createElement('div');
         spacer.style.height = '6px';
         spacer.style.flexShrink = '0';
         matchBody.appendChild(spacer);
       }
+      prevMatchCount = matchCount;
 
       const card = renderCreatorCard(creator);
 
@@ -1009,12 +1110,33 @@ function renderDispatchTab() {
         setTimeout(() => fraction.classList.add('visible'), 250 + i * 40);
       }
 
+      // ── Card hover → highlight corresponding map pin ──
+      card.addEventListener('mouseenter', () => {
+        const markerEl = markers[creator.id] && markers[creator.id].getElement();
+        if (markerEl) markerEl.classList.add('dispatch-card-hover');
+      });
+      card.addEventListener('mouseleave', () => {
+        const markerEl = markers[creator.id] && markers[creator.id].getElement();
+        if (markerEl) markerEl.classList.remove('dispatch-card-hover');
+      });
+
       matchBody.appendChild(card);
     });
   }
 
   matchPanel.classList.add('visible');
-  updateMapMarkers();
+
+  // Track matched IDs so updateMapMarkers can highlight them
+  const newMatchedIds = new Set(filtered.map(c => c.id));
+
+  // Only rebuild map markers if the matched set actually changed (not just sort order)
+  const matchedChanged = newMatchedIds.size !== _dispatchMatchedIds.size ||
+    [...newMatchedIds].some(id => !_dispatchMatchedIds.has(id));
+  _dispatchMatchedIds = newMatchedIds;
+
+  if (matchedChanged) {
+    updateMapMarkers();
+  }
   if (dispatchDestination) renderNearestCreators();
 }
 
@@ -1742,7 +1864,8 @@ function updateMapMarkers() {
                              dispatchFilters.niches.length > 0 ||
                              dispatchFilters.demographics.length > 0 ||
                              dispatchFilters.ageMin !== null ||
-                             dispatchFilters.ageMax !== null;
+                             dispatchFilters.ageMax !== null ||
+                             nlRegionFilter !== null;
   const isDispatch = document.body.classList.contains('dispatch-mode');
 
   const newMarkers = [];
@@ -1772,10 +1895,17 @@ function updateMapMarkers() {
         <div class="marker-score-badge score-${scoreLevel}">${scoreText}</div>
       ` : '';
 
+      // Build gleam ring HTML for dispatch-matched creators
+      const isMatch = isDispatch && hasDispatchFilters && _dispatchMatchedIds.has(creator.id);
+      // Derive a pseudo-random stagger from creator id hash so each pin breathes at its own pace
+      const staggerMs = isMatch ? (Math.abs([...creator.id].reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0), 0)) % 2500) : 0;
+      const gleamHtml = isMatch ? `<div class="marker-gleam-ring" style="animation-delay: -${staggerMs}ms"></div>` : '';
+
       const iconHtml = `
-        <div class="marker-inner">
+        <div class="marker-inner" style="${isMatch ? '--stagger:' + staggerMs + 'ms' : ''}">
           ${scoreRingHtml}
           <div class="marker-avatar-wrap">
+            ${gleamHtml}
             <div class="marker-glow"></div>
             <div class="marker-avatar">
               ${creator.photo ? `<img src="${creator.photo}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="marker-initials" style="display:none">${getInitials(creator.firstName, creator.lastName)}</span>` : `<span class="marker-initials">${getInitials(creator.firstName, creator.lastName)}</span>`}
@@ -1785,7 +1915,10 @@ function updateMapMarkers() {
         </div>
       `;
 
-      const markerClassName = 'creator-marker' + (isDispatch && hasDispatchFilters && scoreLevel === 'low' ? ' dispatch-faded' : '');
+      const shouldFade = isDispatch && hasDispatchFilters && !isMatch;
+      const markerClassName = 'creator-marker'
+        + (shouldFade ? ' dispatch-faded' : '')
+        + (isMatch ? ' dispatch-match' : '');
 
       const icon = L.divIcon({
         html: iconHtml,
@@ -2095,13 +2228,6 @@ function renderRing(creator) {
 
       const textWrap = document.createElement('span');
       textWrap.className = 'ring-chip-text';
-      const handle = getHandle(creator, p);
-      if (handle) {
-        const handleLine = document.createElement('span');
-        handleLine.className = 'ring-chip-handle';
-        handleLine.textContent = `@${handle.replace(/^@/, '')}`;
-        textWrap.appendChild(handleLine);
-      }
       const followers = getFollowers(creator, p);
       if (followers !== null) {
         const followLine = document.createElement('span');
@@ -2285,76 +2411,7 @@ function renderRing(creator) {
 
   infoSection.appendChild(contactCard);
 
-  // Left column: Niches — category-colored pills that fan out
-  if (hasNiches) {
-    const nicheCol = document.createElement('div');
-    const nicheCategories = loadTagCategories('niche');
-    // Sort by category then alphabetically within category
-    const sortedNiches = [...creator.niches].sort((a, b) => {
-      const catA = getCategoryForItem(a, nicheCategories) || 'zzz';
-      const catB = getCategoryForItem(b, nicheCategories) || 'zzz';
-      if (catA !== catB) return catA.localeCompare(catB);
-      return a.localeCompare(b);
-    });
-    const many = sortedNiches.length > 7;
-    nicheCol.className = 'ring-side-col ring-side-col-left' + (many ? ' ring-side-col-dense' : '');
-    const mid = sortedNiches.length / 2;
-    sortedNiches.forEach((niche, i) => {
-      const el = document.createElement('div');
-      const cat = getCategoryForItem(niche, nicheCategories);
-      const colorClass = getCategoryColorClass(cat);
-      el.className = 'ring-pill niche cat-' + colorClass;
-      el.textContent = niche;
-      el.onclick = (e) => { e.stopPropagation(); openTagModal(niche, 'niche'); };
-      // Fan offset: pills near center are closer, edges curve away
-      const fanOffset = Math.round((Math.abs(i - mid) / mid) * 8);
-      el.style.opacity = '0';
-      el.style.transform = `translateX(-${16 + fanOffset}px)`;
-      el.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      nicheCol.appendChild(el);
-      setTimeout(() => {
-        el.style.opacity = '1';
-        el.style.transform = 'translateX(0)';
-        setTimeout(() => { el.style.opacity = ''; el.style.transform = ''; el.style.transition = ''; }, 300);
-      }, 80 + i * 35);
-    });
-    infoSection.appendChild(nicheCol);
-  }
-
-  // Right column: Demographics — category-colored pills that fan out
-  if (hasDemographics) {
-    const demoCol = document.createElement('div');
-    const demoCategories = loadTagCategories('demographic');
-    const sortedDemos = [...creator.demographics].sort((a, b) => {
-      const catA = getCategoryForItem(a, demoCategories) || 'zzz';
-      const catB = getCategoryForItem(b, demoCategories) || 'zzz';
-      if (catA !== catB) return catA.localeCompare(catB);
-      return a.localeCompare(b);
-    });
-    const manyDemos = sortedDemos.length > 7;
-    demoCol.className = 'ring-side-col ring-side-col-right' + (manyDemos ? ' ring-side-col-dense' : '');
-    const baseDelay = hasNiches ? Math.min(creator.niches.length, 7) : 0;
-    const dMid = sortedDemos.length / 2;
-    sortedDemos.forEach((demographic, i) => {
-      const el = document.createElement('div');
-      const cat = getCategoryForItem(demographic, demoCategories);
-      const colorClass = getCategoryColorClass(cat);
-      el.className = 'ring-pill demographic cat-' + colorClass;
-      el.textContent = demographic;
-      el.onclick = (e) => { e.stopPropagation(); openTagModal(demographic, 'demographic'); };
-      const fanOffset = Math.round((Math.abs(i - dMid) / Math.max(dMid, 1)) * 8);
-      el.style.opacity = '0';
-      el.style.transform = `translateX(${16 + fanOffset}px)`;
-      el.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      demoCol.appendChild(el);
-      setTimeout(() => {
-        el.style.opacity = '1';
-        el.style.transform = 'translateX(0)';
-        setTimeout(() => { el.style.opacity = ''; el.style.transform = ''; el.style.transition = ''; }, 300);
-      }, 80 + (baseDelay + i) * 35);
-    });
-    infoSection.appendChild(demoCol);
-  }
+  // Niches and Demographics are now rendered as Petal Arcs after clamping (see below)
 
   ringColumn.appendChild(infoSection);
 
@@ -2429,6 +2486,190 @@ function renderRing(creator) {
   ringColumn.style.top = finalTop + 'px';
   ringColumn.style.left = finalLeft + 'px';
 
+  // ── "Pill Jail": Niches (left of Slot 1) and Demographics (right of Slot 3) ──
+  // Tags fill a vertical box that runs from just below the platform row to the
+  // bottom of the ring column, aligned to Slot 1 (niches) or Slot 3 (demographics).
+  // If too many tags to fit, pills shrink (font + padding) until they do.
+
+  // --- Jail bounds ---
+  const overlayOriginX = parseFloat(overlay.style.left) || 0;
+  const overlayOriginY = parseFloat(overlay.style.top) || 0;
+
+  // Top of jail: just below the platform row
+  const platformRow = ringColumn.querySelector('.ring-platforms-row');
+  let jailTop;
+  if (platformRow) {
+    const prRect = platformRow.getBoundingClientRect();
+    jailTop = prRect.bottom - overlayOriginY + 6; // 6px gap below chips
+  } else {
+    jailTop = finalTop + 4;
+  }
+
+  // Detect single-platform creators for wider pill layout
+  const platformCount = getCreatorPlatforms(creator).length;
+  const isSinglePlatform = platformCount <= 1;
+
+  // Bottom of jail: top of name card for multi-platform, full column for single-platform
+  const nameCard = ringColumn.querySelector('.ring-name-card');
+  let jailBottom;
+  if (isSinglePlatform) {
+    // Single platform: extend pills all the way down — they push out wide enough to clear
+    jailBottom = finalTop + colH;
+  } else if (nameCard) {
+    const ncRect = nameCard.getBoundingClientRect();
+    jailBottom = ncRect.top - overlayOriginY - 4;
+  } else {
+    jailBottom = finalTop + colH;
+  }
+
+  // Jail edges: use the actual platform row's left/right edges.
+  // For single-platform creators, push edges much further out so pills don't crowd the center.
+  const tuck = 8;
+  const minClearance = 55; // avatar is 90px wide → 45px radius + 10px breathing room
+  const singlePlatformSpread = 100; // push pills well clear of avatar + name card
+  let jailLeftEdge, jailRightEdge;
+  if (isSinglePlatform) {
+    jailLeftEdge = finalLeft - singlePlatformSpread;
+    jailRightEdge = finalLeft + singlePlatformSpread;
+  } else if (platformRow) {
+    const prRect = platformRow.getBoundingClientRect();
+    const rawLeft = prRect.left - overlayOriginX + tuck;
+    const rawRight = prRect.right - overlayOriginX - tuck;
+    jailLeftEdge = Math.min(rawLeft, finalLeft - minClearance);
+    jailRightEdge = Math.max(rawRight, finalLeft + minClearance);
+  } else {
+    jailLeftEdge = finalLeft - colW / 2 + tuck;
+    jailRightEdge = finalLeft + colW / 2 - tuck;
+  }
+
+  function renderPillJail(tagList, categories, tagType, isLeft) {
+    const categoryOrder = Object.keys(categories);
+
+    // Group tags by category in sidebar order
+    const groups = [];
+    categoryOrder.forEach(cat => {
+      const catTags = tagList.filter(t => getCategoryForItem(t, categories) === cat);
+      if (catTags.length > 0) groups.push({ cat, tags: catTags });
+    });
+    const uncat = tagList.filter(t => !getCategoryForItem(t, categories));
+    if (uncat.length > 0) groups.push({ cat: null, tags: uncat });
+    if (groups.length === 0) return;
+
+    // Keep category order matching dispatch sidebar (top-to-bottom)
+
+    const totalTags = tagList.length;
+    const catGapPx = 4;
+    const totalCatGaps = (groups.length - 1) * catGapPx;
+    const jailH = jailBottom - jailTop;
+
+    // Alignment edge
+    const nearEdge = isLeft ? jailLeftEdge : jailRightEdge;
+
+    // Determine pill size: start at normal (26px), shrink if needed to fit
+    const normalPillH = 26;
+    const normalStep = normalPillH + 4; // 30px per tag
+    const neededH = totalTags * normalStep + totalCatGaps;
+
+    let pillH, step, fontSize, pillPadY, pillPadX;
+    if (neededH <= jailH) {
+      // Fits at normal size
+      pillH = normalPillH;
+      step = normalStep;
+      fontSize = 11;
+      pillPadY = 4;
+      pillPadX = 10;
+    } else {
+      // Shrink to fit: reduce step first, then shrink pill size if overlapping too much
+      const minStep = 15; // absolute minimum before text becomes unreadable
+      step = Math.max(minStep, (jailH - totalCatGaps) / totalTags);
+      if (step >= 22) {
+        // Mild compression — keep normal font, just tighter spacing
+        pillH = normalPillH;
+        fontSize = 11;
+        pillPadY = 4;
+        pillPadX = 10;
+      } else if (step >= 18) {
+        // Medium compression — slightly smaller
+        pillH = 22;
+        fontSize = 10;
+        pillPadY = 3;
+        pillPadX = 8;
+      } else {
+        // Heavy compression — compact pills
+        pillH = 18;
+        fontSize = 9;
+        pillPadY = 2;
+        pillPadX = 6;
+      }
+    }
+    const isOverlapping = step < pillH;
+
+    // Always show all pills — shrink to fit, never truncate
+    // Place tags
+    let tagIndex = 0;
+    let currentY = jailTop;
+    let delay = 50;
+
+    groups.forEach((group, gIdx) => {
+      group.tags.forEach((tag, tIdx) => {
+        const ty = currentY;
+        const colorClass = getCategoryColorClass(group.cat);
+
+        const wrap = document.createElement('div');
+        wrap.style.cssText = `
+          position:absolute; left:${nearEdge}px; top:${ty}px;
+          transform: translate(${isLeft ? '-100%' : '0'}, 0);
+          z-index:${3 + tagIndex}; pointer-events:auto;
+        `;
+
+        const el = document.createElement('div');
+        el.className = 'ring-pill ' + tagType + ' cat-' + colorClass;
+        el.textContent = tag;
+        el.style.fontSize = fontSize + 'px';
+        el.style.padding = `${pillPadY}px ${pillPadX}px`;
+        el.style.lineHeight = '1.2';
+
+        if (isOverlapping) {
+          el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)';
+        }
+
+        // Entrance animation: slide in from outside
+        const slideInX = isLeft ? -30 : 30;
+        el.style.opacity = '0';
+        el.style.transform = `translateX(${slideInX}px) scale(0.8)`;
+        el.style.transition = 'opacity 0.15s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        el.onclick = (e) => { e.stopPropagation(); openTagModal(tag, tagType); };
+        wrap.appendChild(el);
+        overlay.appendChild(wrap);
+
+        setTimeout(() => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateX(0) scale(1)';
+          setTimeout(() => {
+            el.style.opacity = '';
+            el.style.transform = '';
+            el.style.transition = '';
+          }, 280);
+        }, delay);
+
+        currentY += step;
+        tagIndex++;
+        delay += 18;
+      });
+
+      currentY += catGapPx;
+      delay += 5;
+    });
+
+  }
+
+  if (hasNiches) {
+    renderPillJail(creator.niches, loadTagCategories('niche'), 'niche', true);
+  }
+  if (hasDemographics) {
+    renderPillJail(creator.demographics, loadTagCategories('demographic'), 'demographic', false);
+  }
+
   // Show ring + scrim
   overlay.classList.add('open');
   scrim.classList.add('open');
@@ -2454,54 +2695,13 @@ function renderRing(creator) {
 // Make it global for marker click
 window.showDetailPanel = showDetailPanel;
 
-// ── Viewport resize handler: close ring to avoid stale positioning ──
+// ── Viewport resize handler: fully re-render ring (petal arcs need recalculation) ──
 window.addEventListener('resize', () => {
   const overlay = document.getElementById('ringOverlay');
   if (overlay && overlay.classList.contains('open') && currentEditingCreator) {
-    // Re-render the ring at updated position
     const creator = creators.find(c => c.id === currentEditingCreator);
     if (creator) {
-      // Reposition overlay and ring column to match new map bounds
-      const mapContainer = document.getElementById('mapContainer');
-      const mapRect = mapContainer.getBoundingClientRect();
-      overlay.style.left = mapRect.left + 'px';
-      overlay.style.top = mapRect.top + 'px';
-      overlay.style.width = mapRect.width + 'px';
-      overlay.style.height = mapRect.height + 'px';
-      const scrim = document.getElementById('ringScrim');
-      scrim.style.left = mapRect.left + 'px';
-      scrim.style.top = mapRect.top + 'px';
-      scrim.style.width = mapRect.width + 'px';
-      scrim.style.height = mapRect.height + 'px';
-
-      // Recalculate ring column position
-      const ringColumn = overlay.querySelector('.ring-column');
-      if (ringColumn && creator.lat && creator.lng) {
-        const marker = markers[creator.id];
-        const markerLatLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-        const point = map.latLngToContainerPoint(markerLatLng);
-        let cx = point.x, cy = point.y;
-        const avatar = ringColumn.querySelector('.ring-avatar');
-        if (avatar) {
-          const avatarRect = avatar.getBoundingClientRect();
-          const columnRect = ringColumn.getBoundingClientRect();
-          const avatarCenterInColumn = (avatarRect.top + avatarRect.height / 2) - columnRect.top;
-          let finalTop = cy - avatarCenterInColumn;
-          const overlayW = mapRect.width;
-          const overlayH = mapRect.height;
-          const colW = columnRect.width;
-          const colH = columnRect.height;
-          const padding = 12;
-          if (finalTop < padding) finalTop = padding;
-          if (finalTop + colH > overlayH - padding) finalTop = overlayH - colH - padding;
-          let finalLeft = cx;
-          const halfW = colW / 2;
-          if (finalLeft - halfW < padding) finalLeft = halfW + padding;
-          if (finalLeft + halfW > overlayW - padding) finalLeft = overlayW - halfW - padding;
-          ringColumn.style.top = finalTop + 'px';
-          ringColumn.style.left = finalLeft + 'px';
-        }
-      }
+      renderRing(creator);
     }
   }
 });
@@ -4220,6 +4420,16 @@ function applyNLSearch(query) {
   renderDispatchActiveStrip();
   renderDispatchTab();
   updateMapMarkers();
+
+  // Fly map to region bounds when a region filter is applied
+  if (parsed.region && parsed.region.bounds && map) {
+    const [latMin, latMax, lngMin, lngMax] = parsed.region.bounds;
+    map.flyToBounds([[latMin, lngMin], [latMax, lngMax]], {
+      padding: [30, 30],
+      duration: 0.8,
+      maxZoom: 7
+    });
+  }
 }
 
 // Override getFilteredCreators to also apply region bounding box
@@ -4380,13 +4590,27 @@ let _nlApplyTimeout = null;
       }
     } else if (e.key === 'Escape') {
       sugBox.classList.remove('open');
+    } else if (e.key === ' ' && sugBox.classList.contains('open')) {
+      // Spacebar autocompletes the top suggestion (or the highlighted one)
+      const suggestions = getSuggestions(input.value);
+      const idx = _nlSelectedIdx >= 0 ? _nlSelectedIdx : 0;
+      if (suggestions[idx]) {
+        e.preventDefault();
+        applySuggestion(suggestions[idx]);
+      }
     }
   });
 
   // Live input — apply filters as you type (debounced) + show suggestions
   input.addEventListener('input', () => {
     const val = input.value.trim();
-    clearBtn.style.display = val ? '' : 'none';
+    const anyFilters = dispatchFilters.platformTiers.length > 0 ||
+                       dispatchFilters.niches.length > 0 ||
+                       dispatchFilters.demographics.length > 0 ||
+                       dispatchFilters.ageMin !== null ||
+                       dispatchFilters.ageMax !== null ||
+                       nlRegionFilter !== null;
+    clearBtn.style.display = (val || anyFilters) ? '' : 'none';
 
     // Show autocomplete suggestions immediately
     const suggestions = getSuggestions(val);
@@ -4451,6 +4675,194 @@ let _nlApplyTimeout = null;
 document.getElementById('sortSelect').addEventListener('change', () => {
   renderRosterTab();
   renderDispatchTab();
+});
+
+// ── Custom sort dropdown with platform icons ──
+// ── Shared two-step sort picker builder ──
+const SORT_PLATFORM_SVG = {
+  'Instagram': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="#E1306C" stroke-width="2.5"/><circle cx="12" cy="12" r="5" stroke="#E1306C" stroke-width="2.5"/><circle cx="17.5" cy="6.5" r="1.5" fill="#E1306C"/></svg>`,
+  'TikTok': `<svg width="13" height="14" viewBox="0 0 18 20" fill="none"><path d="M9 0v13.5a3.5 3.5 0 1 1-3-3.46V7.04A6.5 6.5 0 1 0 12 13.5V6.73A7.5 7.5 0 0 0 17 8V5a5 5 0 0 1-5-5H9Z" fill="#00F2EA"/></svg>`,
+  'YouTube': `<svg width="16" height="11" viewBox="0 0 22 16" fill="none"><rect x="1" y="1" width="20" height="14" rx="4" stroke="#FF0000" stroke-width="2.5"/><path d="M9 5v6l5-3-5-3Z" fill="#FF0000"/></svg>`
+};
+
+function buildSortPicker({ hiddenSelect, container, metrics, compact }) {
+  if (!container || !hiddenSelect) return;
+
+  // Each metric: { key, label, descValue, ascValue, platforms? }
+  // - descValue/ascValue: the hidden select values for ↓/↑ (simple metrics)
+  // - platforms: array of { platform, descValue, ascValue } (platform metrics show icon sub-row)
+  // The direction toggle is global and always visible.
+
+  let activeDir = 'desc';
+
+  function parseValue(val) {
+    for (const m of metrics) {
+      if (m.descValue === val) return { metric: m.key, dir: 'desc' };
+      if (m.ascValue === val) return { metric: m.key, dir: 'asc' };
+      if (m.platforms) {
+        for (const p of m.platforms) {
+          if (p.descValue === val) return { metric: m.key, dir: 'desc', platform: p.platform };
+          if (p.ascValue === val) return { metric: m.key, dir: 'asc', platform: p.platform };
+        }
+      }
+    }
+    return { metric: metrics[0].key, dir: 'desc' };
+  }
+
+  const picker = document.createElement('div');
+  picker.className = 'sort-picker' + (compact ? ' sort-picker-compact' : '');
+
+  // Direction toggle (always present, left side)
+  const dirBtn = document.createElement('button');
+  dirBtn.className = 'sort-dir-toggle';
+  dirBtn.type = 'button';
+
+  // Metric chips row
+  const metricRow = document.createElement('div');
+  metricRow.className = 'sort-picker-metrics';
+
+  // Platform sub-row
+  const platformRow = document.createElement('div');
+  platformRow.className = 'sort-picker-platforms';
+
+  function applyValue(metricKey, dir, platformName) {
+    const m = metrics.find(x => x.key === metricKey);
+    if (!m) return;
+    if (m.platforms) {
+      const p = platformName
+        ? m.platforms.find(x => x.platform === platformName)
+        : m.platforms[0];
+      if (p) hiddenSelect.value = dir === 'desc' ? p.descValue : p.ascValue;
+    } else {
+      hiddenSelect.value = dir === 'desc' ? m.descValue : m.ascValue;
+    }
+    hiddenSelect.dispatchEvent(new Event('change'));
+  }
+
+  function render() {
+    const parsed = parseValue(hiddenSelect.value);
+    activeDir = parsed.dir;
+
+    // Direction button
+    dirBtn.innerHTML = activeDir === 'desc' ? '↓' : '↑';
+    dirBtn.title = activeDir === 'desc' ? 'Descending' : 'Ascending';
+
+    // Metric chips
+    metricRow.querySelectorAll('.sort-metric-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.metric === parsed.metric);
+    });
+
+    // Platform row
+    const m = metrics.find(x => x.key === parsed.metric);
+    if (m && m.platforms) {
+      platformRow.style.display = '';
+      platformRow.innerHTML = '';
+      m.platforms.forEach(pDef => {
+        const btn = document.createElement('button');
+        btn.className = 'sort-platform-btn';
+        btn.type = 'button';
+        btn.dataset.platform = pDef.platform;
+        btn.innerHTML = SORT_PLATFORM_SVG[pDef.platform];
+        btn.title = pDef.platform;
+        btn.classList.toggle('active', parsed.platform === pDef.platform);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // If re-clicking the already-active platform, toggle direction
+          if (parsed.platform === pDef.platform) {
+            const newDir = activeDir === 'desc' ? 'asc' : 'desc';
+            applyValue(parsed.metric, newDir, pDef.platform);
+          } else {
+            applyValue(parsed.metric, activeDir, pDef.platform);
+          }
+          render();
+        });
+        platformRow.appendChild(btn);
+      });
+    } else {
+      platformRow.style.display = 'none';
+    }
+  }
+
+  // Direction toggle click
+  dirBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const parsed = parseValue(hiddenSelect.value);
+    const newDir = activeDir === 'desc' ? 'asc' : 'desc';
+    applyValue(parsed.metric, newDir, parsed.platform);
+    render();
+  });
+
+  // Build metric chips
+  metrics.forEach(m => {
+    const chip = document.createElement('button');
+    chip.className = 'sort-metric-chip';
+    chip.type = 'button';
+    chip.dataset.metric = m.key;
+    chip.textContent = m.label;
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parsed = parseValue(hiddenSelect.value);
+      // If re-clicking same metric, just toggle direction
+      if (parsed.metric === m.key && !m.platforms) {
+        const newDir = activeDir === 'desc' ? 'asc' : 'desc';
+        applyValue(m.key, newDir, null);
+      } else {
+        applyValue(m.key, activeDir, m.platforms ? m.platforms[0].platform : null);
+      }
+      render();
+    });
+    metricRow.appendChild(chip);
+  });
+
+  picker.appendChild(dirBtn);
+  picker.appendChild(metricRow);
+  picker.appendChild(platformRow);
+  container.appendChild(picker);
+  render();
+}
+
+// ── Roster sort picker ──
+buildSortPicker({
+  hiddenSelect: document.getElementById('sortSelect'),
+  container: document.getElementById('customSortDropdown'),
+  compact: false,
+  metrics: [
+    { key: 'name', label: 'Name', descValue: 'z-a', ascValue: 'a-z' },
+    { key: 'age', label: 'Age', descValue: 'age-desc', ascValue: 'age-asc' },
+    { key: 'followers', label: 'Followers', platforms: [
+      { platform: 'Instagram', descValue: 'ig-desc', ascValue: 'ig-asc' },
+      { platform: 'TikTok', descValue: 'tt-desc', ascValue: 'tt-asc' },
+      { platform: 'YouTube', descValue: 'yt-desc', ascValue: 'yt-asc' },
+    ]},
+    { key: 'engagement', label: 'Eng %', platforms: [
+      { platform: 'Instagram', descValue: 'ig-eng-desc', ascValue: 'ig-eng-asc' },
+      { platform: 'TikTok', descValue: 'tt-eng-desc', ascValue: 'tt-eng-asc' },
+    ]},
+  ]
+});
+
+// Secondary sort within dispatch match tiers
+document.getElementById('dispatchSecondarySort').addEventListener('change', () => {
+  renderDispatchTab();
+});
+
+// ── Dispatch sort picker ──
+buildSortPicker({
+  hiddenSelect: document.getElementById('dispatchSecondarySort'),
+  container: document.getElementById('customDispatchSort'),
+  compact: true,
+  metrics: [
+    { key: 'name', label: 'Name', descValue: 'alpha', ascValue: 'alpha' },
+    { key: 'followers', label: 'Followers', platforms: [
+      { platform: 'Instagram', descValue: 'ig-desc', ascValue: 'ig-asc' },
+      { platform: 'TikTok', descValue: 'tt-desc', ascValue: 'tt-asc' },
+      { platform: 'YouTube', descValue: 'yt-desc', ascValue: 'yt-asc' },
+    ]},
+    { key: 'engagement', label: 'Eng %', platforms: [
+      { platform: 'Instagram', descValue: 'ig-eng-desc', ascValue: 'ig-eng-asc' },
+      { platform: 'TikTok', descValue: 'tt-eng-desc', ascValue: 'tt-eng-asc' },
+    ]},
+  ]
 });
 
 // Dispatch destination autocomplete
@@ -5156,32 +5568,6 @@ document.addEventListener('keydown', (e) => {
     const ring = document.getElementById('ringOverlay');
     if (ring && ring.classList.contains('open')) { closeDetailPanel(); closedSomething = true; }
 
-    // If no popups were open and we're in dispatch mode, clear all filters
-    if (!closedSomething && document.body.classList.contains('dispatch-mode')) {
-      const hasFilters = dispatchFilters.platformTiers.length > 0 ||
-                         dispatchFilters.niches.length > 0 ||
-                         dispatchFilters.demographics.length > 0 ||
-                         dispatchFilters.ageMin !== null ||
-                         dispatchFilters.ageMax !== null ||
-                         dispatchDestination !== null;
-      if (hasFilters) {
-        dispatchFilters.platformTiers = [];
-        dispatchFilters.niches = [];
-        dispatchFilters.demographics = [];
-        dispatchFilters.ageMin = null;
-        dispatchFilters.ageMax = null;
-        _vibeSearchTerm = '';
-        const nlInput2 = document.getElementById('nlSearchInput');
-        if (nlInput2) nlInput2.value = '';
-        document.getElementById('locationFilterInput').value = '';
-        clearDispatchDestination();
-        renderDispatchFilters();
-        renderDispatchFilterPills();
-        renderDispatchTab();
-        updateMapMarkers();
-        renderDispatchActiveStrip();
-      }
-    }
   }
 });
 

@@ -985,13 +985,15 @@ body.shift-held #mapContainer .leaflet-container {
 
 /* Compact July import button */
 .btn-july-compact {
-  width: 38px;
   height: 38px;
-  min-width: 38px;
-  padding: 0;
+  padding: 0 12px;
+  gap: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
   border-radius: var(--radius-sm);
   background: rgba(139, 162, 135, 0.25);
   border: 1px solid rgba(139, 162, 135, 0.4);

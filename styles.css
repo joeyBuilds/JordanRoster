@@ -475,6 +475,7 @@ body.shift-held #mapContainer .leaflet-container {
 
 /* The avatar circle */
 .marker-avatar {
+  box-sizing: content-box;
   position: relative;
   width: 52px;
   height: 52px;
@@ -1544,9 +1545,9 @@ body.shift-held #mapContainer .leaflet-container {
 .eng-inline {
   font-size: 9px;
   font-weight: 400;
-  color: var(--text-secondary);
-  opacity: 0.5;
-  margin-left: 1px;
+  color: var(--text-secondary) !important;
+  opacity: 0.6;
+  margin-left: 2px;
 }
 .meta-dot {
   width: 6px;

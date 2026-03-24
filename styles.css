@@ -473,16 +473,16 @@ body.shift-held #mapContainer .leaflet-container {
   50% { transform: scale(1.15); opacity: 1; }
 }
 
-/* The avatar circle */
+/* The avatar circle — white ring via box-shadow so border doesn't shrink the image */
 .marker-avatar {
-  box-sizing: content-box;
   position: relative;
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.95);
+  border: none;
   box-shadow:
-    0 0 0 1.5px rgba(200,144,126,0.5),
+    0 0 0 3px rgba(255,255,255,0.95),
+    0 0 0 4.5px rgba(200,144,126,0.5),
     0 4px 16px 2px rgba(0,0,0,0.5),
     0 0 24px 6px rgba(255,255,255,0.15);
   overflow: hidden;
@@ -529,7 +529,8 @@ body.shift-held #mapContainer .leaflet-container {
 .creator-marker:hover .marker-avatar {
   transform: scale(1.12);
   box-shadow:
-    0 0 0 2px rgba(200,144,126,0.7),
+    0 0 0 3px rgba(255,255,255,0.95),
+    0 0 0 5px rgba(200,144,126,0.7),
     0 6px 24px 4px rgba(0,0,0,0.5),
     0 0 32px 10px rgba(255,255,255,0.25);
 }

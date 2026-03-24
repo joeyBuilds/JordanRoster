@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Niche Display Concepts</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #1a1412;
+      --bg-secondary: #2a2220;
+      --accent: #C8907E;
+      --text-primary: #F0E6DC;
+      --text-secondary: #A89888;
+      --tag-niche-rgb: 176, 149, 86;
+      --lavender: #BBA7CF;
+      --sage: #9BB5A0;
+      --rose: #D4A0A0;
+      --mocha: #A67F72;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      text-align: center;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 40px;
+    }
+
+    .concepts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .concept {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      padding: 32px;
+      border: 1px solid rgba(200,144,126,0.15);
+    }
+    .concept h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      margin-bottom: 4px;
+      color: var(--accent);
+    }
+    .concept .desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    /* Simulated map background for context */
+    .ring-sim {
+      background: url('https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/-111.89,40.76,10/500x350?access_token=pk.placeholder') center/cover no-repeat,
+        linear-gradient(135deg, #2d3a2e 0%, #3a3028 50%, #2a2a35 100%);
+      border-radius: 14px;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 320px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ring-sim::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(200,144,126,0.2) 0%, rgba(0,0,0,0.5) 70%);
+      pointer-events: none;
+    }
+    .ring-sim > * { position: relative; z-index: 1; }
+
+    /* Fake avatar */
+    .demo-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--mocha), var(--rose));
+      border: 3px solid rgba(255,255,255,0.3);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.8);
+    }
+    .demo-name {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 2px;
+    }
+    .demo-loc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    /* ============================
+       CONCEPT A: Glassmorphism Cloud
+       ============================ */
+    .glass-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      max-width: 320px;
+    }
+    .glass-pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.85);
+      transition: all 0.25s ease;
+      cursor: default;
+    }
+    .glass-pill:hover {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    /* ============================
+       CONCEPT B: Icon Bubbles
+       ============================ */
+    .icon-bubble-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 300px;
+    }
+    .icon-bubble {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: default;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+    .icon-bubble:hover {
+      transform: scale(1.2);
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(200,144,126,0.5);
+      box-shadow: 0 0 20px rgba(200,144,126,0.2);
+    }
+    .icon-bubble .bubble-tooltip {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      background: rgba(30,24,20,0.95);
+      color: var(--text-primary);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(200,144,126,0.2);
+    }
+    .icon-bubble:hover .bubble-tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ============================
+       CONCEPT C: Hybrid — Icon Bubbles + Expanding Labels
+       ============================ */
+    .hybrid-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 340px;
+    }
+    .hybrid-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      padding: 5px 6px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      cursor: default;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+    }
+    .hybrid-chip .chip-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+      width: 22px;
+      text-align: center;
+    }
+    .hybrid-chip .chip-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.8);
+      max-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      opacity: 0;
+      transition: max-width 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                  opacity 0.2s ease,
+                  padding 0.3s ease;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .hybrid-chip:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(200,144,126,0.4);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      padding-right: 12px;
+    }
+    .hybrid-chip:hover .chip-label {
+      max-width: 120px;
+      opacity: 1;
+      padding-left: 4px;
+    }
+
+    /* ============================
+       CONCEPT D: Flowing Arc with Category Color
+       ============================ */
+    .arc-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      justify-content: center;
+      max-width: 320px;
+    }
+    .arc-pill {
+      padding: 5px 13px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.9);
+      cursor: default;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 1px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+    .arc-pill::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .arc-pill:hover {
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .arc-pill:hover::before {
+      opacity: 1;
+    }
+    /* Category color classes */
+    .arc-pill.cat-entertainment { background: rgba(187, 130, 180, 0.65); border-color: rgba(187,130,180,0.3); }
+    .arc-pill.cat-entertainment:hover { background: rgba(187, 130, 180, 0.85); }
+    .arc-pill.cat-lifestyle { background: rgba(200, 170, 120, 0.65); border-color: rgba(200,170,120,0.3); }
+    .arc-pill.cat-lifestyle:hover { background: rgba(200, 170, 120, 0.85); }
+    .arc-pill.cat-food { background: rgba(200, 140, 100, 0.65); border-color: rgba(200,140,100,0.3); }
+    .arc-pill.cat-food:hover { background: rgba(200, 140, 100, 0.85); }
+    .arc-pill.cat-travel { background: rgba(120, 170, 160, 0.65); border-color: rgba(120,170,160,0.3); }
+    .arc-pill.cat-travel:hover { background: rgba(120, 170, 160, 0.85); }
+    .arc-pill.cat-fitness { background: rgba(160, 190, 140, 0.65); border-color: rgba(160,190,140,0.3); }
+    .arc-pill.cat-fitness:hover { background: rgba(160, 190, 140, 0.85); }
+    .arc-pill.cat-people { background: rgba(210, 160, 160, 0.65); border-color: rgba(210,160,160,0.3); }
+    .arc-pill.cat-people:hover { background: rgba(210, 160, 160, 0.85); }
+    .arc-pill.cat-creative { background: rgba(170, 150, 200, 0.65); border-color: rgba(170,150,200,0.3); }
+    .arc-pill.cat-creative:hover { background: rgba(170, 150, 200, 0.85); }
+    .arc-pill.cat-tech { background: rgba(130, 160, 190, 0.65); border-color: rgba(130,160,190,0.3); }
+    .arc-pill.cat-tech:hover { background: rgba(130, 160, 190, 0.85); }
+    .arc-pill.cat-home { background: rgba(180, 160, 130, 0.65); border-color: rgba(180,160,130,0.3); }
+    .arc-pill.cat-home:hover { background: rgba(180, 160, 130, 0.85); }
+    .arc-pill.cat-other { background: rgba(160, 160, 160, 0.5); border-color: rgba(160,160,160,0.3); }
+    .arc-pill.cat-other:hover { background: rgba(160, 160, 160, 0.7); }
+
+    .pick-label {
+      display: block;
+      text-align: center;
+      margin-top: 24px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      opacity: 0.6;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <h1>Niche Display Concepts</h1>
+  <p class="subtitle">Hover over each to see interactions. Same niches shown in all four concepts.</p>
+
+  <div class="concepts">
+
+    <!-- CONCEPT A: Glassmorphism Cloud -->
+    <div class="concept">
+      <h2>A. Glassmorphism Cloud</h2>
+      <p class="desc">Frosted glass pills with soft borders. Clean, modern, and readable. Subtle lift on hover. Fits the existing aesthetic but elevated.</p>
+      <div class="ring-sim">
+        <div class="demo-avatar">KP</div>
+        <div class="demo-name">Karlie Place</div>
+        <div class="demo-loc">Salt Lake City, UT</div>
+        <div class="glass-cloud">
+          <div class="glass-pill">Beauty</div>
+          <div class="glass-pill">Entrepreneurship</div>
+          <div class="glass-pill">Food</div>
+          <div class="glass-pill">Lifestyle</div>
+          <div class="glass-pill">Photography</div>
+          <div class="glass-pill">Productivity</div>
+          <div class="glass-pill">Running</div>
+          <div class="glass-pill">Tech</div>
+          <div class="glass-pill">Travel</div>
+          <div class="glass-pill">Wellness</div>
+        </div>
+      </div>
+      <span class="pick-label">Functional + Clean</span>
+    </div>
+
+    <!-- CONCEPT B: Icon Bubbles -->
+    <div class="concept">
+      <h2>B. Icon Bubbles</h2>
+      <p class="desc">Compact circular icons by category. Tooltip on hover reveals the niche name. Very space-efficient and playful. Best for quick visual scanning.</p>
+      <div class="ring-sim">
+        <div class="demo-avatar">KP</div>
+        <div class="demo-name">Karlie Place</div>
+        <div class="demo-loc">Salt Lake City, UT</div>
+        <div class="icon-bubble-row">
+          <div class="icon-bubble">✨<span class="bubble-tooltip">Beauty</span></div>
+          <div class="icon-bubble">💻<span class="bubble-tooltip">Entrepreneurship</span></div>
+          <div class="icon-bubble">🍽<span class="bubble-tooltip">Food</span></div>
+          <div class="icon-bubble">✨<span class="bubble-tooltip">Lifestyle</span></div>
+          <div class="icon-bubble">🎨<span class="bubble-tooltip">Photography</span></div>
+          <div class="icon-bubble">💻<span class="bubble-tooltip">Productivity</span></div>
+          <div class="icon-bubble">⚡<span class="bubble-tooltip">Running</span></div>
+          <div class="icon-bubble">💻<span class="bubble-tooltip">Tech</span></div>
+          <div class="icon-bubble">🧭<span class="bubble-tooltip">Travel</span></div>
+          <div class="icon-bubble">✨<span class="bubble-tooltip">Wellness</span></div>
+        </div>
+      </div>
+      <span class="pick-label">Compact + Playful</span>
+    </div>
+
+    <!-- CONCEPT C: Hybrid Icon + Expanding Label -->
+    <div class="concept">
+      <h2>C. Hybrid Expanding Chips</h2>
+      <p class="desc">Icons by default, labels expand on hover. Best of both worlds: compact at rest, informative on interaction. Fun to use.</p>
+      <div class="ring-sim">
+        <div class="demo-avatar">KP</div>
+        <div class="demo-name">Karlie Place</div>
+        <div class="demo-loc">Salt Lake City, UT</div>
+        <div class="hybrid-row">
+          <div class="hybrid-chip"><span class="chip-icon">✨</span><span class="chip-label">Beauty</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">💻</span><span class="chip-label">Entrepreneurship</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">🍽</span><span class="chip-label">Food</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">✨</span><span class="chip-label">Lifestyle</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">🎨</span><span class="chip-label">Photography</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">💻</span><span class="chip-label">Productivity</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">⚡</span><span class="chip-label">Running</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">💻</span><span class="chip-label">Tech</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">🧭</span><span class="chip-label">Travel</span></div>
+          <div class="hybrid-chip"><span class="chip-icon">✨</span><span class="chip-label">Wellness</span></div>
+        </div>
+      </div>
+      <span class="pick-label">Fun + Interactive</span>
+    </div>
+
+    <!-- CONCEPT D: Category-Colored Flow -->
+    <div class="concept">
+      <h2>D. Category-Colored Flow</h2>
+      <p class="desc">Pills colored by their parent category (lifestyle = warm gold, fitness = green, travel = teal, etc.). Instant visual grouping without explicit headers.</p>
+      <div class="ring-sim">
+        <div class="demo-avatar">KP</div>
+        <div class="demo-name">Karlie Place</div>
+        <div class="demo-loc">Salt Lake City, UT</div>
+        <div class="arc-cloud">
+          <div class="arc-pill cat-lifestyle">Beauty</div>
+          <div class="arc-pill cat-tech">Entrepreneurship</div>
+          <div class="arc-pill cat-food">Food</div>
+          <div class="arc-pill cat-lifestyle">Lifestyle</div>
+          <div class="arc-pill cat-creative">Photography</div>
+          <div class="arc-pill cat-tech">Productivity</div>
+          <div class="arc-pill cat-fitness">Running</div>
+          <div class="arc-pill cat-tech">Tech</div>
+          <div class="arc-pill cat-travel">Travel</div>
+          <div class="arc-pill cat-lifestyle">Wellness</div>
+        </div>
+      </div>
+      <span class="pick-label">Scannable + Informative</span>
+    </div>
+
+  </div>
+</body>
+</html>

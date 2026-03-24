@@ -3080,6 +3080,29 @@ a.creator-platform-chip:hover {
   pointer-events: auto;
 }
 
+/* Radial spotlight glow behind the ring */
+.ring-spotlight {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  transform: translate(-50%, -50%) scale(0.7);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(200, 144, 126, 0.25) 0%,
+    rgba(187, 167, 207, 0.12) 35%,
+    rgba(155, 181, 160, 0.06) 60%,
+    transparent 80%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.ring-overlay.open .ring-spotlight {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
 /* Ring column — single centered vertical layout */
 .ring-column {
   position: absolute;

@@ -2025,6 +2025,13 @@ function renderRing(creator) {
   scrim.style.width = mapRect.width + 'px';
   scrim.style.height = mapRect.height + 'px';
 
+  // === Radial spotlight glow behind the ring ===
+  const spotlight = document.createElement('div');
+  spotlight.className = 'ring-spotlight';
+  spotlight.style.left = cx + 'px';
+  spotlight.style.top = cy + 'px';
+  overlay.appendChild(spotlight);
+
   // === Build the entire ring as a single centered column ===
   const ringColumn = document.createElement('div');
   ringColumn.className = 'ring-column';

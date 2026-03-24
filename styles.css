@@ -1547,10 +1547,11 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .eng-inline {
   font-size: 10px;
-  font-weight: 500;
-  color: var(--text-muted) !important;
-  opacity: 1;
-  margin-left: 1px;
+  font-weight: 400;
+  color: var(--text-secondary) !important;
+  opacity: 0.7;
+  margin-left: 0;
+  font-style: italic;
 }
 .meta-dot {
   width: 6px;

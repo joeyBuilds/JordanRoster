@@ -1198,8 +1198,9 @@ function renderDispatchFilterPills() {
       if (filtered.length === 0) return;
       anyVisible = true;
 
+      const colorClass = getCategoryColorClass(catName);
       const group = document.createElement('div');
-      group.className = `icon-row-group icon-row-${type}`;
+      group.className = `icon-row-group icon-row-${type} icon-row-cat-${colorClass}`;
 
       const header = document.createElement('div');
       header.className = 'icon-row-header';
@@ -1212,7 +1213,6 @@ function renderDispatchFilterPills() {
       filtered.forEach(item => {
         const pill = document.createElement('button');
         const isActive = selectedArr.includes(item);
-        const colorClass = getCategoryColorClass(catName);
         pill.className = 'dispatch-pill cat-' + colorClass + (isActive ? ` active ${type}` : '');
         pill.textContent = item;
         pill.addEventListener('click', () => onToggle(item));

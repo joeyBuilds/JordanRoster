@@ -2768,14 +2768,62 @@ a.creator-platform-chip:hover {
   padding-left: 0;
   justify-content: center;
 }
-/* Icon row color themes — niches warm gold, demographics cool sage */
-.icon-row-niche .icon-row-icon { background: rgba(var(--tag-niche-rgb), 0.2); }
-.icon-row-niche .icon-row-header h4 { color: var(--tag-niche); }
-.icon-row-niche .icon-row-header { border-bottom-color: rgba(var(--tag-niche-rgb), 0.15); }
+/* Icon row color themes — category-colored headers */
+.icon-row-cat-entertainment .icon-row-icon { background: rgba(187,130,180,0.2); }
+.icon-row-cat-entertainment .icon-row-header h4 { color: rgb(187,130,180); }
+.icon-row-cat-entertainment .icon-row-header { border-bottom-color: rgba(187,130,180,0.2); }
 
-.icon-row-demographic .icon-row-icon { background: rgba(var(--tag-demographic-rgb), 0.2); }
-.icon-row-demographic .icon-row-header h4 { color: var(--tag-demographic); }
-.icon-row-demographic .icon-row-header { border-bottom-color: rgba(var(--tag-demographic-rgb), 0.15); }
+.icon-row-cat-lifestyle .icon-row-icon { background: rgba(200,170,120,0.2); }
+.icon-row-cat-lifestyle .icon-row-header h4 { color: rgb(200,170,120); }
+.icon-row-cat-lifestyle .icon-row-header { border-bottom-color: rgba(200,170,120,0.2); }
+
+.icon-row-cat-food .icon-row-icon { background: rgba(200,140,100,0.2); }
+.icon-row-cat-food .icon-row-header h4 { color: rgb(200,140,100); }
+.icon-row-cat-food .icon-row-header { border-bottom-color: rgba(200,140,100,0.2); }
+
+.icon-row-cat-travel .icon-row-icon { background: rgba(120,170,160,0.2); }
+.icon-row-cat-travel .icon-row-header h4 { color: rgb(120,170,160); }
+.icon-row-cat-travel .icon-row-header { border-bottom-color: rgba(120,170,160,0.2); }
+
+.icon-row-cat-people .icon-row-icon { background: rgba(210,160,160,0.2); }
+.icon-row-cat-people .icon-row-header h4 { color: rgb(210,160,160); }
+.icon-row-cat-people .icon-row-header { border-bottom-color: rgba(210,160,160,0.2); }
+
+.icon-row-cat-fitness .icon-row-icon { background: rgba(140,180,130,0.2); }
+.icon-row-cat-fitness .icon-row-header h4 { color: rgb(140,180,130); }
+.icon-row-cat-fitness .icon-row-header { border-bottom-color: rgba(140,180,130,0.2); }
+
+.icon-row-cat-home .icon-row-icon { background: rgba(180,160,130,0.2); }
+.icon-row-cat-home .icon-row-header h4 { color: rgb(180,160,130); }
+.icon-row-cat-home .icon-row-header { border-bottom-color: rgba(180,160,130,0.2); }
+
+.icon-row-cat-tech .icon-row-icon { background: rgba(130,160,190,0.2); }
+.icon-row-cat-tech .icon-row-header h4 { color: rgb(130,160,190); }
+.icon-row-cat-tech .icon-row-header { border-bottom-color: rgba(130,160,190,0.2); }
+
+.icon-row-cat-creative .icon-row-icon { background: rgba(170,150,200,0.2); }
+.icon-row-cat-creative .icon-row-header h4 { color: rgb(170,150,200); }
+.icon-row-cat-creative .icon-row-header { border-bottom-color: rgba(170,150,200,0.2); }
+
+.icon-row-cat-identity .icon-row-icon { background: rgba(180,140,180,0.2); }
+.icon-row-cat-identity .icon-row-header h4 { color: rgb(180,140,180); }
+.icon-row-cat-identity .icon-row-header { border-bottom-color: rgba(180,140,180,0.2); }
+
+.icon-row-cat-culture .icon-row-icon { background: rgba(140,165,180,0.2); }
+.icon-row-cat-culture .icon-row-header h4 { color: rgb(140,165,180); }
+.icon-row-cat-culture .icon-row-header { border-bottom-color: rgba(140,165,180,0.2); }
+
+.icon-row-cat-age .icon-row-icon { background: rgba(170,155,140,0.2); }
+.icon-row-cat-age .icon-row-header h4 { color: rgb(170,155,140); }
+.icon-row-cat-age .icon-row-header { border-bottom-color: rgba(170,155,140,0.2); }
+
+.icon-row-cat-representation .icon-row-icon { background: rgba(155,175,155,0.2); }
+.icon-row-cat-representation .icon-row-header h4 { color: rgb(155,175,155); }
+.icon-row-cat-representation .icon-row-header { border-bottom-color: rgba(155,175,155,0.2); }
+
+.icon-row-cat-other .icon-row-icon { background: rgba(160,155,150,0.15); }
+.icon-row-cat-other .icon-row-header h4 { color: rgb(160,155,150); }
+.icon-row-cat-other .icon-row-header { border-bottom-color: rgba(160,155,150,0.15); }
 
 /* ── Match Glow Intensity ── */
 .match-float-body .creator-card[data-match-glow="high"] {

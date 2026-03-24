@@ -304,20 +304,22 @@ body.dispatch-mode .title-niche {
   color: rgba(232, 168, 160, 0.7);
 }
 
-/* "Built by EQEX" subtle credit next to logo */
+/* "Built by EQEX" — nearly invisible, only appears on topbar hover */
 .built-by {
   font-family: 'DM Sans', sans-serif;
-  font-size: 9px;
-  font-weight: 500;
-  color: rgba(240, 228, 220, 0.2);
-  letter-spacing: 1.5px;
+  font-size: 7px;
+  font-weight: 400;
+  color: rgba(240, 228, 220, 0.0);
+  letter-spacing: 1px;
   text-transform: uppercase;
-  margin-left: 12px;
+  margin-left: 10px;
   white-space: nowrap;
-  transition: color 0.2s ease;
+  transition: color 0.4s ease;
+  user-select: none;
+  pointer-events: none;
 }
-.built-by:hover {
-  color: rgba(240, 228, 220, 0.35);
+#topBar:hover .built-by {
+  color: rgba(240, 228, 220, 0.12);
 }
 
 /* Sidebar copyright footer */

@@ -46,17 +46,17 @@
   --text-muted-rgb: 94, 122, 100;
   --border: #2A3E30;
   --border-rgb: 42, 62, 48;
-  /* Smooth palette transition for Roster↔Niche mode shift */
-  transition: --bg-primary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-secondary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-card 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-hover 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-input 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --accent 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --text-primary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --text-secondary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --text-muted 1.0s cubic-bezier(0.4, 0, 0.2, 1),
-              --border 1.0s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Smooth palette transition for Roster↔Niche mode shift — synced with tab slider (0.4s) */
+  transition: --bg-primary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-secondary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-card 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-hover 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-input 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --accent 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --text-primary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --text-secondary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --text-muted 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              --border 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   --success: #7CC98A;
   --success-rgb: 124, 201, 138;
   --warning: #D4C47C;
@@ -3963,7 +3963,7 @@ a.ring-platform-chip:hover {
     0 0 40px 8px rgba(255, 200, 60, 0.10),
     0 3px 12px rgba(0, 0, 0, 0.15),
     var(--glass-inset);
-  animation: graceGlow 2.5s ease-in-out infinite;
+  animation: graceGlow 4s ease-in-out infinite;
   position: relative;
   overflow: hidden;
   color: rgba(255, 245, 210, 1);
@@ -3986,7 +3986,7 @@ a.ring-platform-chip:hover {
     transparent 80%
   );
   background-size: 300% 100%;
-  animation: graceSweep 3.5s ease-in-out infinite;
+  animation: graceSweep 5s ease-in-out infinite;
   pointer-events: none;
 }
 /* Inner golden edge highlight */
@@ -3998,7 +3998,7 @@ a.ring-platform-chip:hover {
   border: 1px solid rgba(255, 240, 170, 0.25);
   box-shadow: inset 0 1px 0 rgba(255, 245, 200, 0.20), inset 0 -1px 0 rgba(255, 200, 60, 0.10);
   pointer-events: none;
-  animation: graceInner 2.5s ease-in-out infinite;
+  animation: graceInner 4s ease-in-out infinite;
 }
 
 @keyframes graceGlow {
@@ -4019,6 +4019,7 @@ a.ring-platform-chip:hover {
 }
 @keyframes graceSweep {
   0%   { background-position: 250% 0; }
+  55%  { background-position: -100% 0; }
   100% { background-position: -100% 0; }
 }
 @keyframes graceInner {
@@ -4064,7 +4065,7 @@ a.ring-platform-chip:hover {
     0 0 14px 4px rgba(255, 215, 80, 0.30),
     0 0 40px 8px rgba(255, 200, 60, 0.10),
     0 2px 8px rgba(0, 0, 0, 0.2);
-  animation: graceGlow 2.5s ease-in-out infinite;
+  animation: graceGlow 4s ease-in-out infinite;
   position: relative;
   overflow: hidden;
 }
@@ -4084,7 +4085,7 @@ a.ring-platform-chip:hover {
     transparent 80%
   );
   background-size: 300% 100%;
-  animation: graceSweep 3.5s ease-in-out infinite;
+  animation: graceSweep 5s ease-in-out infinite;
   pointer-events: none;
 }
 
@@ -6024,7 +6025,7 @@ body.dispatch-mode .marker-cluster-inner {
   border-left: 3px solid var(--gold) !important;
   position: relative;
   overflow: hidden;
-  animation: cardPerfectGlow 3s ease-in-out infinite;
+  animation: cardPerfectGlow 5s ease-in-out infinite;
 }
 /* Sweeping shimmer on perfect-score cards */
 .creator-card[data-score="full"]::after {
@@ -6042,7 +6043,7 @@ body.dispatch-mode .marker-cluster-inner {
     transparent 70%
   );
   background-size: 250% 100%;
-  animation: cardShimmerSweep 4s ease-in-out infinite;
+  animation: cardShimmerSweep 6s ease-in-out infinite;
   z-index: 1;
 }
 @keyframes cardPerfectGlow {
@@ -6051,6 +6052,7 @@ body.dispatch-mode .marker-cluster-inner {
 }
 @keyframes cardShimmerSweep {
   0%   { background-position: 200% 0; }
+  50%  { background-position: -50% 0; }
   100% { background-position: -50% 0; }
 }
 .creator-card[data-score="most"] {
@@ -6210,7 +6212,7 @@ body.dispatch-mode .marker-cluster-inner {
   color: #fff;
   border-color: rgba(255, 230, 140, 0.7);
   box-shadow: 0 0 10px 2px rgba(212, 168, 50, 0.5), 0 1px 6px rgba(0, 0, 0, 0.4);
-  animation: perfectBadgePulse 2s ease-in-out infinite;
+  animation: perfectBadgePulse 3.5s ease-in-out infinite;
 }
 @keyframes perfectBadgePulse {
   0%, 100% { box-shadow: 0 0 10px 2px rgba(212, 168, 50, 0.4), 0 1px 6px rgba(0, 0, 0, 0.4); }
@@ -6355,7 +6357,7 @@ body.dispatch-mode .marker-cluster-inner {
 .creator-marker.dispatch-match.score-perfect .marker-gleam-ring {
   border-color: rgba(255, 220, 100, 0.8);
   border-width: 2.5px;
-  animation: perfectBreathe 3s ease-in-out infinite;
+  animation: perfectBreathe 4.5s ease-in-out infinite;
   animation-delay: calc(-1 * var(--stagger, 0ms));
 }
 @keyframes perfectBreathe {

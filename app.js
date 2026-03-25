@@ -999,6 +999,18 @@ function scoreCreatorFilters(creator) {
   return { matchCount, totalFilters, pct, matchDetails, missedDetails };
 }
 
+// Determine score level (full/most/half/low) with adaptive thresholds.
+// With few filters (e.g. 2), fixed % thresholds produce unintuitive colors
+// (1/2 = 50% → yellow). Instead, bucket by how many filters are missed.
+function getScoreLevel(matchCount, totalFilters) {
+  if (totalFilters === 0) return 'low';
+  const missed = totalFilters - matchCount;
+  if (missed === 0) return 'full';   // perfect
+  if (missed === 1) return 'most';   // one off
+  if (matchCount >= 1) return 'half'; // got something
+  return 'low';                       // matched nothing
+}
+
 function renderDispatchTab() {
   const sortBy = document.getElementById('sortSelect').value;
   const filtered = getFilteredCreators('', sortBy, true);
@@ -1100,10 +1112,7 @@ function renderDispatchTab() {
       const card = renderCreatorCard(creator);
 
       // ── Score level for color wash ──
-      let scoreLevel = 'low';
-      if (pct >= 1.0) scoreLevel = 'full';
-      else if (pct >= 0.66) scoreLevel = 'most';
-      else if (pct >= 0.34) scoreLevel = 'half';
+      const scoreLevel = getScoreLevel(matchCount, totalFilters);
       card.setAttribute('data-score', scoreLevel);
 
       // ── Stagger transition delay based on card index ──
@@ -1937,10 +1946,7 @@ function updateMapMarkers() {
         const score = scoreCreatorFilters(creator);
         scorePct = score.pct;
         scoreText = `${score.matchCount}/${score.totalFilters}`;
-        if (score.pct >= 1.0) scoreLevel = 'full';
-        else if (score.pct >= 0.66) scoreLevel = 'most';
-        else if (score.pct >= 0.34) scoreLevel = 'half';
-        else scoreLevel = 'low';
+        scoreLevel = getScoreLevel(score.matchCount, score.totalFilters);
       }
 
       // Build score badge + border class for dispatch mode
@@ -1998,6 +2004,7 @@ function updateMapMarkers() {
       });
 
       const marker = L.marker([creator.lat, creator.lng], { icon });
+      marker._dispatchScore = scorePct; // store for ring-sort priority
 
       // Hover tooltip — shows creator name + score in dispatch mode
       const tooltipText = (isDispatch && hasDispatchFilters) ?
@@ -2123,6 +2130,10 @@ function _arrangeMarkerRings() {
         inner.style.removeProperty('--ring-ty');
       }
     }
+    // Reset z-index boost from dispatch scoring
+    if (info._zIndexBoosted) {
+      info.marker.setZIndexOffset(0);
+    }
     // Reset tooltip offset to default
     if (info.marker._tooltipText) {
       info.marker.unbindTooltip();
@@ -2178,7 +2189,17 @@ function _arrangeMarkerRings() {
 
   // For each group, arrange markers in a ring using CSS transforms (not lat/lng changes)
   // This prevents geographic displacement at any zoom level
+  const isDispatchActive = document.body.classList.contains('dispatch-mode');
   groups.forEach(group => {
+    // In dispatch mode, sort by score descending so best matches get top position + z-priority
+    if (isDispatchActive) {
+      group.sort((a, b) => {
+        const scoreA = a.marker._dispatchScore || 0;
+        const scoreB = b.marker._dispatchScore || 0;
+        return scoreB - scoreA;
+      });
+    }
+
     // Calculate centroid in pixel space
     let cx = 0, cy = 0;
     group.forEach(e => { cx += e.px.x; cy += e.px.y; });
@@ -2206,6 +2227,14 @@ function _arrangeMarkerRings() {
           inner.style.setProperty('--ring-tx', offsetX + 'px');
           inner.style.setProperty('--ring-ty', offsetY + 'px');
           inner.classList.add('ring-offset');
+        }
+        // In dispatch mode, boost z-index for higher-scoring markers in the ring
+        if (isDispatchActive) {
+          const score = entry.marker._dispatchScore || 0;
+          // Perfect = 20000, high = 15000, partial = 12000, faded = 1
+          const zBoost = score >= 1.0 ? 20000 : score >= 0.66 ? 15000 : score > 0 ? 12000 : 1;
+          entry.marker.setZIndexOffset(zBoost);
+          _ringFormations[_ringFormations.length - 1]._zIndexBoosted = true;
         }
       }
       // Shift tooltip to follow the visually offset pin
@@ -2299,10 +2328,7 @@ function renderRing(creator) {
   let ringScoreLevel = '';
   if (ringHasDispatch) {
     ringScore = scoreCreatorFilters(creator);
-    if (ringScore.pct >= 1.0) ringScoreLevel = 'full';
-    else if (ringScore.pct >= 0.66) ringScoreLevel = 'most';
-    else if (ringScore.pct >= 0.34) ringScoreLevel = 'half';
-    else ringScoreLevel = 'low';
+    ringScoreLevel = getScoreLevel(ringScore.matchCount, ringScore.totalFilters);
   }
 
   // === Build the entire ring as a single centered column ===
@@ -5262,10 +5288,9 @@ function _showNearestCompareCard(creator, distance, rankIndex, rankColors) {
   card.id = 'nearestCompareCard';
   card.className = 'nearest-compare-card';
 
-  // Glow level
-  let glowLevel = 'low';
-  if (score.pct >= 1.0) glowLevel = 'high';
-  else if (score.pct >= 0.66) glowLevel = 'medium';
+  // Glow level — aligned with adaptive score thresholds
+  const _sl = getScoreLevel(score.matchCount, score.totalFilters);
+  const glowLevel = _sl === 'full' ? 'high' : (_sl === 'most' ? 'medium' : 'low');
   card.setAttribute('data-glow', glowLevel);
 
   // Header row: avatar + name + score
@@ -5599,6 +5624,14 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     if (modeChanging) {
       _modeTransitioning = true;
 
+      // Phase 0: Toggle palette IMMEDIATELY so CSS color transitions
+      // blend in sync with the slider (not after it lands)
+      if (goingToDispatch) {
+        document.body.classList.add('dispatch-mode');
+      } else {
+        document.body.classList.remove('dispatch-mode');
+      }
+
       // Phase 1: Launch visual transition overlay + motes
       triggerModeTransition(goingToDispatch);
 
@@ -5610,15 +5643,8 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
       currentTab.classList.add('mode-exit');
 
-      // Phase 3: At midpoint, toggle palette + swap content
+      // Phase 3: At midpoint, swap content (palette already applied)
       setTimeout(() => {
-        // Toggle palette class
-        if (goingToDispatch) {
-          document.body.classList.add('dispatch-mode');
-        } else {
-          document.body.classList.remove('dispatch-mode');
-        }
-
         // Hide old, show new
         currentTab.style.display = 'none';
         currentTab.classList.remove('mode-exit');

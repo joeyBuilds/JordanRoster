@@ -1245,6 +1245,9 @@ body.shift-held #mapContainer .leaflet-container {
   padding: 0 2px 4px;
   max-height: 32px;
 }
+.compare-panel-tab-spacer {
+  flex-shrink: 0;
+}
 .compare-panel-close {
   position: absolute;
   top: 4px;

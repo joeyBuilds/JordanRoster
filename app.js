@@ -4888,6 +4888,11 @@ function renderAllComparePanels() {
       headerArea.appendChild(nichesRow);
     }
 
+    // Spacer to match primary's sub-tab row height (aligns stat cards)
+    const spacer = document.createElement('div');
+    spacer.className = 'compare-panel-tab-spacer';
+    headerArea.appendChild(spacer);
+
     panel.appendChild(headerArea);
 
     // ── Body — same layout as primary ──
@@ -4907,6 +4912,26 @@ function renderAllComparePanels() {
     body.appendChild(section);
     panel.appendChild(body);
     stack.appendChild(panel);
+  });
+
+  // ── Align compare panels to primary sidebar sections ──
+  requestAnimationFrame(() => {
+    const primarySubTabs = document.getElementById('demosSubTabs');
+    if (!primarySubTabs) return;
+
+    // Measure primary's total header height (name + niches + sub-tab row)
+    const primaryHeaderH = primarySubTabs.offsetHeight;
+
+    stack.querySelectorAll('.compare-panel').forEach(panel => {
+      const headerArea = panel.querySelector('.compare-panel-header-area');
+      const spacer = panel.querySelector('.compare-panel-tab-spacer');
+      if (!headerArea || !spacer) return;
+
+      // Set spacer to fill the gap so header area matches primary height
+      const currentH = headerArea.offsetHeight - spacer.offsetHeight;
+      const gap = Math.max(0, primaryHeaderH - currentH);
+      spacer.style.height = gap + 'px';
+    });
   });
 }
 

@@ -1208,7 +1208,7 @@ body.shift-held #mapContainer .leaflet-container {
   pointer-events: none;
 }
 .compare-panel {
-  width: 300px;
+  width: 360px;
   height: 100%;
   background: rgba(var(--bg-primary-rgb), 0.65);
   backdrop-filter: blur(32px) saturate(1.2);
@@ -4772,28 +4772,41 @@ a.ring-platform-chip:hover {
 
 /* Notes card — below actions */
 .ring-notes {
-  max-width: 260px;
+  max-width: 280px;
   min-width: 160px;
   padding: 10px 16px;
   border-radius: 14px;
-  font-size: 12px;
+  font-size: 11px;
   font-style: italic;
-  color: #000;
-  line-height: 1.45;
-  background: rgba(255, 249, 244, 0.95);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  background: rgba(var(--bg-card-rgb), 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.25),
-    0 0 1px rgba(255, 255, 255, 0.15) inset;
-  border: 1px solid rgba(var(--mocha-rgb), 0.35);
+    var(--glass-inset);
+  border: 1px solid var(--glass-border);
   white-space: normal;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.ring-notes:hover,
+.ring-notes.expanded {
+  -webkit-line-clamp: unset;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.ring-notes:hover::-webkit-scrollbar,
+.ring-notes.expanded::-webkit-scrollbar {
+  display: none;
 }
 
 /* ===========================

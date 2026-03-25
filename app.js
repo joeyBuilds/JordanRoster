@@ -2850,11 +2850,12 @@ function renderRing(creator) {
   actions.appendChild(deleteBtn);
   ringColumn.appendChild(actions);
 
-  // --- Row 5: Notes ---
+  // --- Row 5: Notes (click to expand/collapse) ---
   if (creator.notes) {
     const notes = document.createElement('div');
     notes.className = 'ring-notes';
     notes.textContent = creator.notes;
+    notes.onclick = (e) => { e.stopPropagation(); notes.classList.toggle('expanded'); };
     ringColumn.appendChild(notes);
   }
 

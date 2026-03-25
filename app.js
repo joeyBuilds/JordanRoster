@@ -197,6 +197,33 @@ function saveDeletedPresets() {
   setSetting('deletedDemographics', deletedDemographics);
 }
 
+// ── Prune orphaned tags from category settings ──
+// Removes any tag from saved categories that (a) isn't in the defaults and (b) isn't used by any creator.
+// Call after any creator deletion, recycle, edit, or bin-empty.
+function pruneOrphanedTags(type) {
+  const defaults = type === 'niche' ? DEFAULT_NICHE_CATEGORIES : DEFAULT_DEMO_CATEGORIES;
+  const defaultSet = new Set(Object.values(defaults).flat());
+  const usedByCreators = new Set(
+    creators.flatMap(c => (type === 'niche' ? c.niches : c.demographics) || [])
+  );
+  const categories = loadTagCategories(type);
+  let changed = false;
+  for (const cat of Object.keys(categories)) {
+    const before = categories[cat].length;
+    categories[cat] = categories[cat].filter(tag => defaultSet.has(tag) || usedByCreators.has(tag));
+    if (categories[cat].length !== before) changed = true;
+    // Remove empty non-default categories
+    if (categories[cat].length === 0 && !defaults[cat]) {
+      delete categories[cat];
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveTagCategories(type, categories);
+  }
+  return changed;
+}
+
 // Get all unique niches across the roster (no preset/custom distinction)
 function getAllNiches() {
   const fromCreators = creators.flatMap(c => c.niches || []);
@@ -1931,7 +1958,19 @@ function updateMapMarkers() {
       // Derive a pseudo-random stagger from creator id hash so each pin breathes at its own pace
       const staggerMs = isMatch ? (Math.abs([...creator.id].reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0), 0)) % 2500) : 0;
       const gleamHtml = isMatch ? `<div class="marker-gleam-ring" style="animation-delay: -${staggerMs}ms"></div>` : '';
-      const sunrayHtml = isPerfect ? `<div class="marker-sunray"></div>` : '';
+      // Build golden particle sparkles for perfect-score sunray
+      let particlesHtml = '';
+      if (isPerfect) {
+        for (let pi = 0; pi < 8; pi++) {
+          const angle = (pi / 8) * 360 + Math.random() * 30;
+          const dist = 18 + Math.random() * 12;
+          const size = 2 + Math.random() * 2;
+          const dur = 2 + Math.random() * 2;
+          const delay = Math.random() * dur;
+          particlesHtml += `<div class="grace-particle" style="--p-angle:${angle}deg;--p-dist:${dist}px;--p-size:${size}px;--p-dur:${dur}s;--p-delay:-${delay.toFixed(1)}s"></div>`;
+        }
+      }
+      const sunrayHtml = isPerfect ? `<div class="marker-sunray">${particlesHtml}</div>` : '';
 
       const iconHtml = `
         <div class="marker-inner" style="${isMatch ? '--stagger:' + staggerMs + 'ms' : ''}">
@@ -2500,6 +2539,8 @@ function renderRing(creator) {
       closeDetailPanel();
       creators = creators.filter(c => c.id !== creator.id);
       db.persist(creators);
+      pruneOrphanedTags('niche');
+      pruneOrphanedTags('demographic');
       renderRosterTab();
       renderDispatchTab();
       updateMapMarkers();
@@ -2691,10 +2732,23 @@ function renderRing(creator) {
         el.style.padding = `${pillPadY}px ${pillPadX}px`;
         el.style.lineHeight = '1.2';
 
-        // Shimmer effect on pills that match active dispatch filters
+        // Grace glow effect on pills that match active dispatch filters
         if (ringHasDispatch && ringScore && ringScore.matchDetails) {
           const isMatchedTag = ringScore.matchDetails.some(d => d.type === tagType && d.label === tag);
-          if (isMatchedTag) el.classList.add('dispatch-matched-tag');
+          if (isMatchedTag) {
+            el.classList.add('dispatch-matched-tag');
+            // Add grace particles to matched pills
+            for (let gp = 0; gp < 4; gp++) {
+              const particle = document.createElement('div');
+              particle.className = 'pill-grace-particle';
+              const xPct = 15 + Math.random() * 70;
+              const dur = 1.8 + Math.random() * 1.5;
+              const pDelay = Math.random() * dur;
+              const sz = 1.5 + Math.random() * 2;
+              particle.style.cssText = `left:${xPct}%;--pg-dur:${dur}s;--pg-delay:-${pDelay.toFixed(1)}s;--pg-size:${sz}px`;
+              el.appendChild(particle);
+            }
+          }
         }
 
         if (isOverlapping) {
@@ -4062,6 +4116,8 @@ async function saveCreator() {
   }
 
   db.persist(creators);
+  pruneOrphanedTags('niche');
+  pruneOrphanedTags('demographic');
   closeModal();
   renderRosterTab();
   renderDispatchTab();
@@ -6592,6 +6648,10 @@ async function init() {
     creators.forEach(migrateDemographics);
     creators.forEach(migrateLocation);
     db.persist(creators);
+
+    // Prune any orphaned tags left from previously deleted creators
+    pruneOrphanedTags('niche');
+    pruneOrphanedTags('demographic');
 
     console.log('[init] Rendering UI...');
     renderRosterTab();

@@ -251,9 +251,9 @@ body {
   box-shadow: 0 1px 16px rgba(0, 0, 0, 0.18), var(--glass-inset);
   position: relative;
   overflow: hidden;
-  transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 #topBar::after {
   content: '';
@@ -313,7 +313,7 @@ body {
   margin-left: 3px;
   margin-bottom: 2px;
   vertical-align: middle;
-  transition: background 0.5s ease;
+  transition: background 0.28s ease;
 }
 .title-niche {
   font-family: 'DM Sans', sans-serif;
@@ -324,7 +324,7 @@ body {
   margin-left: 12px;
   text-transform: uppercase;
   letter-spacing: 2px;
-  transition: opacity 0.5s ease, color 0.5s ease;
+  transition: opacity 0.28s ease, color 0.28s ease;
 }
 
 /* Dispatch/Niche mode: shift the dot color and tagline */
@@ -486,9 +486,9 @@ body.dispatch-mode .title-niche {
   overflow: hidden;
   position: relative;
   z-index: 1001;
-  transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 #sidebar::after {
   content: '';
@@ -757,6 +757,168 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .leaflet-marker-icon.destination-marker {
   overflow: visible !important;
+}
+
+/* ===========================
+   DEMO'S TAB — Audience Data
+   =========================== */
+#demosTab {
+  overflow-y: auto;
+}
+.demos-content {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+  flex: 1;
+}
+.demos-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 16px;
+  text-align: center;
+}
+.demos-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.demos-creator-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+.demos-subtitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.demos-platform-section {
+  padding: 12px 16px 16px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.demos-platform-section:last-child {
+  border-bottom: none;
+}
+.demos-platform-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.demos-platform-logo {
+  display: flex;
+  align-items: center;
+}
+.demos-platform-logo svg {
+  width: 16px;
+  height: 16px;
+}
+.demos-platform-logo.platform-instagram svg { fill: var(--color-instagram); color: var(--color-instagram); }
+.demos-platform-logo.platform-tiktok svg { fill: var(--color-tiktok); color: var(--color-tiktok); }
+.demos-platform-logo.platform-youtube svg { fill: var(--color-youtube); color: var(--color-youtube); }
+.demos-platform-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+.demos-platform-meta {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.demos-platform-stat {
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: rgba(var(--bg-card-rgb), 0.5);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+}
+
+/* Stats grid */
+.demos-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.demos-stat-cell {
+  background: rgba(var(--bg-card-rgb), 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+}
+.demos-stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+.demos-stat-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 2px;
+}
+
+/* Breakdown bars */
+.demos-breakdown {
+  margin-bottom: 10px;
+}
+.demos-breakdown:last-child {
+  margin-bottom: 0;
+}
+.demos-breakdown-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.demos-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.demos-bar-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 56px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.demos-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(var(--bg-card-rgb), 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.demos-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.demos-bar-value {
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Recycle Bin tab */
@@ -1053,18 +1215,18 @@ body.shift-held #mapContainer .leaflet-container {
 
 .tab-button {
   flex: 1;
-  padding: 10px 14px;
+  padding: 10px 8px;
   background: transparent;
   border: none;
   border-bottom: none;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
   color: rgba(var(--text-primary-rgb), 0.30);
   cursor: pointer;
-  transition: color 0.35s ease;
+  transition: color 0.28s ease;
   font-family: 'DM Sans', sans-serif;
   position: relative;
   overflow: hidden;
@@ -1523,7 +1685,7 @@ body.shift-held #mapContainer .leaflet-container {
   left: 360px;
   width: 370px;
   height: 100%;
-  z-index: 1002;
+  z-index: 1055; /* Above ring scrim (1050), below ring overlay (1060) */
   background: rgba(var(--bg-card-rgb), 0.82);
   backdrop-filter: blur(24px) saturate(1.1);
   -webkit-backdrop-filter: blur(24px) saturate(1.1);

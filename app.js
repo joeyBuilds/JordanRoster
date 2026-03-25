@@ -2057,8 +2057,9 @@ function updateMapMarkers() {
       let scoreLevel = '';
       let scoreText = '';
       let scorePct = 0;
+      let score = null;
       if (isDispatch && hasDispatchFilters) {
-        const score = scoreCreatorFilters(creator);
+        score = scoreCreatorFilters(creator);
         scorePct = score.pct;
         scoreText = `${score.matchCount}/${score.totalFilters}`;
         scoreLevel = getScoreLevel(score.matchCount, score.totalFilters);
@@ -2466,6 +2467,12 @@ function showDetailPanel(creatorId) {
   }
 
   currentEditingCreator = creatorId;
+
+  // Update Demo's panel if visible
+  const demosTab = document.getElementById('demosTab');
+  if (demosTab && demosTab.style.display !== 'none') {
+    renderDemosPanel(creator);
+  }
 
   // Pan map to center the creator so ring elements don't get clipped
   if (creator.lat && creator.lng) {
@@ -3088,6 +3095,12 @@ function closeDetailPanel() {
   overlay.classList.remove('open');
   scrim.classList.remove('open');
   currentEditingCreator = null;
+
+  // Reset Demo's panel to empty state
+  const demosTab = document.getElementById('demosTab');
+  if (demosTab && demosTab.style.display !== 'none') {
+    renderDemosPanel(null);
+  }
 
   // Clean up after animation
   setTimeout(() => { overlay.innerHTML = ''; }, 400);
@@ -4474,6 +4487,136 @@ async function migratePhotos() {
   if (changed) {
     db.persist(creators);
     updateStorageIndicator();
+  }
+}
+
+// ===========================
+// DEMO'S PANEL — Audience Data
+// ===========================
+
+function getAudienceData(creator, platform) {
+  if (creator.platforms && typeof creator.platforms === 'object' && creator.platforms[platform]) {
+    return creator.platforms[platform].audienceData || null;
+  }
+  return null;
+}
+
+function formatStatNumber(n) {
+  if (n === null || n === undefined) return '—';
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  return n.toLocaleString();
+}
+
+function renderDemosPanel(creator) {
+  const content = document.getElementById('demosContent');
+  const emptyState = document.getElementById('demosEmpty');
+  if (!content) return;
+
+  // If no creator passed, try to use the currently active ring creator
+  if (!creator && currentEditingCreator) {
+    creator = creators.find(c => c.id === currentEditingCreator);
+  }
+
+  if (!creator) {
+    // Show empty state
+    content.innerHTML = '';
+    content.appendChild(emptyState);
+    emptyState.style.display = 'flex';
+    return;
+  }
+
+  content.innerHTML = '';
+
+  // Header with creator name
+  const header = document.createElement('div');
+  header.className = 'demos-header';
+  header.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div><div class="demos-subtitle">Audience Insights</div>`;
+  content.appendChild(header);
+
+  const platformList = getCreatorPlatforms(creator);
+  let hasAnyData = false;
+
+  platformList.forEach(platform => {
+    const aud = getAudienceData(creator, platform);
+    if (!aud) return;
+    hasAnyData = true;
+
+    // Platform section
+    const section = document.createElement('div');
+    section.className = 'demos-platform-section';
+
+    const platformHeader = document.createElement('div');
+    platformHeader.className = 'demos-platform-header';
+    const logoHtml = PLATFORM_SVGS[platform] ? `<span class="demos-platform-logo platform-${platform.toLowerCase()}">${PLATFORM_SVGS[platform]}</span>` : '';
+    const followers = getFollowers(creator, platform);
+    const engRate = getEngagementRate(creator, platform);
+    let metaHtml = '';
+    if (followers !== null) metaHtml += `<span class="demos-platform-stat">${formatFollowers(followers)} followers</span>`;
+    if (engRate !== null) metaHtml += `<span class="demos-platform-stat">${formatEngagementRate(engRate)} eng</span>`;
+    platformHeader.innerHTML = `${logoHtml}<span class="demos-platform-name">${platform}</span><span class="demos-platform-meta">${metaHtml}</span>`;
+    section.appendChild(platformHeader);
+
+    // Stats grid (if stats exist)
+    if (aud.stats) {
+      const statsGrid = document.createElement('div');
+      statsGrid.className = 'demos-stats-grid';
+      const statEntries = [
+        { label: 'Avg Likes', key: 'avgPostLikes', icon: '♥' },
+        { label: 'Avg Comments', key: 'avgPostComments', icon: '💬' },
+        { label: 'Avg Views', key: 'avgStoryViews', icon: '👁' },
+        { label: 'Reach', key: 'reach', icon: '📡' },
+        { label: 'Shares', key: 'shares', icon: '↗' },
+        { label: 'Saves', key: 'saves', icon: '🔖' },
+      ];
+      statEntries.forEach(({ label, key, icon }) => {
+        const val = aud.stats[key];
+        if (val === null || val === undefined) return;
+        const cell = document.createElement('div');
+        cell.className = 'demos-stat-cell';
+        cell.innerHTML = `<div class="demos-stat-value">${icon} ${formatStatNumber(val)}</div><div class="demos-stat-label">${label}</div>`;
+        statsGrid.appendChild(cell);
+      });
+      if (statsGrid.children.length > 0) section.appendChild(statsGrid);
+    }
+
+    // Breakdown bars helper
+    function renderBreakdown(title, data, colorVar) {
+      if (!data || data.length === 0) return;
+      const block = document.createElement('div');
+      block.className = 'demos-breakdown';
+      block.innerHTML = `<div class="demos-breakdown-title">${title}</div>`;
+      const maxVal = Math.max(...data.map(d => d.value), 1);
+      data.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'demos-bar-row';
+        const pct = Math.max(item.value, 0);
+        row.innerHTML = `
+          <span class="demos-bar-label">${item.label}</span>
+          <div class="demos-bar-track">
+            <div class="demos-bar-fill" style="width:${(pct / maxVal) * 100}%;background:var(${colorVar})"></div>
+          </div>
+          <span class="demos-bar-value">${pct.toFixed(1)}%</span>
+        `;
+        block.appendChild(row);
+      });
+      section.appendChild(block);
+    }
+
+    renderBreakdown('Gender', aud.gender, '--sage');
+    renderBreakdown('Age', aud.age, '--lavender');
+    renderBreakdown('Top Countries', aud.country ? aud.country.slice(0, 6) : null, '--gold');
+    renderBreakdown('Top Cities', aud.city ? aud.city.slice(0, 6) : null, '--rose');
+
+    content.appendChild(section);
+  });
+
+  if (!hasAnyData) {
+    const noData = document.createElement('div');
+    noData.className = 'demos-empty-state';
+    noData.innerHTML = `<div style="font-size:28px;margin-bottom:8px;opacity:0.4">📊</div><div style="font-size:13px;color:var(--text-muted)">No audience data available for ${getFullName(creator)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;opacity:0.7">Sync from July to populate</div>`;
+    noData.style.display = 'flex';
+    content.appendChild(noData);
   }
 }
 
@@ -5985,8 +6128,8 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     const goingToDispatch = tab === 'dispatch';
     const modeChanging = goingToDispatch !== wasDispatch;
 
-    // Close ring if open
-    closeDetailPanel();
+    // Close ring if open (but keep it open when switching to Demo's tab)
+    if (tab !== 'demos') closeDetailPanel();
 
     // Update active tab immediately
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
@@ -6004,6 +6147,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
                     : document.getElementById('rosterTab');
       document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
       document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
+      document.getElementById('demosTab').style.display = tab === 'demos' ? 'flex' : 'none';
       document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
 
       // Gentle fade-in on new content
@@ -6020,6 +6164,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
       // No mode change (e.g. roster→recycle or dispatch→recycle)
       document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
       document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
+      document.getElementById('demosTab').style.display = tab === 'demos' ? 'flex' : 'none';
       document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
       _handleTabLogic(tab, wasDispatch);
     }
@@ -6028,6 +6173,10 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
 // Shared tab logic (data cleanup, re-renders)
 function _handleTabLogic(tab, wasDispatch) {
+  if (tab === 'demos') {
+    document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');
+    renderDemosPanel();
+  }
   if (tab === 'recycle') {
     document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');
     renderRecycleBinTab();

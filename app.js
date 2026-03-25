@@ -336,7 +336,6 @@ let map = null;
 let markers = {};
 let _dispatchMatchedIds = new Set(); // IDs of creators matching current dispatch filters
 let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
-let _filtersChangedWhileRingOpen = false; // tracks if dispatch filters changed while ring is open
 let dispatchFilters = {
   platformTiers: [],  // [{platform: 'Instagram', tier: 'Micro (10K-100K)'}, ...] — specific combos from sidebar
   platforms: [],      // ['Instagram', ...] — independent platform filter (any tier)
@@ -1312,13 +1311,6 @@ function renderDispatchTab() {
     _fitMapToMatched(filtered);
   }
   if (dispatchDestination) renderNearestCreators();
-
-  // Live-update ring dispatch scores if ring is open while adjusting filters
-  _refreshRingIfOpen();
-
-  // Live-update context strip score badge
-  const ctxStrip = document.getElementById('dispatchContextStrip');
-  if (ctxStrip) _renderDispatchContextStrip();
 }
 
 // Short tier labels for the compact buttons
@@ -2538,6 +2530,7 @@ function showDetailPanel(creatorId) {
   }
 
   currentEditingCreator = creatorId;
+  _nicheInjectedForCreator = null; // reset so niches re-inject on next Niche tab visit
 
   // Always track for Demo's panel (persists after ring closes)
   _demosCreatorId = creatorId;
@@ -3211,12 +3204,7 @@ function closeDetailPanel() {
   overlay.classList.remove('open');
   scrim.classList.remove('open');
   currentEditingCreator = null;
-  _filtersChangedWhileRingOpen = false;
   // Note: _demosCreatorId is NOT cleared — Demo's panel persists last-viewed creator
-
-  // Remove context strip from dispatch tab
-  const ctxStrip = document.getElementById('dispatchContextStrip');
-  if (ctxStrip) ctxStrip.remove();
 
   // Clean up after animation
   setTimeout(() => { overlay.innerHTML = ''; }, 400);
@@ -5822,6 +5810,11 @@ function clearNLInlinePills() {
     renderDispatchTab();
     input.focus();
   });
+
+  // Expose pill API for external use (e.g. auto-applying creator niches)
+  window._nlAddPill = addInlinePill;
+  window._nlReapply = reapplyFromPills;
+  window._nlClearPills = clearAllPills;
 })();
 
 document.getElementById('sortSelect').addEventListener('change', () => {
@@ -6592,11 +6585,23 @@ function _handleTabLogic(tab, wasDispatch) {
     renderDemosPanel();
     renderAllComparePanels();
 
-    // UX: If filters changed while ring was open, re-render ring with updated scores
-    if (_filtersChangedWhileRingOpen && currentEditingCreator) {
-      const creator = creators.find(c => c.id === currentEditingCreator);
-      if (creator) renderRing(creator, true);
-      _filtersChangedWhileRingOpen = false;
+    // UX: Reopen ring for the creator we were investigating
+    if (_demosCreatorId && !currentEditingCreator) {
+      const creator = creators.find(c => c.id === _demosCreatorId);
+      if (creator) {
+        currentEditingCreator = _demosCreatorId;
+        // Pass true to force dispatch scoring (user may have adjusted filters)
+        if (isMobile()) {
+          renderRing(creator, true);
+        } else if (creator.lat && creator.lng) {
+          const marker = markers[creator.id];
+          const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
+          map.once('moveend', () => renderRing(creator, true));
+          map.panTo(latLng, { animate: true, duration: 0.3 });
+        } else {
+          renderRing(creator, true);
+        }
+      }
     }
   } else {
     // Hide compare panels when not on Demo's tab
@@ -6642,15 +6647,20 @@ function _handleTabLogic(tab, wasDispatch) {
       if (el) el.classList.remove('roster-faded');
     });
     document.getElementById('matchFloatPanel').classList.remove('visible');
+
+    // UX: If investigating a creator, inject their niches and close ring
+    const investigatingCreator = currentEditingCreator || _demosCreatorId;
+    if (investigatingCreator) {
+      closeDetailPanel();
+      // Restore _demosCreatorId so ring can reopen on return to Demo's
+      _demosCreatorId = investigatingCreator;
+      _injectCreatorNichesIntoDispatch(investigatingCreator);
+    }
+
     renderDispatchFilters();
     renderDispatchFilterPills();
     renderDispatchTab();
-
-    // UX: If investigating a creator, auto-expand active sections and show context strip
-    if (currentEditingCreator || _demosCreatorId) {
-      _autoExpandActiveSections();
-      _renderDispatchContextStrip();
-    }
+    _autoExpandActiveSections();
   }
 }
 
@@ -6669,6 +6679,7 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   const nlInput = document.getElementById('nlSearchInput');
   if (nlInput) nlInput.value = '';
   clearNLInlinePills();
+  _nicheInjectedForCreator = null; // allow re-injection next time
   const nlHint = document.getElementById('nlSearchHint');
   if (nlHint) nlHint.style.display = 'none';
   const nlClear = document.getElementById('nlSearchClear');
@@ -7562,20 +7573,43 @@ const julyImport = (() => {
 })();
 
 // ===========================
-// UX: LIVE RING REFRESH + CONTEXT STRIP
+// UX: NICHE-TAB SYNERGY
 // ===========================
 
-// Re-render the ring overlay if it's currently open (e.g. after filter changes)
-function _refreshRingIfOpen() {
-  const overlay = document.getElementById('ringOverlay');
-  if (!overlay || !overlay.classList.contains('open')) return;
-  if (!currentEditingCreator) return;
+// Track the creator whose niches were auto-injected into dispatch
+let _nicheInjectedForCreator = null;
 
-  const creator = creators.find(c => c.id === currentEditingCreator);
+// When switching to Niche tab while investigating a creator:
+// - Close the ring (keep UI clean)
+// - Auto-inject the creator's niches into the NL "Who?" bar as pills
+// - This triggers dispatch filtering → match results show similar creators
+function _injectCreatorNichesIntoDispatch(creatorId) {
+  const creator = creators.find(c => c.id === creatorId);
   if (!creator) return;
 
-  _filtersChangedWhileRingOpen = true;
-  renderRing(creator, true); // force dispatch scoring
+  // If we already injected for this creator, don't re-inject
+  if (_nicheInjectedForCreator === creatorId) return;
+
+  const niches = creator.niches || [];
+  if (niches.length === 0) return;
+
+  // Clear existing pills first, then inject creator's niches
+  if (window._nlClearPills) window._nlClearPills(true); // skipReapply=true
+
+  niches.forEach(n => {
+    if (window._nlAddPill) window._nlAddPill(n, 'niche');
+  });
+
+  // Also inject demographics if any
+  const demos = creator.demographics || [];
+  demos.forEach(d => {
+    if (window._nlAddPill) window._nlAddPill(d, 'demographic');
+  });
+
+  // Reapply filters from the new pills
+  if (window._nlReapply) window._nlReapply();
+
+  _nicheInjectedForCreator = creatorId;
 }
 
 // Auto-expand dispatch sections that have active filters
@@ -7591,77 +7625,6 @@ function _autoExpandActiveSections() {
   }
   if ((dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) && !_dispatchSections.age) {
     toggleDispatchSection('age');
-  }
-}
-
-// Render a context strip in the Niche tab showing the creator being investigated
-function _renderDispatchContextStrip() {
-  // Remove any existing strip
-  const existing = document.getElementById('dispatchContextStrip');
-  if (existing) existing.remove();
-
-  // Only show when ring is open or we have a creator being investigated
-  const creatorId = currentEditingCreator || _demosCreatorId;
-  if (!creatorId) return;
-
-  const overlay = document.getElementById('ringOverlay');
-  const ringOpen = overlay && overlay.classList.contains('open');
-  if (!ringOpen && !currentEditingCreator) return;
-
-  const creator = creators.find(c => c.id === creatorId);
-  if (!creator) return;
-
-  const strip = document.createElement('div');
-  strip.id = 'dispatchContextStrip';
-  strip.className = 'dispatch-context-strip';
-
-  // Avatar
-  const avatar = document.createElement('div');
-  avatar.className = 'ctx-avatar';
-  if (creator.photo) {
-    const img = document.createElement('img');
-    img.src = creator.photo;
-    img.alt = '';
-    avatar.appendChild(img);
-  } else {
-    avatar.textContent = (creator.firstName || creator.name || '?')[0].toUpperCase();
-  }
-  strip.appendChild(avatar);
-
-  // Name + meta
-  const info = document.createElement('div');
-  info.className = 'ctx-info';
-  const name = document.createElement('span');
-  name.className = 'ctx-name';
-  name.textContent = getFullName(creator);
-  info.appendChild(name);
-
-  // Show how they match current filters
-  if (hasActiveDispatchFilters()) {
-    const score = scoreCreatorFilters(creator);
-    const level = getScoreLevel(score.matchCount, score.totalFilters);
-    const badge = document.createElement('span');
-    badge.className = 'ctx-score ctx-score-' + level;
-    badge.textContent = score.matchCount + '/' + score.totalFilters;
-    info.appendChild(badge);
-  }
-  strip.appendChild(info);
-
-  // "Back to" button — switches to Demo's tab
-  const backBtn = document.createElement('button');
-  backBtn.className = 'ctx-back-btn';
-  backBtn.innerHTML = 'Demo&#8217;s &rarr;';
-  backBtn.title = 'Switch to Demo\u2019s tab for ' + getFullName(creator);
-  backBtn.addEventListener('click', () => {
-    const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
-    if (demosBtn) demosBtn.click();
-  });
-  strip.appendChild(backBtn);
-
-  // Insert at top of dispatch filters
-  const filters = document.querySelector('#dispatchTab .dispatch-filters');
-  if (filters) {
-    filters.insertBefore(strip, filters.firstChild);
   }
 }
 

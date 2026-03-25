@@ -4619,11 +4619,14 @@ function renderPlatformStats(creator, platform, container) {
       const card = document.createElement('div');
       card.className = 'demos-demo-card ' + colorClass;
       card.innerHTML = `<div class="demos-demo-title">${title}</div>`;
-      // Sort descending, take top N, add "Other" for remainder
+      // Sort descending, take top N, "Other" always last
       const sorted = [...data].sort((a, b) => b.value - a.value);
       const top = sorted.slice(0, maxItems || 6);
       const topSum = top.reduce((s, d) => s + d.value, 0);
-      const items = topSum < 99.5 ? [...top, { label: 'Other', value: Math.max(0, 100 - topSum) }] : top;
+      // Build final list: top items sorted descending, then "Other" pinned at bottom
+      const topSorted = top.filter(d => d.label !== 'Other').sort((a, b) => b.value - a.value);
+      const otherVal = 100 - topSorted.reduce((s, d) => s + d.value, 0);
+      const items = otherVal > 0.1 ? [...topSorted, { label: 'Other', value: otherVal }] : topSorted;
       // Bars represent % of 100 (not relative to max)
       items.forEach(item => {
         const row = document.createElement('div');

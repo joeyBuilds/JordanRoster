@@ -937,36 +937,18 @@ body.shift-held #mapContainer .leaflet-container {
   letter-spacing: 0.8px;
   margin-bottom: 3px;
 }
-/* Color-coded — alchemy circle gradient (orange→pink/magenta top-to-bottom) */
-.demos-color-gender .demos-demo-title { color: #E8729A; }
-.demos-color-age .demos-demo-title { color: #F0884A; }
-.demos-color-country .demos-demo-title { color: #E06888; }
-.demos-color-city .demos-demo-title { color: #D460A0; }
-/* Alchemy gradient on bar fills — each row gets a shade from the gradient */
-.demos-color-age .demos-bar-row:nth-child(2) .demos-bar-fill { background: #F0884A; }
-.demos-color-age .demos-bar-row:nth-child(3) .demos-bar-fill { background: #EC7C5A; }
-.demos-color-age .demos-bar-row:nth-child(4) .demos-bar-fill { background: #E87068; }
-.demos-color-age .demos-bar-row:nth-child(5) .demos-bar-fill { background: #E46478; }
-.demos-color-age .demos-bar-row:nth-child(6) .demos-bar-fill { background: #E05888; }
-.demos-color-age .demos-bar-row:nth-child(7) .demos-bar-fill { background: #DC4C98; }
-.demos-color-age .demos-bar-row:nth-child(8) .demos-bar-fill { background: #D840A8; }
-.demos-color-country .demos-bar-row:nth-child(2) .demos-bar-fill { background: #F0884A; }
-.demos-color-country .demos-bar-row:nth-child(3) .demos-bar-fill { background: #EC7C5A; }
-.demos-color-country .demos-bar-row:nth-child(4) .demos-bar-fill { background: #E87068; }
-.demos-color-country .demos-bar-row:nth-child(5) .demos-bar-fill { background: #E46478; }
-.demos-color-country .demos-bar-row:nth-child(6) .demos-bar-fill { background: #E05888; }
-.demos-color-country .demos-bar-row:nth-child(7) .demos-bar-fill { background: #DC4C98; }
-.demos-color-city .demos-bar-row:nth-child(2) .demos-bar-fill { background: #F0884A; }
-.demos-color-city .demos-bar-row:nth-child(3) .demos-bar-fill { background: #EC7C5A; }
-.demos-color-city .demos-bar-row:nth-child(4) .demos-bar-fill { background: #E87068; }
-.demos-color-city .demos-bar-row:nth-child(5) .demos-bar-fill { background: #E46478; }
-.demos-color-city .demos-bar-row:nth-child(6) .demos-bar-fill { background: #E05888; }
-.demos-color-city .demos-bar-row:nth-child(7) .demos-bar-fill { background: #DC4C98; }
-/* Subtle left border accent with gradient */
-.demos-color-gender { border-left: 2px solid #E8729A; }
-.demos-color-age { border-image: linear-gradient(to bottom, #F0884A, #D840A8) 1; border-left-width: 2px; border-left-style: solid; }
-.demos-color-country { border-image: linear-gradient(to bottom, #F0884A, #D840A8) 1; border-left-width: 2px; border-left-style: solid; }
-.demos-color-city { border-image: linear-gradient(to bottom, #F0884A, #D840A8) 1; border-left-width: 2px; border-left-style: solid; }
+/* Blue accents for all demographic charts */
+.demos-color-gender .demos-demo-title { color: #5BBCE0; }
+.demos-color-age .demos-demo-title { color: #5BBCE0; }
+.demos-color-country .demos-demo-title { color: #5BBCE0; }
+.demos-color-city .demos-demo-title { color: #5BBCE0; }
+.demos-color-age .demos-bar-fill,
+.demos-color-country .demos-bar-fill,
+.demos-color-city .demos-bar-fill { background: #5BBCE0; }
+.demos-color-gender { border-left: 2px solid #5BBCE0; }
+.demos-color-age { border-left: 2px solid #5BBCE0; }
+.demos-color-country { border-left: 2px solid #5BBCE0; }
+.demos-color-city { border-left: 2px solid #5BBCE0; }
 
 /* Gender donut chart */
 .demos-donut-wrap {

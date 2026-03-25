@@ -5947,32 +5947,14 @@ function renderNearestCreators() {
 // Uses a single container + documentFragment to minimize reflows, and
 // staggers via CSS animation-delay instead of per-element setTimeout.
 // ── Lightweight palette crossfade ──
-// Instead of transitioning 30 CSS variables per frame, we:
-// 1. Capture a screenshot-like snapshot of the sidebar (via cloneNode)
-// 2. Swap the palette variables instantly
-// 3. Fade the snapshot out, revealing the new palette underneath
+// Mode transition: instant palette swap + gentle content fade-in
+// No overlay needed — dark palettes are close enough visually
 function triggerModeTransition(toDispatch) {
-  // Capture current bg color BEFORE any palette swap
-  const cs = getComputedStyle(document.documentElement);
-  const bgPrimary = cs.getPropertyValue('--bg-primary').trim();
-
-  // Now swap the palette instantly
   if (toDispatch) {
     document.body.classList.add('dispatch-mode');
   } else {
     document.body.classList.remove('dispatch-mode');
   }
-
-  // Create snapshot overlay with the OLD background color
-  // This covers the jarring instant repaint underneath
-  const snap = document.createElement('div');
-  snap.className = 'mode-snapshot';
-  snap.style.background = bgPrimary;
-  document.body.appendChild(snap);
-
-  // Clean up after the fade animation
-  snap.addEventListener('animationend', () => snap.remove(), { once: true });
-  setTimeout(() => { if (snap.parentNode) snap.remove(); }, 500);
 }
 
 // Tab switching — orchestrated transition
@@ -6014,21 +5996,25 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     if (modeChanging) {
       _modeTransitioning = true;
 
-      // Phase 1: Snapshot OLD bg, swap palette, overlay fades out
-      // triggerModeTransition captures bg BEFORE toggling dispatch-mode
+      // Instant palette swap
       triggerModeTransition(goingToDispatch);
 
-      // Phase 2: Swap tab content instantly (hidden behind snapshot overlay)
+      // Swap tab content
+      const nextTab = goingToDispatch ? document.getElementById('dispatchTab')
+                    : document.getElementById('rosterTab');
       document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
       document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
       document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
 
-      // Unlock after snapshot fades (350ms animation)
+      // Gentle fade-in on new content
+      nextTab.classList.add('mode-enter');
       const cleanup = () => {
+        nextTab.classList.remove('mode-enter');
         _modeTransitioning = false;
         requestAnimationFrame(() => _handleTabLogic(tab, wasDispatch));
       };
-      setTimeout(cleanup, 360);
+      nextTab.addEventListener('animationend', cleanup, { once: true });
+      setTimeout(() => { if (_modeTransitioning) cleanup(); }, 280);
 
     } else {
       // No mode change (e.g. roster→recycle or dispatch→recycle)

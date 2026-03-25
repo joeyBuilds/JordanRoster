@@ -202,25 +202,8 @@ body.dispatch-mode .sidebar-tabs::after {
 
 /* ===========================
    MODE TRANSITION SYSTEM
-   Orchestrated crossfade between Roster ↔ Niche
+   Instant palette swap + gentle content fade-in
    =========================== */
-
-/* Phase 1: Color wash — soft full-screen gradient wipe */
-/* Palette crossfade: a snapshot of the old state fades out over the new state */
-.mode-snapshot {
-  position: fixed;
-  inset: 0;
-  z-index: 9998;
-  pointer-events: none;
-  will-change: opacity;
-  animation: snapshotFade 0.35s ease-out forwards;
-}
-@keyframes snapshotFade {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-/* Phase 2: Content crossfade — outgoing fades down+out, incoming fades up+in */
 .tab-content {
   flex: 1;
   display: flex;
@@ -228,13 +211,14 @@ body.dispatch-mode .sidebar-tabs::after {
   overflow: hidden;
   min-height: 0;
 }
-/* Tab content swap is instant — snapshot overlay handles visual blending */
-
-/* Phase 3: Map — no filter transitions */
-
-/* Motes + sidebar glow removed — kept transition lightweight */
-
-/* (topBar/sidebar transition timing set on main rule blocks below) */
+.tab-content.mode-enter {
+  will-change: opacity;
+  animation: modeEnter 0.2s ease-out forwards;
+}
+@keyframes modeEnter {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
 
 html, body {
   width: 100%;

@@ -6669,23 +6669,28 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   const panel = document.getElementById('matchFloatPanel');
   panel.classList.remove('visible', 'dispatch-mode');
 
-  // Clear dispatch niche/demo/age filters
+  // Clear ALL dispatch filters
   dispatchFilters.niches = [];
   dispatchFilters.demographics = [];
+  dispatchFilters.platformTiers = [];
+  dispatchFilters.platforms = [];
+  dispatchFilters.tiers = [];
   dispatchFilters.ageMin = null;
   dispatchFilters.ageMax = null;
   nlRegionFilter = null;
+  _nicheInjectedForCreator = null;
   // Clear NL search input + inline pills
   const nlInput = document.getElementById('nlSearchInput');
   if (nlInput) nlInput.value = '';
   clearNLInlinePills();
-  _nicheInjectedForCreator = null; // allow re-injection next time
   const nlHint = document.getElementById('nlSearchHint');
   if (nlHint) nlHint.style.display = 'none';
   const nlClear = document.getElementById('nlSearchClear');
   if (nlClear) nlClear.style.display = 'none';
-  renderDispatchFilterPills();
-  renderDispatchTab();
+
+  // Slide back to Roster mode
+  const rosterBtn = document.querySelector('.tab-button[data-tab="roster"]');
+  if (rosterBtn) rosterBtn.click();
 });
 
 // Recycle bin

@@ -2905,6 +2905,9 @@ a.creator-platform-chip:hover {
 .nl-search-wrap:not(.has-pills) .nl-search-input::placeholder {
   text-align: center;
 }
+.nl-search-wrap.has-pills .nl-search-input::placeholder {
+  color: transparent;
+}
 .nl-search-input:focus {
   border-color: transparent;
   background: transparent;

@@ -3394,7 +3394,7 @@ a.creator-platform-chip:hover {
    =========================== */
 .ring-overlay {
   position: fixed;
-  z-index: 1000;
+  z-index: 1060;
   pointer-events: none;
   transition: opacity 0.35s ease;
   opacity: 0;
@@ -3411,7 +3411,7 @@ a.creator-platform-chip:hover {
 /* Scrim behind ring to dim map */
 .ring-scrim {
   position: fixed;
-  z-index: 999;
+  z-index: 1050;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
@@ -5712,22 +5712,23 @@ body.dispatch-mode .marker-cluster-inner {
   box-shadow: 0 0 4px rgba(168,138,112,0.3);
 }
 
-/* Score fraction label */
+/* Score fraction label — bottom-right to avoid avatar overlap */
 .card-score-fraction {
   position: absolute;
-  top: 6px;
+  bottom: 6px;
   right: 8px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--text-muted);
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(4px);
   transition: opacity 0.3s ease, transform 0.3s ease;
   z-index: 2;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
 }
 .card-score-fraction.visible {
-  opacity: 1;
+  opacity: 0.7;
   transform: translateY(0);
 }
 .creator-card[data-score="full"] .card-score-fraction { color: var(--success); }
@@ -5842,89 +5843,58 @@ body.dispatch-mode .marker-cluster-inner {
   transition: opacity 0.4s ease;
 }
 
-/* ── Matched marker — golden sunburst ── */
+/* ── Matched marker — gentle golden glow ── */
 
-/* Gleam ring: tight golden halo, gentle breathe */
+/* Gleam ring: soft halo with slow, subtle pulse */
 .creator-marker.dispatch-match .marker-gleam-ring {
-  animation: goldenHaloBreathe 5s ease-in-out infinite;
+  animation: gentleGlow 6s ease-in-out infinite;
   animation-delay: calc(-1 * var(--stagger, 0ms));
-  border-color: rgba(218,185,120,0.55);
+  border-color: rgba(218,185,120,0.4);
 }
-@keyframes goldenHaloBreathe {
+@keyframes gentleGlow {
   0%, 100% {
-    opacity: 0.65;
-    transform: scale(1.02);
+    opacity: 0.55;
+    transform: scale(1);
     box-shadow:
-      0 0 6px 2px rgba(218,185,120,0.2),
-      inset 0 0 5px 2px rgba(218,185,120,0.06);
+      0 0 8px 2px rgba(218,185,120,0.15),
+      inset 0 0 4px 1px rgba(218,185,120,0.05);
   }
   50% {
-    opacity: 0.95;
-    transform: scale(1.06);
+    opacity: 0.85;
+    transform: scale(1.03);
     box-shadow:
-      0 0 10px 3px rgba(218,185,120,0.3),
-      0 0 20px 6px rgba(218,185,120,0.08),
-      inset 0 0 8px 3px rgba(218,185,120,0.1);
+      0 0 12px 4px rgba(218,185,120,0.25),
+      inset 0 0 6px 2px rgba(218,185,120,0.08);
   }
 }
 
-/* Glow layer: kill the diffuse blob, use it only as a faint warm center */
+/* Glow layer: faint warm ambient light, slow breathe */
 .creator-marker.dispatch-match .marker-glow {
-  animation: goldenGlowBreathe 5s ease-in-out infinite;
+  animation: gentleAmbient 6s ease-in-out infinite;
   animation-delay: calc(-1 * var(--stagger, 0ms));
-  inset: -6px;
+  inset: -4px;
   background: radial-gradient(circle,
-    rgba(218,185,120,0.18) 0%,
-    rgba(218,185,120,0.04) 55%,
-    transparent 70%);
+    rgba(218,185,120,0.12) 0%,
+    rgba(218,185,120,0.03) 60%,
+    transparent 75%);
 }
-@keyframes goldenGlowBreathe {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50%      { opacity: 0.75; transform: scale(1.08); }
+@keyframes gentleAmbient {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 0.65; transform: scale(1.04); }
 }
 
-/* Sunrays: separate pseudo-element so rays aren't clipped by border-radius */
+/* No sunrays — clean pin, no pseudo-element clutter */
 .creator-marker.dispatch-match .marker-avatar-wrap::before {
-  content: '';
-  position: absolute;
-  inset: -18px;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 0;
-  animation: sunrayBreathe 5s ease-in-out infinite;
-  animation-delay: calc(-1 * var(--stagger, 0ms));
-  background:
-    conic-gradient(from 15deg,
-      transparent 0deg,   rgba(218,185,120,0.28) 4deg,  transparent 8deg,
-      transparent 30deg,  rgba(218,185,120,0.18) 33deg, transparent 36deg,
-      transparent 55deg,  rgba(218,185,120,0.22) 58deg, transparent 61deg,
-      transparent 85deg,  rgba(218,185,120,0.16) 88deg, transparent 91deg,
-      transparent 110deg, rgba(218,185,120,0.24) 113deg, transparent 116deg,
-      transparent 140deg, rgba(218,185,120,0.14) 143deg, transparent 146deg,
-      transparent 165deg, rgba(218,185,120,0.2) 168deg, transparent 171deg,
-      transparent 195deg, rgba(218,185,120,0.26) 198deg, transparent 201deg,
-      transparent 220deg, rgba(218,185,120,0.15) 223deg, transparent 226deg,
-      transparent 250deg, rgba(218,185,120,0.22) 253deg, transparent 256deg,
-      transparent 280deg, rgba(218,185,120,0.17) 283deg, transparent 286deg,
-      transparent 305deg, rgba(218,185,120,0.24) 308deg, transparent 311deg,
-      transparent 335deg, rgba(218,185,120,0.13) 338deg, transparent 341deg,
-      transparent 360deg
-    );
-  -webkit-mask-image: radial-gradient(circle, transparent 32%, white 50%, white 75%, transparent 100%);
-  mask-image: radial-gradient(circle, transparent 32%, white 50%, white 75%, transparent 100%);
-}
-@keyframes sunrayBreathe {
-  0%, 100% { opacity: 0.5;  transform: scale(1) rotate(0deg); }
-  50%      { opacity: 0.85; transform: scale(1.08) rotate(3deg); }
+  display: none;
 }
 
 .creator-marker.dispatch-match .marker-avatar {
   animation: none;
   box-shadow:
     0 0 0 2.5px rgba(255,255,255,0.95),
-    0 0 0 4.5px rgba(218,185,120,0.5),
-    0 0 10px 2px rgba(218,185,120,0.2),
-    0 3px 10px 2px rgba(0,0,0,0.3);
+    0 0 0 4.5px rgba(218,185,120,0.45),
+    0 0 8px 2px rgba(218,185,120,0.15),
+    0 3px 10px 2px rgba(0,0,0,0.25);
   transition: box-shadow 0.5s ease;
 }
 

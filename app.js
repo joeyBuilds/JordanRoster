@@ -2183,10 +2183,11 @@ function renderRing(creator) {
   overlay.style.width = mapRect.width + 'px';
   overlay.style.height = mapRect.height + 'px';
 
-  scrim.style.left = mapRect.left + 'px';
-  scrim.style.top = mapRect.top + 'px';
-  scrim.style.width = mapRect.width + 'px';
-  scrim.style.height = mapRect.height + 'px';
+  // Scrim covers entire viewport so clicking anywhere outside ring closes it
+  scrim.style.left = '0';
+  scrim.style.top = '0';
+  scrim.style.width = '100vw';
+  scrim.style.height = '100vh';
 
   // === Radial spotlight glow behind the ring ===
   const spotlight = document.createElement('div');

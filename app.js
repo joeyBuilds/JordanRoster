@@ -2525,8 +2525,9 @@ function showDetailPanel(creatorId) {
   _demosCreatorId = creatorId;
   _demosSubTab = 'Instagram'; // Default to IG on new creator click
 
-  // Snapshot dispatch state BEFORE tab switch removes the class
-  const wasDispatchMode = document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters();
+  // Snapshot dispatch state BEFORE tab switch removes the class.
+  // Check filters directly — the CSS class may already be gone from a prior creator click.
+  const wasDispatchMode = hasActiveDispatchFilters();
 
   // Auto-switch to Demo's tab
   const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');

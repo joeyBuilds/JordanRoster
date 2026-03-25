@@ -1280,21 +1280,44 @@ body.shift-held #mapContainer .leaflet-container {
 }
 
 /* ── Compare slot color themes ── */
+
 /* Slot 0: Magenta */
+.compare-slot-0 {
+  background: rgba(50, 18, 38, 0.82);
+}
+.compare-slot-0 .compare-panel-header-area {
+  background: rgba(224, 80, 152, 0.06);
+  border-bottom-color: rgba(224, 80, 152, 0.15);
+}
+.compare-slot-0 .demos-creator-name { color: #F0A0C8; }
 .compare-slot-0 .demos-demo-title { color: #E05098 !important; }
 .compare-slot-0 .demos-bar-fill { background: #E05098 !important; }
-.compare-slot-0 .demos-demo-card { border-left-color: #E05098 !important; }
+.compare-slot-0 .demos-demo-card { border-left-color: #E05098 !important; background: rgba(224, 80, 152, 0.06); }
+.compare-slot-0 .demos-stat-cell { border-color: rgba(224, 80, 152, 0.15); background: rgba(224, 80, 152, 0.06); }
 .compare-slot-0 .demos-stat-label { color: #D480A8; }
-.compare-slot-0 .compare-panel-header-area { border-bottom-color: rgba(224, 80, 152, 0.2); }
-.compare-slot-0 .demos-niche-pill { background: rgba(224, 80, 152, 0.12); color: #E878B0; border-color: rgba(224, 80, 152, 0.25); }
+.compare-slot-0 .demos-stat-icon { color: #E05098; }
+.compare-slot-0 .demos-niche-pill { background: rgba(224, 80, 152, 0.15); color: #F088B8; border-color: rgba(224, 80, 152, 0.3); }
+.compare-slot-0 .demos-bar-track { background: rgba(224, 80, 152, 0.08); }
+.compare-slot-0 .demos-legend-dot { background: #E05098 !important; }
 
 /* Slot 1: Bright Amber */
+.compare-slot-1 {
+  background: rgba(48, 36, 14, 0.82);
+}
+.compare-slot-1 .compare-panel-header-area {
+  background: rgba(232, 160, 48, 0.06);
+  border-bottom-color: rgba(232, 160, 48, 0.15);
+}
+.compare-slot-1 .demos-creator-name { color: #F0D090; }
 .compare-slot-1 .demos-demo-title { color: #E8A030 !important; }
 .compare-slot-1 .demos-bar-fill { background: #E8A030 !important; }
-.compare-slot-1 .demos-demo-card { border-left-color: #E8A030 !important; }
+.compare-slot-1 .demos-demo-card { border-left-color: #E8A030 !important; background: rgba(232, 160, 48, 0.06); }
+.compare-slot-1 .demos-stat-cell { border-color: rgba(232, 160, 48, 0.15); background: rgba(232, 160, 48, 0.06); }
 .compare-slot-1 .demos-stat-label { color: #D4B078; }
-.compare-slot-1 .compare-panel-header-area { border-bottom-color: rgba(232, 160, 48, 0.2); }
-.compare-slot-1 .demos-niche-pill { background: rgba(232, 160, 48, 0.12); color: #E8B858; border-color: rgba(232, 160, 48, 0.25); }
+.compare-slot-1 .demos-stat-icon { color: #E8A030; }
+.compare-slot-1 .demos-niche-pill { background: rgba(232, 160, 48, 0.15); color: #F0C060; border-color: rgba(232, 160, 48, 0.3); }
+.compare-slot-1 .demos-bar-track { background: rgba(232, 160, 48, 0.08); }
+.compare-slot-1 .demos-legend-dot { background: #E8A030 !important; }
 
 /* Recycle Bin tab */
 .recycle-header {

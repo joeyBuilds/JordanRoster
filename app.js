@@ -336,6 +336,7 @@ let map = null;
 let markers = {};
 let _dispatchMatchedIds = new Set(); // IDs of creators matching current dispatch filters
 let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
+let _filtersChangedWhileRingOpen = false; // tracks if dispatch filters changed while ring is open
 let dispatchFilters = {
   platformTiers: [],  // [{platform: 'Instagram', tier: 'Micro (10K-100K)'}, ...] — specific combos from sidebar
   platforms: [],      // ['Instagram', ...] — independent platform filter (any tier)
@@ -1311,6 +1312,13 @@ function renderDispatchTab() {
     _fitMapToMatched(filtered);
   }
   if (dispatchDestination) renderNearestCreators();
+
+  // Live-update ring dispatch scores if ring is open while adjusting filters
+  _refreshRingIfOpen();
+
+  // Live-update context strip score badge
+  const ctxStrip = document.getElementById('dispatchContextStrip');
+  if (ctxStrip) _renderDispatchContextStrip();
 }
 
 // Short tier labels for the compact buttons
@@ -3203,7 +3211,12 @@ function closeDetailPanel() {
   overlay.classList.remove('open');
   scrim.classList.remove('open');
   currentEditingCreator = null;
+  _filtersChangedWhileRingOpen = false;
   // Note: _demosCreatorId is NOT cleared — Demo's panel persists last-viewed creator
+
+  // Remove context strip from dispatch tab
+  const ctxStrip = document.getElementById('dispatchContextStrip');
+  if (ctxStrip) ctxStrip.remove();
 
   // Clean up after animation
   setTimeout(() => { overlay.innerHTML = ''; }, 400);
@@ -6578,6 +6591,13 @@ function _handleTabLogic(tab, wasDispatch) {
     document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');
     renderDemosPanel();
     renderAllComparePanels();
+
+    // UX: If filters changed while ring was open, re-render ring with updated scores
+    if (_filtersChangedWhileRingOpen && currentEditingCreator) {
+      const creator = creators.find(c => c.id === currentEditingCreator);
+      if (creator) renderRing(creator, true);
+      _filtersChangedWhileRingOpen = false;
+    }
   } else {
     // Hide compare panels when not on Demo's tab
     const stack = document.getElementById('comparePanelStack');
@@ -6625,6 +6645,12 @@ function _handleTabLogic(tab, wasDispatch) {
     renderDispatchFilters();
     renderDispatchFilterPills();
     renderDispatchTab();
+
+    // UX: If investigating a creator, auto-expand active sections and show context strip
+    if (currentEditingCreator || _demosCreatorId) {
+      _autoExpandActiveSections();
+      _renderDispatchContextStrip();
+    }
   }
 }
 
@@ -7534,6 +7560,110 @@ const julyImport = (() => {
 
   return { open, close, fetchFromJuly, syncFromJuly };
 })();
+
+// ===========================
+// UX: LIVE RING REFRESH + CONTEXT STRIP
+// ===========================
+
+// Re-render the ring overlay if it's currently open (e.g. after filter changes)
+function _refreshRingIfOpen() {
+  const overlay = document.getElementById('ringOverlay');
+  if (!overlay || !overlay.classList.contains('open')) return;
+  if (!currentEditingCreator) return;
+
+  const creator = creators.find(c => c.id === currentEditingCreator);
+  if (!creator) return;
+
+  _filtersChangedWhileRingOpen = true;
+  renderRing(creator, true); // force dispatch scoring
+}
+
+// Auto-expand dispatch sections that have active filters
+function _autoExpandActiveSections() {
+  if (dispatchFilters.niches.length > 0 && !_dispatchSections.niches) {
+    toggleDispatchSection('niches');
+  }
+  if (dispatchFilters.demographics.length > 0 && !_dispatchSections.demos) {
+    toggleDispatchSection('demos');
+  }
+  if ((dispatchFilters.platformTiers.length > 0 || dispatchFilters.platforms.length > 0 || dispatchFilters.tiers.length > 0) && !_dispatchSections.platformTier) {
+    toggleDispatchSection('platformTier');
+  }
+  if ((dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) && !_dispatchSections.age) {
+    toggleDispatchSection('age');
+  }
+}
+
+// Render a context strip in the Niche tab showing the creator being investigated
+function _renderDispatchContextStrip() {
+  // Remove any existing strip
+  const existing = document.getElementById('dispatchContextStrip');
+  if (existing) existing.remove();
+
+  // Only show when ring is open or we have a creator being investigated
+  const creatorId = currentEditingCreator || _demosCreatorId;
+  if (!creatorId) return;
+
+  const overlay = document.getElementById('ringOverlay');
+  const ringOpen = overlay && overlay.classList.contains('open');
+  if (!ringOpen && !currentEditingCreator) return;
+
+  const creator = creators.find(c => c.id === creatorId);
+  if (!creator) return;
+
+  const strip = document.createElement('div');
+  strip.id = 'dispatchContextStrip';
+  strip.className = 'dispatch-context-strip';
+
+  // Avatar
+  const avatar = document.createElement('div');
+  avatar.className = 'ctx-avatar';
+  if (creator.photo) {
+    const img = document.createElement('img');
+    img.src = creator.photo;
+    img.alt = '';
+    avatar.appendChild(img);
+  } else {
+    avatar.textContent = (creator.firstName || creator.name || '?')[0].toUpperCase();
+  }
+  strip.appendChild(avatar);
+
+  // Name + meta
+  const info = document.createElement('div');
+  info.className = 'ctx-info';
+  const name = document.createElement('span');
+  name.className = 'ctx-name';
+  name.textContent = getFullName(creator);
+  info.appendChild(name);
+
+  // Show how they match current filters
+  if (hasActiveDispatchFilters()) {
+    const score = scoreCreatorFilters(creator);
+    const level = getScoreLevel(score.matchCount, score.totalFilters);
+    const badge = document.createElement('span');
+    badge.className = 'ctx-score ctx-score-' + level;
+    badge.textContent = score.matchCount + '/' + score.totalFilters;
+    info.appendChild(badge);
+  }
+  strip.appendChild(info);
+
+  // "Back to" button — switches to Demo's tab
+  const backBtn = document.createElement('button');
+  backBtn.className = 'ctx-back-btn';
+  backBtn.innerHTML = 'Demo&#8217;s &rarr;';
+  backBtn.title = 'Switch to Demo\u2019s tab for ' + getFullName(creator);
+  backBtn.addEventListener('click', () => {
+    const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
+    if (demosBtn) demosBtn.click();
+  });
+  strip.appendChild(backBtn);
+
+  // Insert at top of dispatch filters
+  const filters = document.querySelector('#dispatchTab .dispatch-filters');
+  if (filters) {
+    filters.insertBefore(strip, filters.firstChild);
+  }
+}
 
 // ===========================
 // MOBILE HELPERS

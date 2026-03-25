@@ -2843,6 +2843,103 @@ a.creator-platform-chip:hover {
   display: none;
 }
 
+/* ── Dispatch Context Strip (shows investigated creator) ── */
+.dispatch-context-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-radius: 12px;
+  animation: ctxStripIn 0.2s ease-out;
+}
+@keyframes ctxStripIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ctx-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--lavender), var(--sage));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  overflow: hidden;
+  border: 2px solid rgba(var(--accent-rgb), 0.4);
+}
+.ctx-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ctx-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ctx-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ctx-score {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ctx-score-full {
+  background: rgba(var(--success-rgb), 0.25);
+  color: var(--success);
+}
+.ctx-score-most {
+  background: rgba(var(--success-rgb), 0.15);
+  color: var(--success);
+}
+.ctx-score-half {
+  background: rgba(var(--warning-rgb), 0.15);
+  color: var(--warning);
+}
+.ctx-score-low {
+  background: rgba(var(--danger-rgb), 0.12);
+  color: var(--danger);
+}
+.ctx-back-btn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.ctx-back-btn:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+  border-color: rgba(var(--accent-rgb), 0.45);
+}
+
 /* ── Natural Language Search ── */
 .nl-search-section {
   width: 100%;
@@ -6432,6 +6529,16 @@ a.ring-platform-chip:hover {
     min-height: 28px;
     display: inline-flex;
     align-items: center;
+  }
+
+  /* Context strip: larger tap targets on mobile */
+  .dispatch-context-strip {
+    padding: 10px 12px;
+  }
+  .ctx-back-btn {
+    padding: 8px 14px;
+    font-size: 11px;
+    min-height: 36px;
   }
 
   /* ── Phase 4: Dispatch/Niche Tab ── */

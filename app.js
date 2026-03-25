@@ -6473,13 +6473,10 @@ function fitMapToCreators() {
 
 // Zoom-to-fit matched dispatch results, accounting for the match results panel
 function _fitMapToMatched(matched) {
-  if (!matched || matched.length === 0) {
-    // No matches — zoom back to show all creators
-    fitMapToCreators();
-    return;
-  }
-  const located = matched.filter(c => c.lat && c.lng);
-  if (located.length === 0) return;
+  // Always fit to ALL creators so the full roster stays visible on the board.
+  // Matched creators are highlighted; non-matching ones fade but remain in view.
+  const allCreators = creators.filter(c => !c.deleted && c.lat && c.lng);
+  if (allCreators.length === 0) return;
 
   // Calculate left padding to account for the match float panel overlapping the map
   const matchPanel = document.getElementById('matchFloatPanel');
@@ -6489,39 +6486,16 @@ function _fitMapToMatched(matched) {
     const mapRect = mapContainer ? mapContainer.getBoundingClientRect() : null;
     const panelRect = matchPanel.getBoundingClientRect();
     if (mapRect) {
-      // How much of the panel overlaps the map area
       const overlap = Math.max(0, panelRect.right - mapRect.left);
-      leftPad = overlap + 40; // 40px breathing room beyond panel edge
+      leftPad = overlap + 40;
     }
   }
 
-  if (located.length === 1) {
-    // For a single pin, offset the center to the right of the panel
-    const mapContainer = document.getElementById('mapContainer');
-    if (mapContainer) {
-      const mapW = mapContainer.offsetWidth;
-      const visibleCenterX = leftPad + (mapW - leftPad) / 2;
-      const offsetLng = map.containerPointToLatLng([visibleCenterX, mapContainer.offsetHeight / 2]);
-      const target = L.latLng(located[0].lat, located[0].lng);
-      // Fly to the creator but shift so it appears centered in the visible map area
-      map.flyTo(target, 8, { duration: 0.7, easeLinearity: 0.2 });
-      // After fly completes, nudge the view to account for panel
-      map.once('moveend', () => {
-        const px = map.latLngToContainerPoint(target);
-        const desiredX = leftPad + (mapContainer.offsetWidth - leftPad) / 2;
-        const dx = px.x - desiredX;
-        if (Math.abs(dx) > 20) map.panBy([dx, 0], { duration: 0.3 });
-      });
-    } else {
-      map.flyTo([located[0].lat, located[0].lng], 8, { duration: 0.7, easeLinearity: 0.2 });
-    }
-    return;
-  }
-  const bounds = L.latLngBounds(located.map(c => [c.lat, c.lng]));
+  const bounds = L.latLngBounds(allCreators.map(c => [c.lat, c.lng]));
   map.flyToBounds(bounds, {
     paddingTopLeft: [leftPad, 60],
     paddingBottomRight: [60, 60],
-    maxZoom: 12,
+    maxZoom: 10,
     duration: 0.7,
     easeLinearity: 0.2
   });

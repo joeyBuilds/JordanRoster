@@ -6646,17 +6646,21 @@ body.dispatch-mode .marker-cluster-inner {
   font-weight: 700;
 }
 
-/* ── Non-matching markers — heavy fade + desaturate ── */
+/* ── Non-matching markers — gentle fade so they stay on the board ── */
 .creator-marker.dispatch-faded .marker-inner {
-  opacity: 0.18;
-  filter: grayscale(0.85) brightness(0.7);
+  opacity: 0.38;
+  filter: grayscale(0.55) brightness(0.85);
   transition: opacity 0.4s ease, filter 0.4s ease;
+}
+.creator-marker.dispatch-faded:hover .marker-inner {
+  opacity: 0.7;
+  filter: grayscale(0.2) brightness(0.95);
 }
 .creator-marker.dispatch-faded .marker-glow {
   opacity: 0;
 }
 .creator-marker.dispatch-faded .marker-label {
-  opacity: 0 !important;
+  opacity: 0.3 !important;
 }
 
 /* Non-matching markers fade — roster search */

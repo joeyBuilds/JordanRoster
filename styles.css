@@ -771,7 +771,7 @@ body.shift-held #mapContainer .leaflet-container {
    DEMO'S TAB — Audience Data
    =========================== */
 #demosTab {
-  overflow-y: auto;
+  overflow: hidden;
 }
 .demos-content {
   display: flex;
@@ -779,6 +779,8 @@ body.shift-held #mapContainer .leaflet-container {
   padding: 0;
   gap: 0;
   flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 .demos-empty-state {
   display: flex;
@@ -794,8 +796,8 @@ body.shift-held #mapContainer .leaflet-container {
 
 /* Platform sections */
 .demos-platform-section {
-  padding: 12px 12px 16px;
-  border-bottom: 1px solid var(--glass-border);
+  padding: 8px 10px 10px;
+  border-bottom: none;
 }
 .demos-platform-section:last-child {
   border-bottom: none;
@@ -828,20 +830,20 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
-  margin-bottom: 10px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 .demos-stat-cell {
   background: rgba(var(--bg-card-rgb), 0.35);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
-  padding: 8px 7px 7px;
+  padding: 6px 6px 5px;
 }
 .demos-stat-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 3px;
+  margin-bottom: 2px;
 }
 .demos-stat-icon {
   font-size: 10px;
@@ -859,7 +861,7 @@ body.shift-held #mapContainer .leaflet-container {
   text-overflow: ellipsis;
 }
 .demos-stat-value {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.3px;
@@ -867,25 +869,25 @@ body.shift-held #mapContainer .leaflet-container {
 }
 
 /* ── Demographic cards (gender donut, bar charts) ── */
-/* ── Demographics 2x2 grid ── */
+/* ── Demographics grid ── */
 .demos-demo-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 4px 0;
 }
 .demos-demo-card {
   background: rgba(var(--bg-card-rgb), 0.4);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
-  padding: 12px 10px;
+  padding: 8px 10px;
 }
 .demos-demo-title {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 /* Color-coded per chart type */
 .demos-color-gender .demos-demo-title { color: #5B8DEF; }
@@ -909,8 +911,8 @@ body.shift-held #mapContainer .leaflet-container {
   justify-content: center;
 }
 .demos-donut {
-  width: 80px;
-  height: 80px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
@@ -920,8 +922,8 @@ body.shift-held #mapContainer .leaflet-container {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--bg-primary);
 }
@@ -957,7 +959,7 @@ body.shift-held #mapContainer .leaflet-container {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 .demos-bar-row:last-child {
   margin-bottom: 0;
@@ -997,23 +999,26 @@ body.shift-held #mapContainer .leaflet-container {
 /* ── Sub-tab mode selector ── */
 .demos-sub-tabs {
   padding: 10px 12px 0;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: none;
   flex-shrink: 0;
 }
 .demos-sub-tabs .demos-creator-name {
   font-family: 'Playfair Display', serif;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.3px;
   text-align: center;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
 }
 .demos-sub-tab-row {
   display: flex;
   gap: 3px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 .demos-sub-tab {
   padding: 5px 10px;

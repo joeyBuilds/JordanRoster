@@ -1157,33 +1157,6 @@ body.shift-held #mapContainer .leaflet-container {
   text-align: center;
 }
 
-/* ── Rates grid ── */
-.demos-rates-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 5px;
-}
-.demos-rate-card {
-  background: rgba(var(--bg-card-rgb), 0.35);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  padding: 10px;
-}
-.demos-rate-title {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-  line-height: 1.3;
-}
-.demos-rate-price {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.3px;
-}
-
 /* ── Partners grid ── */
 .demos-partners-grid {
   display: grid;

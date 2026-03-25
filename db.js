@@ -62,7 +62,6 @@ function rowToCreator(row, platformRows, nicheRows, demoRows, rateRows, collabRo
     platforms,
     niches: nicheRows.map(n => n.niche),
     demographics: demoRows.map(d => d.demographic),
-    rates: (rateRows || []).map(r => ({ title: r.title, price: r.price, uuid: r.uuid, order: r.sort_order ?? 0 })).sort((a, b) => a.order - b.order),
     collabs: (collabRows || []).map(c => ({ title: c.title, description: c.description, url: c.url, logoUrl: c.logo_url, logoUuid: c.logo_uuid })),
     location: row.location || null,
     lat: row.lat,
@@ -90,21 +89,19 @@ function creatorRelatedRows(c) {
   );
   const niches = (c.niches || []).map(niche => ({ creator_id: c.id, niche }));
   const demographics = (c.demographics || []).map(demographic => ({ creator_id: c.id, demographic }));
-  const rates = (c.rates || []).map((r, i) => ({ creator_id: c.id, title: r.title || '', price: r.price ?? null, uuid: r.uuid || '', sort_order: r.order ?? i }));
   const collabs = (c.collabs || []).map((col, i) => ({ creator_id: c.id, title: col.title || '', description: col.description || null, url: col.url || null, logo_url: col.logoUrl || null, logo_uuid: col.logoUuid || '', sort_order: i }));
-  return { platforms, niches, demographics, rates, collabs };
+  return { platforms, niches, demographics, collabs };
 }
 
 // ── Public API: db ──
 
 const db = {
   async load() {
-    const [{ data: rows, error: e1 }, { data: platforms }, { data: niches }, { data: demos }, { data: rates }, { data: collabs }] = await Promise.all([
+    const [{ data: rows, error: e1 }, { data: platforms }, { data: niches }, { data: demos }, { data: collabs }] = await Promise.all([
       _supabase.from('creators').select('*'),
       _supabase.from('creator_platforms').select('*'),
       _supabase.from('creator_niches').select('*'),
       _supabase.from('creator_demographics').select('*'),
-      safeQuery(_supabase.from('creator_rates').select('*')),
       safeQuery(_supabase.from('creator_collabs').select('*'))
     ]);
 
@@ -130,12 +127,6 @@ const db = {
       demoMap[d.creator_id].push(d);
     });
 
-    const rateMap = {};
-    (rates || []).forEach(r => {
-      if (!rateMap[r.creator_id]) rateMap[r.creator_id] = [];
-      rateMap[r.creator_id].push(r);
-    });
-
     const collabMap = {};
     (collabs || []).forEach(c => {
       if (!collabMap[c.creator_id]) collabMap[c.creator_id] = [];
@@ -147,7 +138,7 @@ const db = {
       platformMap[row.id] || [],
       nicheMap[row.id] || [],
       demoMap[row.id] || [],
-      rateMap[row.id] || [],
+      [],
       collabMap[row.id] || []
     ));
   },
@@ -164,13 +155,13 @@ const db = {
       if (error) throw error;
 
       // Batch insert all related data
-      const allPlatforms = [], allNiches = [], allDemos = [], allRates = [], allCollabs = [];
+      const allPlatforms = [], allNiches = [], allDemos = [], allCollabs = [];
       creators.forEach(c => {
         const related = creatorRelatedRows(c);
         allPlatforms.push(...related.platforms);
         allNiches.push(...related.niches);
         allDemos.push(...related.demographics);
-        allRates.push(...related.rates);
+
         allCollabs.push(...related.collabs);
       });
 
@@ -178,7 +169,7 @@ const db = {
         allPlatforms.length ? _supabase.from('creator_platforms').insert(allPlatforms) : null,
         allNiches.length ? _supabase.from('creator_niches').insert(allNiches) : null,
         allDemos.length ? _supabase.from('creator_demographics').insert(allDemos) : null,
-        allRates.length ? safeQuery(_supabase.from('creator_rates').insert(allRates)) : null,
+
         allCollabs.length ? safeQuery(_supabase.from('creator_collabs').insert(allCollabs)) : null
       ]);
     } catch (e) {
@@ -220,17 +211,17 @@ const db = {
         _supabase.from('creator_platforms').delete().in('creator_id', ids),
         _supabase.from('creator_niches').delete().in('creator_id', ids),
         _supabase.from('creator_demographics').delete().in('creator_id', ids),
-        safeQuery(_supabase.from('creator_rates').delete().in('creator_id', ids)),
+
         safeQuery(_supabase.from('creator_collabs').delete().in('creator_id', ids))
       ]);
 
-      const allPlatforms = [], allNiches = [], allDemos = [], allRates = [], allCollabs = [];
+      const allPlatforms = [], allNiches = [], allDemos = [], allCollabs = [];
       creators.forEach(c => {
         const related = creatorRelatedRows(c);
         allPlatforms.push(...related.platforms);
         allNiches.push(...related.niches);
         allDemos.push(...related.demographics);
-        allRates.push(...related.rates);
+
         allCollabs.push(...related.collabs);
       });
 
@@ -238,7 +229,7 @@ const db = {
         allPlatforms.length ? _supabase.from('creator_platforms').insert(allPlatforms) : null,
         allNiches.length ? _supabase.from('creator_niches').insert(allNiches) : null,
         allDemos.length ? _supabase.from('creator_demographics').insert(allDemos) : null,
-        allRates.length ? safeQuery(_supabase.from('creator_rates').insert(allRates)) : null,
+
         allCollabs.length ? safeQuery(_supabase.from('creator_collabs').insert(allCollabs)) : null
       ]);
     } catch (e) {
@@ -256,7 +247,7 @@ const db = {
         _supabase.from('creator_platforms').delete().eq('creator_id', creator.id),
         _supabase.from('creator_niches').delete().eq('creator_id', creator.id),
         _supabase.from('creator_demographics').delete().eq('creator_id', creator.id),
-        safeQuery(_supabase.from('creator_rates').delete().eq('creator_id', creator.id)),
+
         safeQuery(_supabase.from('creator_collabs').delete().eq('creator_id', creator.id))
       ]);
 
@@ -265,7 +256,7 @@ const db = {
         related.platforms.length ? _supabase.from('creator_platforms').insert(related.platforms) : null,
         related.niches.length ? _supabase.from('creator_niches').insert(related.niches) : null,
         related.demographics.length ? _supabase.from('creator_demographics').insert(related.demographics) : null,
-        related.rates.length ? safeQuery(_supabase.from('creator_rates').insert(related.rates)) : null,
+
         related.collabs.length ? safeQuery(_supabase.from('creator_collabs').insert(related.collabs)) : null
       ]);
     } catch (e) {

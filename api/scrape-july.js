@@ -251,12 +251,9 @@ function extractFromMediaKitBlocks(blocks, creatorPlatforms, creatorObj) {
       found = true;
     }
   }
-  // Extract rates and collabs blocks
+  // Extract collabs blocks
   if (creatorObj) {
     for (const block of blocks) {
-      if (block.type === 'rates' && Array.isArray(block.rates)) {
-        creatorObj.rates = block.rates.map(r => ({ title: r.title || '', price: parseFloat(r.price) || 0, uuid: r.uuid || '', order: r.order ?? 0 }));
-      }
       if (block.type === 'collabs' && Array.isArray(block.collabs)) {
         creatorObj.collabs = block.collabs.map(c => ({ title: c.title || '', description: c.description || '', url: c.url || '', logoUrl: c.logoUrl || '', logoUuid: c.logoUuid || '' }));
       }

@@ -4619,8 +4619,9 @@ function renderPlatformStats(creator, platform, container) {
       const card = document.createElement('div');
       card.className = 'demos-demo-card ' + colorClass;
       card.innerHTML = `<div class="demos-demo-title">${title}</div>`;
-      const top = data.slice(0, maxItems || 6);
-      // Add "Other" row if there are more items beyond the displayed ones
+      // Sort descending, take top N, add "Other" for remainder
+      const sorted = [...data].sort((a, b) => b.value - a.value);
+      const top = sorted.slice(0, maxItems || 6);
       const topSum = top.reduce((s, d) => s + d.value, 0);
       const items = topSum < 99.5 ? [...top, { label: 'Other', value: Math.max(0, 100 - topSum) }] : top;
       // Bars represent % of 100 (not relative to max)
@@ -4639,25 +4640,6 @@ function renderPlatformStats(creator, platform, container) {
 
     container.appendChild(demoGrid);
   }
-}
-
-// ── Rates view ──
-function renderRatesView(creator, container) {
-  const rates = creator.rates || [];
-  if (rates.length === 0) {
-    container.innerHTML = `<div class="demos-empty-inline"><div style="font-size:24px;margin-bottom:8px;opacity:0.4">💰</div><div style="color:var(--text-muted);font-size:12px">No rates available</div><div style="color:var(--text-muted);font-size:10px;margin-top:4px;opacity:0.6">Sync from July to populate</div></div>`;
-    return;
-  }
-  const grid = document.createElement('div');
-  grid.className = 'demos-rates-grid';
-  rates.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).forEach(rate => {
-    const card = document.createElement('div');
-    card.className = 'demos-rate-card';
-    const priceStr = '$' + Number(rate.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    card.innerHTML = `<div class="demos-rate-title">${rate.title}</div><div class="demos-rate-price">${priceStr}</div>`;
-    grid.appendChild(card);
-  });
-  container.appendChild(grid);
 }
 
 // ── Partners view ──

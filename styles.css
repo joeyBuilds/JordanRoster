@@ -403,15 +403,34 @@ body.dispatch-mode .title-niche {
   opacity: 0.7;
 }
 .eqex-brand:hover .built-by {
-  color: rgba(var(--text-primary-rgb), 0.6);
+  color: rgba(var(--text-primary-rgb), 0.65);
+}
+.eqex-brand:hover .built-by-label {
+  color: rgba(var(--text-primary-rgb), 0.45);
 }
 
+.built-by-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+.built-by-label {
+  font-family: 'Space Grotesk', 'DM Sans', sans-serif;
+  font-size: 8px;
+  font-weight: 500;
+  color: rgba(var(--text-primary-rgb), 0.28);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
 .built-by {
   font-family: 'Space Grotesk', 'DM Sans', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(var(--text-primary-rgb), 0.35);
-  letter-spacing: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(var(--text-primary-rgb), 0.40);
+  letter-spacing: 3px;
   text-transform: uppercase;
   white-space: nowrap;
   transition: color 0.3s ease;
@@ -749,6 +768,13 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .leaflet-marker-icon.creator-marker {
   overflow: visible !important;
+}
+/* Dispatch-matched markers float above faded ones so score badges aren't clipped */
+.leaflet-marker-icon.creator-marker.dispatch-match {
+  z-index: 10000 !important;
+}
+.leaflet-marker-icon.creator-marker.dispatch-faded {
+  z-index: 1 !important;
 }
 .leaflet-marker-icon.destination-marker {
   overflow: visible !important;
@@ -5976,6 +6002,7 @@ body.dispatch-mode .marker-cluster-inner {
   width: 58px;
   height: 58px;
   pointer-events: none;
+  z-index: 5;
   opacity: 0;
   transition: opacity 0.4s ease;
 }
@@ -6004,13 +6031,13 @@ body.dispatch-mode .marker-cluster-inner {
 .marker-score-badge {
   position: absolute;
   top: -2px;
-  right: 0px;
+  right: -2px;
   font-size: 9px;
   font-weight: 800;
   padding: 1px 4px;
   border-radius: 6px;
   color: white;
-  z-index: 5;
+  z-index: 10000;
   opacity: 0;
   transform: scale(0.5);
   transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
@@ -6020,6 +6047,7 @@ body.dispatch-mode .marker-cluster-inner {
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.25);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   letter-spacing: 0.02em;
+  pointer-events: none;
 }
 .marker-score-badge.visible {
   opacity: 1;

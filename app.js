@@ -1136,6 +1136,8 @@ function renderDispatchTab() {
 
   if (matchedChanged) {
     updateMapMarkers();
+    // Zoom map to fit all matched creators
+    _fitMapToMatched(filtered);
   }
   if (dispatchDestination) renderNearestCreators();
 }
@@ -6011,6 +6013,23 @@ function fitMapToCreators() {
   }
   const bounds = L.latLngBounds(located.map(c => [c.lat, c.lng]));
   map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 10, duration: 0.8, easeLinearity: 0.15 });
+}
+
+// Zoom-to-fit matched dispatch results
+function _fitMapToMatched(matched) {
+  if (!matched || matched.length === 0) {
+    // No matches — zoom back to show all creators
+    fitMapToCreators();
+    return;
+  }
+  const located = matched.filter(c => c.lat && c.lng);
+  if (located.length === 0) return;
+  if (located.length === 1) {
+    map.flyTo([located[0].lat, located[0].lng], 8, { duration: 0.7, easeLinearity: 0.2 });
+    return;
+  }
+  const bounds = L.latLngBounds(located.map(c => [c.lat, c.lng]));
+  map.flyToBounds(bounds, { padding: [80, 80], maxZoom: 12, duration: 0.7, easeLinearity: 0.2 });
 }
 
 // ===========================

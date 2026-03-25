@@ -220,14 +220,15 @@ body.dispatch-mode .sidebar-tabs::after {
   z-index: 9998;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .mode-wash.active {
   opacity: 1;
 }
 .mode-wash.fade-out {
   opacity: 0;
-  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.15s;
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.1s;
 }
 
 /* Phase 2: Content crossfade — outgoing fades down+out, incoming fades up+in */
@@ -238,18 +239,22 @@ body.dispatch-mode .sidebar-tabs::after {
   overflow: hidden;
   min-height: 0;
 }
+.tab-content.mode-exit,
+.tab-content.mode-enter {
+  will-change: transform, opacity;
+}
 .tab-content.mode-exit {
-  animation: modeExit 0.45s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: modeExit 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 .tab-content.mode-enter {
-  animation: modeEnter 0.5s cubic-bezier(0, 0, 0.2, 1) forwards;
+  animation: modeEnter 0.38s cubic-bezier(0, 0, 0.2, 1) forwards;
 }
 @keyframes modeExit {
   0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(8px) scale(0.98); }
+  100% { opacity: 0; transform: translateY(6px) scale(0.985); }
 }
 @keyframes modeEnter {
-  0%   { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  0%   { opacity: 0; transform: translateY(-4px) scale(0.985); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -257,12 +262,11 @@ body.dispatch-mode .sidebar-tabs::after {
 
 /* Phase 4: Ambient glow particles — subtle floating motes */
 .mode-mote {
-  position: fixed;
+  position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  z-index: 9999;
   opacity: 0;
-  filter: blur(1px);
+  will-change: transform, opacity;
 }
 .mode-mote.rising {
   animation: moteRise var(--duration) cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -1584,11 +1588,11 @@ body.shift-held #mapContainer .leaflet-container {
   width: 370px;
   height: 100%;
   z-index: 1002;
-  background: rgba(var(--bg-card-rgb), 0.22);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  background: rgba(var(--bg-card-rgb), 0.82);
+  backdrop-filter: blur(24px) saturate(1.1);
+  -webkit-backdrop-filter: blur(24px) saturate(1.1);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.2), var(--glass-inset);
+  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.25), var(--glass-inset);
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -1656,12 +1660,12 @@ body.shift-held #mapContainer .leaflet-container {
   gap: 10px;
 }
 .match-float-body .creator-card {
-  background: rgba(var(--tag-demographic-rgb), 0.1);
+  background: rgba(var(--bg-card-rgb), 0.5);
   border-color: rgba(var(--tag-demographic-rgb), 0.2);
 }
 .match-float-body .creator-card:hover {
   border-color: var(--sage);
-  background: rgba(var(--tag-demographic-rgb), 0.18);
+  background: rgba(var(--bg-card-rgb), 0.65);
 }
 .match-float-body .card-divider .divider-bloom {
   color: rgba(255, 255, 255, 0.7);
@@ -1686,10 +1690,10 @@ body.shift-held #mapContainer .leaflet-container {
 
 /* Dispatch-mode tint for the match panel */
 .match-float-panel.dispatch-mode {
-  background: linear-gradient(165deg, rgba(var(--mocha-rgb), 0.15) 0%, var(--bg-card) 100%);
+  background: linear-gradient(165deg, rgba(var(--mocha-rgb), 0.25) 0%, var(--bg-card) 100%);
   border-right-color: rgba(var(--accent-rgb), 0.2);
   border-bottom-color: rgba(var(--accent-rgb), 0.2);
-  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(var(--accent-rgb), 0.08);
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(var(--accent-rgb), 0.08);
 }
 .match-float-panel.dispatch-mode .match-float-header {
   border-bottom-color: rgba(var(--accent-rgb), 0.15);
@@ -1729,12 +1733,12 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--bg-primary);
 }
 .match-float-panel.dispatch-mode .match-float-body .creator-card {
-  background: rgba(var(--accent-rgb), 0.1);
-  border-color: rgba(var(--accent-rgb), 0.2);
+  background: rgba(var(--bg-card-rgb), 0.55);
+  border-color: rgba(var(--accent-rgb), 0.22);
 }
 .match-float-panel.dispatch-mode .match-float-body .creator-card:hover {
   border-color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.18);
+  background: rgba(var(--bg-card-rgb), 0.7);
 }
 .match-float-panel.dispatch-mode .match-float-body .card-divider .divider-bloom {
   color: rgba(255, 255, 255, 0.5);
@@ -6155,8 +6159,8 @@ body.dispatch-mode .marker-cluster-inner {
 
 /* Full-card color wash based on match score */
 .creator-card[data-score="full"] {
-  background: linear-gradient(135deg, rgba(var(--gold-rgb),0.22) 0%, rgba(var(--gold-rgb),0.08) 100%) !important;
-  border-color: rgba(var(--gold-rgb),0.40) !important;
+  background: linear-gradient(135deg, rgba(var(--gold-rgb),0.28) 0%, rgba(var(--bg-card-rgb),0.6) 100%) !important;
+  border-color: rgba(var(--gold-rgb),0.45) !important;
   border-left: 3px solid var(--gold) !important;
   position: relative;
   overflow: hidden;
@@ -6191,18 +6195,18 @@ body.dispatch-mode .marker-cluster-inner {
   100% { background-position: -50% 0; }
 }
 .creator-card[data-score="most"] {
-  background: linear-gradient(135deg, rgba(var(--success-rgb),0.14) 0%, rgba(var(--success-rgb),0.06) 100%) !important;
-  border-color: rgba(var(--success-rgb),0.25) !important;
+  background: linear-gradient(135deg, rgba(var(--success-rgb),0.2) 0%, rgba(var(--bg-card-rgb),0.55) 100%) !important;
+  border-color: rgba(var(--success-rgb),0.3) !important;
   border-left: 3px solid var(--success) !important;
 }
 .creator-card[data-score="half"] {
-  background: linear-gradient(135deg, rgba(var(--tag-niche-rgb),0.14) 0%, rgba(var(--tag-niche-rgb),0.06) 100%) !important;
-  border-color: rgba(var(--tag-niche-rgb),0.25) !important;
+  background: linear-gradient(135deg, rgba(var(--tag-niche-rgb),0.2) 0%, rgba(var(--bg-card-rgb),0.5) 100%) !important;
+  border-color: rgba(var(--tag-niche-rgb),0.3) !important;
   border-left: 3px solid var(--warning) !important;
 }
 .creator-card[data-score="low"] {
-  background: linear-gradient(135deg, rgba(var(--mocha-rgb),0.10) 0%, rgba(var(--mocha-rgb),0.04) 100%) !important;
-  border-color: rgba(var(--mocha-rgb),0.20) !important;
+  background: linear-gradient(135deg, rgba(var(--mocha-rgb),0.15) 0%, rgba(var(--bg-card-rgb),0.45) 100%) !important;
+  border-color: rgba(var(--mocha-rgb),0.25) !important;
   border-left: 3px solid var(--mocha) !important;
   opacity: 0.7;
 }

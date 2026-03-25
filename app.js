@@ -154,8 +154,33 @@ function loadTagCategories(type) {
   return type === 'niche' ? { ...DEFAULT_NICHE_CATEGORIES } : { ...DEFAULT_DEMO_CATEGORIES };
 }
 function saveTagCategories(type, categories) {
-  setSetting(`creator_roster_${type}_categories`, categories);
+  const key = `creator_roster_${type}_categories`;
+  setSetting(key, categories);
+  // Persist key order explicitly — jsonb may reorder object keys
+  setSetting(`${key}_order`, Object.keys(categories));
   invalidateTagCaches();
+}
+
+// Restore category key order after loading from Supabase.
+// PostgreSQL jsonb does not preserve object key order, so we store the order
+// separately and reapply it on init by mutating the cached object in-place.
+function restoreCategoryOrder() {
+  ['niche', 'demographic'].forEach(type => {
+    const key = `creator_roster_${type}_categories`;
+    const cats = getSetting(key, null);
+    const order = getSetting(`${key}_order`, null);
+    if (cats && order && Array.isArray(order)) {
+      const entries = [];
+      order.forEach(k => { if (cats[k]) entries.push([k, cats[k]]); });
+      // Include any keys not in the order list (e.g., newly added categories)
+      Object.keys(cats).forEach(k => {
+        if (!entries.some(([ek]) => ek === k)) entries.push([k, cats[k]]);
+      });
+      // Mutate in-place so _settingsCache reference stays valid
+      Object.keys(cats).forEach(k => delete cats[k]);
+      entries.forEach(([k, v]) => { cats[k] = v; });
+    }
+  });
 }
 function getCategoryForItem(item, categories) {
   for (const [cat, items] of Object.entries(categories)) {
@@ -305,7 +330,9 @@ let markers = {};
 let _dispatchMatchedIds = new Set(); // IDs of creators matching current dispatch filters
 let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
 let dispatchFilters = {
-  platformTiers: [],  // [{platform: 'Instagram', tier: 'Micro (10K-100K)'}, ...]
+  platformTiers: [],  // [{platform: 'Instagram', tier: 'Micro (10K-100K)'}, ...] — specific combos from sidebar
+  platforms: [],      // ['Instagram', ...] — independent platform filter (any tier)
+  tiers: [],          // ['Micro (10K-100K)', ...] — independent tier filter (any platform)
   niches: [],
   demographics: [],
   ageMin: null,
@@ -318,6 +345,8 @@ let nlRegionFilter = null; // { label, bounds: [latMin, latMax, lngMin, lngMax] 
 // ── Cached filter state check (replaces 8+ inline copies of this logic) ──
 function hasActiveDispatchFilters() {
   return dispatchFilters.platformTiers.length > 0 ||
+         dispatchFilters.platforms.length > 0 ||
+         dispatchFilters.tiers.length > 0 ||
          dispatchFilters.niches.length > 0 ||
          dispatchFilters.demographics.length > 0 ||
          dispatchFilters.ageMin !== null ||
@@ -732,7 +761,7 @@ function getFilteredCreators(searchTerm = '', sortBy = 'a-z', applyDispatchFilte
 
   // Apply dispatch filters
   if (applyDispatchFilters) {
-    // Platform × Tier combined filter: creator must match at least one combo
+    // Platform × Tier combined filter (sidebar matrix): creator must match at least one combo
     if (dispatchFilters.platformTiers.length > 0) {
       filtered = filtered.filter(c => {
         return dispatchFilters.platformTiers.some(pt => {
@@ -741,6 +770,22 @@ function getFilteredCreators(searchTerm = '', sortBy = 'a-z', applyDispatchFilte
           const followers = getFollowers(c, pt.platform);
           return tierFromFollowers(followers) === pt.tier;
         });
+      });
+    }
+    // Independent platform filter (NL search): creator must be on at least one platform
+    if (dispatchFilters.platforms.length > 0) {
+      filtered = filtered.filter(c => {
+        const cp = getCreatorPlatforms(c);
+        return dispatchFilters.platforms.some(p => cp.includes(p));
+      });
+    }
+    // Independent tier filter (NL search): creator must be at the tier on any platform
+    if (dispatchFilters.tiers.length > 0) {
+      filtered = filtered.filter(c => {
+        const cp = getCreatorPlatforms(c);
+        return dispatchFilters.tiers.some(t =>
+          cp.some(p => tierFromFollowers(getFollowers(c, p)) === t)
+        );
       });
     }
     if (dispatchFilters.niches.length > 0) {
@@ -998,18 +1043,20 @@ function renderRosterTab() {
 // Returns { matchCount, totalFilters, pct, matchDetails, missedDetails }
 function scoreCreatorFilters(creator) {
   const totalFilters = (dispatchFilters.platformTiers.length > 0 ? 1 : 0) +
+                       (dispatchFilters.platforms.length > 0 ? 1 : 0) +
+                       (dispatchFilters.tiers.length > 0 ? 1 : 0) +
                        dispatchFilters.niches.length +
                        dispatchFilters.demographics.length +
                        ((dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) ? 1 : 0);
   let matchCount = 0;
   const matchDetails = [];
   const missedDetails = [];
+  const cp = getCreatorPlatforms(creator);
 
-  // Platform × Tier: counts as 1 criterion — pass if ANY combo matches
+  // Platform × Tier (sidebar matrix): counts as 1 criterion — pass if ANY combo matches
   if (dispatchFilters.platformTiers.length > 0) {
     const ptMatch = dispatchFilters.platformTiers.some(pt => {
-      const platforms = getCreatorPlatforms(creator);
-      if (!platforms.includes(pt.platform)) return false;
+      if (!cp.includes(pt.platform)) return false;
       const followers = getFollowers(creator, pt.platform);
       return tierFromFollowers(followers) === pt.tier;
     });
@@ -1020,6 +1067,32 @@ function scoreCreatorFilters(creator) {
     } else {
       const labels = dispatchFilters.platformTiers.map(pt => `${pt.platform} ${TIER_SHORT[pt.tier] || pt.tier}`);
       missedDetails.push({ type: 'platform', label: labels.join(', ') });
+    }
+  }
+
+  // Independent platform filter: counts as 1 criterion — creator is on any requested platform
+  if (dispatchFilters.platforms.length > 0) {
+    const platMatch = dispatchFilters.platforms.some(p => cp.includes(p));
+    const label = dispatchFilters.platforms.join(', ');
+    if (platMatch) {
+      matchCount++;
+      matchDetails.push({ type: 'platform', label });
+    } else {
+      missedDetails.push({ type: 'platform', label });
+    }
+  }
+
+  // Independent tier filter: counts as 1 criterion — creator is at the tier on any platform
+  if (dispatchFilters.tiers.length > 0) {
+    const tierMatch = dispatchFilters.tiers.some(t =>
+      cp.some(p => tierFromFollowers(getFollowers(creator, p)) === t)
+    );
+    const label = dispatchFilters.tiers.map(t => TIER_SHORT[t] || t).join(', ');
+    if (tierMatch) {
+      matchCount++;
+      matchDetails.push({ type: 'tier', label });
+    } else {
+      missedDetails.push({ type: 'tier', label });
     }
   }
 
@@ -1519,9 +1592,14 @@ function renderDispatchFilterPills() {
 }
 
 /* ═══ Active Filters Strip — collected badges at top ═══ */
+// Only shows badges for filters NOT already represented as inline pills in the Who? bar.
+// When all filters come from the NL search, the strip stays empty — no duplication.
 function renderDispatchActiveStrip() {
   const strip = document.getElementById('dispatchActiveStrip');
   if (!strip) return;
+
+  // Build a set of filter values that are already shown as inline pills
+  const inlinePillValues = new Set(_nlInlinePills.map(p => p.value));
 
   const existingKeys = new Set([...strip.children].map(el => el.dataset.key));
   const neededKeys = new Set();
@@ -1540,13 +1618,9 @@ function renderDispatchActiveStrip() {
     strip.appendChild(badge);
   }
 
-  // Location — not shown as a filter badge; destination is a map reference point, not a filter.
-  // It has its own clear button (×) in the Where? input field.
-
-  // Platform × Tier — rendered as styled pills in #platformTierPills instead
-
-  // Niches
+  // Niches — skip if already an inline pill
   dispatchFilters.niches.forEach(n => {
+    if (inlinePillValues.has(n)) return;
     addBadge('n-' + n, n, 'niche', () => {
       dispatchFilters.niches = dispatchFilters.niches.filter(x => x !== n);
       renderDispatchFilterPills();
@@ -1554,8 +1628,9 @@ function renderDispatchActiveStrip() {
     });
   });
 
-  // Demographics
+  // Demographics — skip if already an inline pill
   dispatchFilters.demographics.forEach(d => {
+    if (inlinePillValues.has(d)) return;
     addBadge('d-' + d, d, 'demographic', () => {
       dispatchFilters.demographics = dispatchFilters.demographics.filter(x => x !== d);
       renderDispatchFilterPills();
@@ -1574,9 +1649,9 @@ function renderDispatchActiveStrip() {
     });
   }
 
-  // Region (from NL search)
-  if (nlRegionFilter) {
-    addBadge('region', '🗺️ ' + nlRegionFilter.label, 'location', () => {
+  // Region — skip if already an inline pill
+  if (nlRegionFilter && !inlinePillValues.has(nlRegionFilter.label)) {
+    addBadge('region', '🗺\ufe0f ' + nlRegionFilter.label, 'location', () => {
       nlRegionFilter = null;
       renderDispatchTab();
       updateMapMarkers();
@@ -1608,6 +1683,8 @@ function renderDispatchActiveStrip() {
       dispatchFilters.niches = [];
       dispatchFilters.demographics = [];
       dispatchFilters.platformTiers = [];
+      dispatchFilters.platforms = [];
+      dispatchFilters.tiers = [];
       dispatchFilters.ageMin = null;
       dispatchFilters.ageMax = null;
       nlRegionFilter = null;
@@ -2500,10 +2577,13 @@ function renderRing(creator) {
       chip.appendChild(textWrap);
 
       // Shimmer effect on platform chips — only in multi-filter scenarios
-      if (ringHasDispatch && ringScore && ringScore.totalFilters > 1 && dispatchFilters.platformTiers.length > 0) {
+      if (ringHasDispatch && ringScore && ringScore.totalFilters > 1) {
         const followers = getFollowers(creator, p);
         const creatorTier = tierFromFollowers(followers);
-        const isMatchedPlatform = dispatchFilters.platformTiers.some(pt => pt.platform === p && pt.tier === creatorTier);
+        const isMatchedPlatform =
+          dispatchFilters.platformTiers.some(pt => pt.platform === p && pt.tier === creatorTier) ||
+          dispatchFilters.platforms.includes(p) ||
+          dispatchFilters.tiers.includes(tierFromFollowers(followers));
         if (isMatchedPlatform) chip.classList.add('dispatch-matched-tag');
       }
 
@@ -3232,6 +3312,8 @@ function openEditModal(creatorId) {
 
 function closeModal() {
   document.getElementById('modalBackdrop').classList.remove('open');
+  // Refresh sidebar pills so any category reordering done in the modal is reflected
+  renderDispatchFilterPills();
 }
 
 function renderModalBody() {
@@ -4745,6 +4827,8 @@ function applyNLSearch(query) {
   dispatchFilters.niches = [];
   dispatchFilters.demographics = [];
   dispatchFilters.platformTiers = [];
+  dispatchFilters.platforms = [];
+  dispatchFilters.tiers = [];
   dispatchFilters.ageMin = null;
   dispatchFilters.ageMax = null;
   nlRegionFilter = null;
@@ -4759,27 +4843,12 @@ function applyNLSearch(query) {
     dispatchFilters.demographics = parsed.demographics;
   }
 
-  // For platform+tier: if both specified, combine them. If only platform, add all tiers. If only tier, add all platforms.
-  if (parsed.platforms.length > 0 && parsed.tiers.length > 0) {
-    parsed.platforms.forEach(p => {
-      parsed.tiers.forEach(t => {
-        dispatchFilters.platformTiers.push({ platform: p, tier: t });
-      });
-    });
-  } else if (parsed.platforms.length > 0) {
-    // Platform only — add all tiers for that platform
-    parsed.platforms.forEach(p => {
-      TIERS.forEach(t => {
-        dispatchFilters.platformTiers.push({ platform: p, tier: t });
-      });
-    });
-  } else if (parsed.tiers.length > 0) {
-    // Tier only — add all platforms for that tier
-    parsed.tiers.forEach(t => {
-      PLATFORMS.forEach(p => {
-        dispatchFilters.platformTiers.push({ platform: p, tier: t });
-      });
-    });
+  // Platform and tier are independent filters from NL search
+  if (parsed.platforms.length > 0) {
+    dispatchFilters.platforms = parsed.platforms;
+  }
+  if (parsed.tiers.length > 0) {
+    dispatchFilters.tiers = parsed.tiers;
   }
 
   // Region
@@ -4931,6 +5000,8 @@ function clearNLInlinePills() {
     dispatchFilters.niches = [];
     dispatchFilters.demographics = [];
     dispatchFilters.platformTiers = [];
+    dispatchFilters.platforms = [];
+    dispatchFilters.tiers = [];
     dispatchFilters.ageMin = null;
     dispatchFilters.ageMax = null;
     nlRegionFilter = null;
@@ -4942,16 +5013,12 @@ function clearNLInlinePills() {
       } else if (p.type === 'demographic') {
         if (!dispatchFilters.demographics.includes(p.value)) dispatchFilters.demographics.push(p.value);
       } else if (p.type === 'platform') {
-        // Platform without tier → all tiers
-        TIERS.forEach(t => {
-          dispatchFilters.platformTiers.push({ platform: p.value, tier: t });
-        });
+        // Independent platform filter — just means "is on this platform"
+        if (!dispatchFilters.platforms.includes(p.value)) dispatchFilters.platforms.push(p.value);
       } else if (p.type === 'tier') {
+        // Independent tier filter — just means "is at this tier on any platform"
         const tierVal = p.rawValue || p.value;
-        // Tier without platform → all platforms
-        PLATFORMS.forEach(pl => {
-          dispatchFilters.platformTiers.push({ platform: pl, tier: tierVal });
-        });
+        if (!dispatchFilters.tiers.includes(tierVal)) dispatchFilters.tiers.push(tierVal);
       } else if (p.type === 'region' && p.regionData) {
         nlRegionFilter = p.regionData;
       }
@@ -5156,6 +5223,8 @@ function clearNLInlinePills() {
       dispatchFilters.niches = [];
       dispatchFilters.demographics = [];
       dispatchFilters.platformTiers = [];
+      dispatchFilters.platforms = [];
+      dispatchFilters.tiers = [];
       dispatchFilters.ageMin = null;
       dispatchFilters.ageMax = null;
       document.getElementById('nlSearchHint').style.display = 'none';
@@ -5874,52 +5943,69 @@ function renderNearestCreators() {
 // ===========================
 
 // Spawn ambient floating motes during mode transition
+// Uses a single container + documentFragment to minimize reflows, and
+// staggers via CSS animation-delay instead of per-element setTimeout.
 function spawnMotes(toDispatch) {
-  const s = getComputedStyle(document.documentElement);
   const colors = toDispatch
-    ? [s.getPropertyValue('--accent').trim(), s.getPropertyValue('--rose').trim(), s.getPropertyValue('--mocha').trim()]
-    : [s.getPropertyValue('--sage').trim(), s.getPropertyValue('--accent').trim(), s.getPropertyValue('--lavender').trim()];
+    ? _transitionColorCache.dispatch
+    : _transitionColorCache.roster;
 
-  const count = 18;
-  const motes = [];
+  const count = 12; // fewer motes, still lush
+  const frag = document.createDocumentFragment();
+  const container = document.createElement('div');
+  container.className = 'mode-mote-container';
+  container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;';
+
   for (let i = 0; i < count; i++) {
     const mote = document.createElement('div');
-    mote.className = 'mode-mote';
+    mote.className = 'mode-mote rising';
     const size = 3 + Math.random() * 5;
-    mote.style.width = size + 'px';
-    mote.style.height = size + 'px';
-    mote.style.left = Math.random() * window.innerWidth + 'px';
-    mote.style.top = Math.random() * window.innerHeight + 'px';
-    mote.style.background = colors[Math.floor(Math.random() * colors.length)];
-    const dur = 1.2 + Math.random() * 1.0;
-    mote.style.setProperty('--duration', dur + 's');
-    mote.style.setProperty('--dx', (Math.random() * 60 - 30) + 'px');
-    mote.style.setProperty('--dy', -(30 + Math.random() * 80) + 'px');
-    mote.style.setProperty('--peak-opacity', (0.25 + Math.random() * 0.25).toFixed(2));
-    document.body.appendChild(mote);
-    motes.push(mote);
-    // Stagger start
-    setTimeout(() => mote.classList.add('rising'), i * 40);
+    const dur = 1.2 + Math.random() * 0.8;
+    mote.style.cssText = `width:${size}px;height:${size}px;left:${Math.random() * 100}%;top:${Math.random() * 100}%;background:${colors[Math.floor(Math.random() * colors.length)]};--duration:${dur}s;--dx:${(Math.random() * 60 - 30)}px;--dy:${-(30 + Math.random() * 80)}px;--peak-opacity:${(0.25 + Math.random() * 0.25).toFixed(2)};animation-delay:${(i * 0.05).toFixed(2)}s;`;
+    frag.appendChild(mote);
   }
-  // Cleanup
-  setTimeout(() => motes.forEach(m => m.remove()), 3000);
+
+  container.appendChild(frag);
+  document.body.appendChild(container);
+  // Single cleanup for the whole container
+  setTimeout(() => container.remove(), 2800);
 }
+
+// Pre-cache transition colors once at startup & on mode change
+// so we never call getComputedStyle during the hot transition path.
+let _transitionColorCache = { dispatch: [], roster: [], dispatchRgb: '', rosterRgb: '' };
+function _cacheTransitionColors() {
+  const s = getComputedStyle(document.documentElement);
+  _transitionColorCache.dispatch = [
+    s.getPropertyValue('--accent').trim() || '#D4A080',
+    s.getPropertyValue('--rose').trim() || '#C9A0A0',
+    s.getPropertyValue('--mocha').trim() || '#A89080'
+  ];
+  _transitionColorCache.roster = [
+    s.getPropertyValue('--sage').trim() || '#8BBF96',
+    s.getPropertyValue('--accent').trim() || '#8BBF96',
+    s.getPropertyValue('--lavender').trim() || '#A8A0CF'
+  ];
+  _transitionColorCache.dispatchRgb = s.getPropertyValue('--accent-rgb').trim() || '139,191,150';
+  _transitionColorCache.rosterRgb = s.getPropertyValue('--sage-rgb').trim() || '139,191,150';
+}
+requestAnimationFrame(_cacheTransitionColors);
 
 // Color wash overlay for the transition
 function triggerModeTransition(toDispatch) {
-  const s = getComputedStyle(document.documentElement);
+  const rgb = toDispatch ? _transitionColorCache.dispatchRgb : _transitionColorCache.rosterRgb;
+
   // Create wash
   const wash = document.createElement('div');
   wash.className = 'mode-wash';
-  wash.style.background = toDispatch
-    ? `radial-gradient(ellipse at 30% 40%, rgba(${s.getPropertyValue('--accent-rgb').trim()}, 0.12) 0%, transparent 70%)`
-    : `radial-gradient(ellipse at 30% 40%, rgba(${s.getPropertyValue('--sage-rgb').trim()}, 0.12) 0%, transparent 70%)`;
+  wash.style.background = `radial-gradient(ellipse at 30% 40%, rgba(${rgb}, 0.12) 0%, transparent 70%)`;
   document.body.appendChild(wash);
 
   // Sidebar glow
-  document.getElementById('sidebar').classList.add('mode-glow');
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('mode-glow');
 
-  // Activate wash
+  // Activate wash — double rAF ensures the element is painted before opacity transitions
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       wash.classList.add('active');
@@ -5933,13 +6019,11 @@ function triggerModeTransition(toDispatch) {
   setTimeout(() => {
     wash.classList.remove('active');
     wash.classList.add('fade-out');
-  }, 500);
+  }, 450);
 
   // Remove glow and wash
-  setTimeout(() => {
-    document.getElementById('sidebar').classList.remove('mode-glow');
-  }, 1200);
-  setTimeout(() => wash.remove(), 1600);
+  setTimeout(() => sidebar.classList.remove('mode-glow'), 1100);
+  setTimeout(() => wash.remove(), 1500);
 }
 
 // Tab switching — orchestrated transition
@@ -5988,6 +6072,8 @@ document.querySelectorAll('.tab-button').forEach(btn => {
       } else {
         document.body.classList.remove('dispatch-mode');
       }
+      // Re-cache colors for next transition
+      requestAnimationFrame(_cacheTransitionColors);
 
       // Phase 1: Launch visual transition overlay + motes
       triggerModeTransition(goingToDispatch);
@@ -6000,28 +6086,50 @@ document.querySelectorAll('.tab-button').forEach(btn => {
 
       currentTab.classList.add('mode-exit');
 
-      // Phase 3: At midpoint, swap content (palette already applied)
-      setTimeout(() => {
+      // Phase 3: Listen for exit animation end, then swap content.
+      // This replaces the hardcoded setTimeout — the swap happens exactly
+      // when the browser finishes the exit, so frames never fight a render.
+      const onExitDone = () => {
+        currentTab.removeEventListener('animationend', onExitDone);
+
         // Hide old, show new
         currentTab.style.display = 'none';
         currentTab.classList.remove('mode-exit');
 
-        // Show all relevant tab content
         document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
         document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
         document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
 
         // Animate new tab in
         nextTab.classList.add('mode-enter');
-        setTimeout(() => {
+
+        // DEFER heavy re-renders until the enter animation is done —
+        // this is the key fix: renders no longer compete with animation frames.
+        const onEnterDone = () => {
+          nextTab.removeEventListener('animationend', onEnterDone);
           nextTab.classList.remove('mode-enter');
           _modeTransitioning = false;
+          _handleTabLogic(tab, wasDispatch);
+        };
+        nextTab.addEventListener('animationend', onEnterDone, { once: true });
+
+        // Safety fallback in case animationend doesn't fire (e.g. display:none race)
+        setTimeout(() => {
+          if (_modeTransitioning) {
+            nextTab.classList.remove('mode-enter');
+            _modeTransitioning = false;
+            _handleTabLogic(tab, wasDispatch);
+          }
         }, 500);
+      };
+      currentTab.addEventListener('animationend', onExitDone, { once: true });
 
-        // Run tab-specific logic
-        _handleTabLogic(tab, wasDispatch);
-
-      }, 350); // midpoint of the 0.7s wash
+      // Safety fallback for exit animation
+      setTimeout(() => {
+        if (currentTab.classList.contains('mode-exit')) {
+          onExitDone();
+        }
+      }, 420);
 
     } else {
       // No mode change (e.g. roster→recycle or dispatch→recycle)
@@ -6042,6 +6150,8 @@ function _handleTabLogic(tab, wasDispatch) {
   if (tab === 'roster') {
     document.getElementById('matchFloatPanel').classList.remove('dispatch-mode');
     dispatchFilters.platformTiers = [];
+    dispatchFilters.platforms = [];
+    dispatchFilters.tiers = [];
     dispatchFilters.niches = [];
     dispatchFilters.demographics = [];
     dispatchFilters.ageMin = null;
@@ -6994,6 +7104,7 @@ async function init() {
     // Load deleted presets from settings (must be after DB init)
     console.log('[init] Loading deleted presets...');
     loadDeletedPresets();
+    restoreCategoryOrder();
 
     console.log('[init] Loading creators from DB...');
     creators = await db.load();

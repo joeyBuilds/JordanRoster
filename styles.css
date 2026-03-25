@@ -228,24 +228,7 @@ body.dispatch-mode .sidebar-tabs::after {
   overflow: hidden;
   min-height: 0;
 }
-.tab-content.mode-exit,
-.tab-content.mode-enter {
-  will-change: opacity;
-}
-.tab-content.mode-exit {
-  animation: modeExit 0.18s ease-out forwards;
-}
-.tab-content.mode-enter {
-  animation: modeEnter 0.22s ease-out forwards;
-}
-@keyframes modeExit {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
-}
-@keyframes modeEnter {
-  0%   { opacity: 0; }
-  100% { opacity: 1; }
-}
+/* Tab content swap is instant — snapshot overlay handles visual blending */
 
 /* Phase 3: Map — no filter transitions */
 

@@ -5952,23 +5952,26 @@ function renderNearestCreators() {
 // 2. Swap the palette variables instantly
 // 3. Fade the snapshot out, revealing the new palette underneath
 function triggerModeTransition(toDispatch) {
-  // Capture current visual state of the sidebar as a frozen overlay
-  const sidebar = document.getElementById('sidebar');
-  const topBar = document.getElementById('topBar');
-
-  // Use a simple full-viewport overlay with the old background color
-  // This is much cheaper than cloneNode and covers the whole theme shift
-  const snap = document.createElement('div');
-  snap.className = 'mode-snapshot';
-  // Sample the current background to use as the snapshot fill
+  // Capture current bg color BEFORE any palette swap
   const cs = getComputedStyle(document.documentElement);
   const bgPrimary = cs.getPropertyValue('--bg-primary').trim();
+
+  // Now swap the palette instantly
+  if (toDispatch) {
+    document.body.classList.add('dispatch-mode');
+  } else {
+    document.body.classList.remove('dispatch-mode');
+  }
+
+  // Create snapshot overlay with the OLD background color
+  // This covers the jarring instant repaint underneath
+  const snap = document.createElement('div');
+  snap.className = 'mode-snapshot';
   snap.style.background = bgPrimary;
   document.body.appendChild(snap);
 
   // Clean up after the fade animation
   snap.addEventListener('animationend', () => snap.remove(), { once: true });
-  // Safety fallback
   setTimeout(() => { if (snap.parentNode) snap.remove(); }, 500);
 }
 
@@ -6011,44 +6014,21 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     if (modeChanging) {
       _modeTransitioning = true;
 
-      // Phase 0: Toggle palette IMMEDIATELY so CSS color transitions
-      // blend in sync with the slider (not after it lands)
-      if (goingToDispatch) {
-        document.body.classList.add('dispatch-mode');
-      } else {
-        document.body.classList.remove('dispatch-mode');
-      }
-      // Palette swap is instant — snapshot overlay handles the visual blend
-
-      // Phase 1: Snapshot the old palette, then swap variables instantly
+      // Phase 1: Snapshot OLD bg, swap palette, overlay fades out
+      // triggerModeTransition captures bg BEFORE toggling dispatch-mode
       triggerModeTransition(goingToDispatch);
 
-      // Phase 2: Simultaneous crossfade — old tab fades out while new fades in
-      const currentTab = wasDispatch ? document.getElementById('dispatchTab')
-                       : document.getElementById('rosterTab');
-      const nextTab = goingToDispatch ? document.getElementById('dispatchTab')
-                    : document.getElementById('rosterTab');
-
-      // Show the new tab immediately (behind the fading-out old one)
+      // Phase 2: Swap tab content instantly (hidden behind snapshot overlay)
       document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
       document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
       document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
 
-      // Crossfade: exit old, enter new simultaneously
-      currentTab.classList.add('mode-exit');
-      nextTab.classList.add('mode-enter');
-
-      // Clean up after the longer animation (enter at 220ms)
+      // Unlock after snapshot fades (350ms animation)
       const cleanup = () => {
-        currentTab.classList.remove('mode-exit');
-        nextTab.classList.remove('mode-enter');
         _modeTransitioning = false;
-        // Defer heavy re-renders to next idle frame
         requestAnimationFrame(() => _handleTabLogic(tab, wasDispatch));
       };
-      nextTab.addEventListener('animationend', cleanup, { once: true });
-      // Safety fallback
-      setTimeout(() => { if (_modeTransitioning) cleanup(); }, 300);
+      setTimeout(cleanup, 360);
 
     } else {
       // No mode change (e.g. roster→recycle or dispatch→recycle)

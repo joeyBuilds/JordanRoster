@@ -841,6 +841,9 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-platform-section {
   padding: 4px 8px 6px;
   border-bottom: none;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 .demos-platform-section:last-child {
   border-bottom: none;
@@ -918,6 +921,8 @@ body.shift-held #mapContainer .leaflet-container {
   flex-direction: column;
   gap: 3px;
   padding: 2px 0;
+  flex: 1;
+  justify-content: flex-end;
 }
 .demos-demo-card {
   background: rgba(var(--bg-card-rgb), 0.4);
@@ -1078,8 +1083,6 @@ body.shift-held #mapContainer .leaflet-container {
   gap: 2px;
   justify-content: center;
   padding: 0 4px 4px;
-  max-height: 42px;
-  overflow: hidden;
 }
 .demos-niches-row:hover {
   opacity: 0.8;

@@ -2520,31 +2520,21 @@ function showDetailPanel(creatorId) {
   const creator = creators.find(c => c.id === creatorId);
   if (!creator) return;
 
-  // If ring is already open for a different creator, close it first (no map restore)
-  const overlay = document.getElementById('ringOverlay');
-  const wasOpen = overlay.classList.contains('open');
-  if (wasOpen) {
-    overlay.classList.remove('open');
-    document.getElementById('ringScrim').classList.remove('open');
-    overlay.innerHTML = '';
-  }
+  // Deselect previous marker, select new one
+  _deselectMarker();
+  _selectMarker(creatorId);
 
   currentEditingCreator = creatorId;
   _nicheInjectedForCreator = null; // reset so niches re-inject on next Niche tab visit
 
-  // Always track for Demo's panel (persists after ring closes)
+  // Always track for Demo's panel (persists after close)
   _demosCreatorId = creatorId;
   _demosSubTab = 'Instagram'; // Default to IG on new creator click
-
-  // Snapshot dispatch state BEFORE tab switch removes the class.
-  // Check filters directly — the CSS class may already be gone from a prior creator click.
-  const wasDispatchMode = hasActiveDispatchFilters();
 
   // Auto-switch to Demo's tab
   const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
   const currentTab = document.querySelector('.tab-button.active');
   if (demosBtn && currentTab && currentTab.dataset.tab !== 'demos') {
-    // Switch tabs without closing the ring
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
     demosBtn.classList.add('active');
     updateTabIndicator(demosBtn);
@@ -2557,21 +2547,26 @@ function showDetailPanel(creatorId) {
     document.body.classList.add('demos-mode');
   }
   renderDemosPanel(creator);
+}
 
-  // On mobile, skip map pan — ring renders as full-screen detail sheet
-  if (isMobile()) {
-    renderRing(creator, wasDispatchMode);
-  } else {
-    // Pan map to center the creator so ring elements don't get clipped
-    if (creator.lat && creator.lng) {
-      const marker = markers[creator.id];
-      const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-      map.once('moveend', () => renderRing(creator, wasDispatchMode));
-      map.panTo(latLng, { animate: true, duration: 0.3 });
-    } else {
-      renderRing(creator, wasDispatchMode);
-    }
+// Marker selection — visual glow on the map pin
+let _selectedMarkerId = null;
+
+function _selectMarker(creatorId) {
+  _selectedMarkerId = creatorId;
+  const marker = markers[creatorId];
+  if (marker) {
+    const el = marker.getElement();
+    if (el) el.classList.add('marker-selected');
   }
+}
+
+function _deselectMarker() {
+  if (_selectedMarkerId && markers[_selectedMarkerId]) {
+    const el = markers[_selectedMarkerId].getElement();
+    if (el) el.classList.remove('marker-selected');
+  }
+  _selectedMarkerId = null;
 }
 
 function renderRing(creator, forceDispatch) {
@@ -3166,48 +3161,16 @@ function renderRing(creator, forceDispatch) {
   overlay.classList.add('open');
   scrim.classList.add('open');
 
-  // Keyboard navigation — Escape to close
-  function ringKeyHandler(e) {
-    if (!document.getElementById('ringOverlay').classList.contains('open')) {
-      document.removeEventListener('keydown', ringKeyHandler);
-      return;
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      closeDetailPanel();
-      document.removeEventListener('keydown', ringKeyHandler);
-    }
-  }
-  // Remove any previous listener, add fresh one
-  document.removeEventListener('keydown', window._ringKeyHandler);
-  window._ringKeyHandler = ringKeyHandler;
-  document.addEventListener('keydown', ringKeyHandler);
+  // Ring rendering removed — ring keyboard handler and resize handler no longer needed
 }
 
 // Make it global for marker click
 window.showDetailPanel = showDetailPanel;
 
-// ── Viewport resize handler: fully re-render ring (petal arcs need recalculation) ──
-window.addEventListener('resize', debounce(() => {
-  const overlay = document.getElementById('ringOverlay');
-  if (overlay && overlay.classList.contains('open') && currentEditingCreator) {
-    const creator = creators.find(c => c.id === currentEditingCreator);
-    if (creator) {
-      renderRing(creator);
-    }
-  }
-}, 150));
-
 function closeDetailPanel() {
-  const overlay = document.getElementById('ringOverlay');
-  const scrim = document.getElementById('ringScrim');
-  overlay.classList.remove('open');
-  scrim.classList.remove('open');
+  _deselectMarker();
   currentEditingCreator = null;
   // Note: _demosCreatorId is NOT cleared — Demo's panel persists last-viewed creator
-
-  // Clean up after animation
-  setTimeout(() => { overlay.innerHTML = ''; }, 400);
 }
 
 // ===========================
@@ -4808,23 +4771,142 @@ function renderDemosPanel(creator) {
     _demosSubTab = tabs[0]?.key || 'partners';
   }
 
-  // Render creator name + sub-tab bar
+  // Render enhanced header: avatar, name, platform chips, niches, actions, sub-tabs
   if (subTabsEl) {
     subTabsEl.style.display = 'block';
-    const niches = (creator.niches || []);
-    const nichesHtml = niches.length > 0
-      ? `<div class="demos-niches-row" title="Click to edit niches">${niches.map(n => `<span class="demos-niche-pill">${n}</span>`).join('')}</div>`
-      : '';
-    subTabsEl.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div>${nichesHtml}`;
-    // Make niches row clickable → opens Edit Creator modal
-    const nichesRow = subTabsEl.querySelector('.demos-niches-row');
-    if (nichesRow) {
-      nichesRow.style.cursor = 'pointer';
-      nichesRow.onclick = () => {
-        closeDetailPanel();
-        openEditModal(creator.id);
-      };
+    subTabsEl.innerHTML = '';
+
+    // ── Avatar row: glowing avatar + name + actions ──
+    const heroRow = document.createElement('div');
+    heroRow.className = 'demos-hero';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'demos-avatar-wrap';
+    const avatarInner = document.createElement('div');
+    avatarInner.className = 'demos-avatar';
+    if (creator.photo) {
+      const img = document.createElement('img');
+      img.src = creator.photo;
+      img.alt = '';
+      avatarInner.appendChild(img);
+    } else {
+      avatarInner.textContent = (creator.firstName || creator.name || '?')[0].toUpperCase();
     }
+    avatar.appendChild(avatarInner);
+    heroRow.appendChild(avatar);
+
+    const heroInfo = document.createElement('div');
+    heroInfo.className = 'demos-hero-info';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'demos-creator-name';
+    nameEl.textContent = getFullName(creator);
+    heroInfo.appendChild(nameEl);
+
+    if (creator.location) {
+      const loc = document.createElement('div');
+      loc.className = 'demos-location';
+      loc.textContent = '\uD83D\uDCCD ' + creator.location;
+      heroInfo.appendChild(loc);
+    }
+
+    // Action buttons
+    const actions = document.createElement('div');
+    actions.className = 'demos-actions';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'demos-action-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.onclick = () => openEditModal(creator.id);
+    actions.appendChild(editBtn);
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'demos-action-btn danger';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.onclick = () => {
+      if (!confirm('Move ' + getFullName(creator) + ' to recycle bin?')) return;
+      recycleBin.add(creator);
+      closeDetailPanel();
+      creators = creators.filter(c => c.id !== creator.id);
+      db.persist(creators);
+      renderRosterTab();
+      updateMapMarkers();
+      updateRecycleBinBadge();
+      showToast(getFullName(creator) + ' moved to bin', 'success');
+    };
+    actions.appendChild(deleteBtn);
+    heroInfo.appendChild(actions);
+
+    heroRow.appendChild(heroInfo);
+    subTabsEl.appendChild(heroRow);
+
+    // ── Platform chips row (ring-style with follower counts + engagement) ──
+    const ringPlatforms = getCreatorPlatforms(creator);
+    if (ringPlatforms.length > 0) {
+      const chipRow = document.createElement('div');
+      chipRow.className = 'demos-platform-chips';
+      ringPlatforms.forEach(p => {
+        const url = getUrl(creator, p);
+        const chip = document.createElement(url ? 'a' : 'div');
+        chip.className = 'demos-platform-chip platform-' + p.toLowerCase();
+        if (url) {
+          chip.href = url;
+          chip.target = '_blank';
+          chip.rel = 'noopener noreferrer';
+          chip.title = 'Open ' + p + ' profile';
+        }
+        if (PLATFORM_SVGS[p]) {
+          const logo = document.createElement('span');
+          logo.className = 'demos-chip-logo';
+          logo.innerHTML = PLATFORM_SVGS[p];
+          chip.appendChild(logo);
+        }
+        const textWrap = document.createElement('span');
+        textWrap.className = 'demos-chip-text';
+        const followers = getFollowers(creator, p);
+        if (followers !== null) {
+          const fLine = document.createElement('span');
+          fLine.className = 'demos-chip-followers';
+          fLine.textContent = formatFollowers(followers);
+          textWrap.appendChild(fLine);
+        }
+        const eng = getEngagementRate(creator, p);
+        if (eng !== null) {
+          const eLine = document.createElement('span');
+          eLine.className = 'demos-chip-eng';
+          eLine.textContent = formatEngagementRate(eng) + ' eng';
+          textWrap.appendChild(eLine);
+        }
+        chip.appendChild(textWrap);
+        chipRow.appendChild(chip);
+      });
+      subTabsEl.appendChild(chipRow);
+    }
+
+    // ── Niches row ──
+    const niches = creator.niches || [];
+    if (niches.length > 0) {
+      const nichesRow = document.createElement('div');
+      nichesRow.className = 'demos-niches-row';
+      nichesRow.title = 'Click to edit niches';
+      nichesRow.style.cursor = 'pointer';
+      niches.forEach(n => {
+        const pill = document.createElement('span');
+        pill.className = 'demos-niche-pill';
+        pill.textContent = n;
+        nichesRow.appendChild(pill);
+      });
+      nichesRow.onclick = () => openEditModal(creator.id);
+      subTabsEl.appendChild(nichesRow);
+    }
+
+    // ── Notes (collapsible) ──
+    if (creator.notes) {
+      const notes = document.createElement('div');
+      notes.className = 'demos-notes';
+      notes.textContent = creator.notes;
+      subTabsEl.appendChild(notes);
+    }
+
+    // ── Platform sub-tab bar ──
     const tabRow = document.createElement('div');
     tabRow.className = 'demos-sub-tab-row';
     tabs.forEach(t => {
@@ -6585,23 +6667,10 @@ function _handleTabLogic(tab, wasDispatch) {
     renderDemosPanel();
     renderAllComparePanels();
 
-    // UX: Reopen ring for the creator we were investigating
+    // Restore marker selection + currentEditingCreator when returning to Demo's
     if (_demosCreatorId && !currentEditingCreator) {
-      const creator = creators.find(c => c.id === _demosCreatorId);
-      if (creator) {
-        currentEditingCreator = _demosCreatorId;
-        // Pass true to force dispatch scoring (user may have adjusted filters)
-        if (isMobile()) {
-          renderRing(creator, true);
-        } else if (creator.lat && creator.lng) {
-          const marker = markers[creator.id];
-          const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-          map.once('moveend', () => renderRing(creator, true));
-          map.panTo(latLng, { animate: true, duration: 0.3 });
-        } else {
-          renderRing(creator, true);
-        }
-      }
+      currentEditingCreator = _demosCreatorId;
+      _selectMarker(_demosCreatorId);
     }
   } else {
     // Hide compare panels when not on Demo's tab
@@ -6648,12 +6717,12 @@ function _handleTabLogic(tab, wasDispatch) {
     });
     document.getElementById('matchFloatPanel').classList.remove('visible');
 
-    // UX: If investigating a creator, inject their niches and close ring
+    // UX: If investigating a creator, inject their niches into dispatch
     const investigatingCreator = currentEditingCreator || _demosCreatorId;
     if (investigatingCreator) {
-      closeDetailPanel();
-      // Restore _demosCreatorId so ring can reopen on return to Demo's
-      _demosCreatorId = investigatingCreator;
+      _deselectMarker();
+      currentEditingCreator = null;
+      _demosCreatorId = investigatingCreator; // preserve for return to Demo's
       _injectCreatorNichesIntoDispatch(investigatingCreator);
     }
 
@@ -6772,7 +6841,7 @@ document.getElementById('modalSaveBtn').addEventListener('click', saveCreator);
 // Backdrop click no longer closes modal — use ×, Cancel, or Esc instead
 
 // Ring scrim — click outside to close, stay at current map position
-document.getElementById('ringScrim').addEventListener('click', () => closeDetailPanel());
+// Ring scrim listener removed — ring overlay no longer used
 
 // Tag modal scrim — click to close
 document.getElementById('tagModalScrim').addEventListener('click', (e) => {

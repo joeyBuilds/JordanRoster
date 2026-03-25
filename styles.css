@@ -839,7 +839,7 @@ body.shift-held #mapContainer .leaflet-container {
 
 /* Platform sections */
 .demos-platform-section {
-  padding: 8px 10px 10px;
+  padding: 4px 8px 6px;
   border-bottom: none;
 }
 .demos-platform-section:last-child {
@@ -873,38 +873,38 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin-bottom: 6px;
+  gap: 3px;
+  margin-bottom: 4px;
 }
 .demos-stat-cell {
   background: rgba(var(--bg-card-rgb), 0.35);
   border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  padding: 6px 6px 5px;
+  border-radius: 6px;
+  padding: 4px 5px 3px;
 }
 .demos-stat-header {
   display: flex;
   align-items: center;
-  gap: 3px;
-  margin-bottom: 2px;
+  gap: 2px;
+  margin-bottom: 1px;
 }
 .demos-stat-icon {
-  font-size: 10px;
+  font-size: 8px;
   opacity: 0.5;
   line-height: 1;
 }
 .demos-stat-label {
-  font-size: 8px;
+  font-size: 7px;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .demos-stat-value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.3px;
@@ -916,46 +916,63 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-demo-grid {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 0;
+  gap: 3px;
+  padding: 2px 0;
 }
 .demos-demo-card {
   background: rgba(var(--bg-card-rgb), 0.4);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 6px 8px;
 }
 .demos-demo-title {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
-/* Color-coded per chart type — teal-blue for age, warm amber for country, soft purple for city */
+/* Color-coded — alchemy circle gradient (orange→pink/magenta top-to-bottom) */
 .demos-color-gender .demos-demo-title { color: #E8729A; }
-.demos-color-age .demos-demo-title { color: #4AA8C7; }
-.demos-color-country .demos-demo-title { color: #E8A855; }
-.demos-color-city .demos-demo-title { color: #A78BFA; }
-.demos-color-age .demos-bar-fill { background: #4AA8C7; opacity: 1; }
-.demos-color-country .demos-bar-fill { background: #E8A855; opacity: 1; }
-.demos-color-city .demos-bar-fill { background: #A78BFA; opacity: 1; }
-/* Subtle left border accent */
+.demos-color-age .demos-demo-title { color: #F0884A; }
+.demos-color-country .demos-demo-title { color: #E06888; }
+.demos-color-city .demos-demo-title { color: #D460A0; }
+/* Alchemy gradient on bar fills — each row gets a shade from the gradient */
+.demos-color-age .demos-bar-row:nth-child(2) .demos-bar-fill { background: #F0884A; }
+.demos-color-age .demos-bar-row:nth-child(3) .demos-bar-fill { background: #EC7C5A; }
+.demos-color-age .demos-bar-row:nth-child(4) .demos-bar-fill { background: #E87068; }
+.demos-color-age .demos-bar-row:nth-child(5) .demos-bar-fill { background: #E46478; }
+.demos-color-age .demos-bar-row:nth-child(6) .demos-bar-fill { background: #E05888; }
+.demos-color-age .demos-bar-row:nth-child(7) .demos-bar-fill { background: #DC4C98; }
+.demos-color-age .demos-bar-row:nth-child(8) .demos-bar-fill { background: #D840A8; }
+.demos-color-country .demos-bar-row:nth-child(2) .demos-bar-fill { background: #F0884A; }
+.demos-color-country .demos-bar-row:nth-child(3) .demos-bar-fill { background: #EC7C5A; }
+.demos-color-country .demos-bar-row:nth-child(4) .demos-bar-fill { background: #E87068; }
+.demos-color-country .demos-bar-row:nth-child(5) .demos-bar-fill { background: #E46478; }
+.demos-color-country .demos-bar-row:nth-child(6) .demos-bar-fill { background: #E05888; }
+.demos-color-country .demos-bar-row:nth-child(7) .demos-bar-fill { background: #DC4C98; }
+.demos-color-city .demos-bar-row:nth-child(2) .demos-bar-fill { background: #F0884A; }
+.demos-color-city .demos-bar-row:nth-child(3) .demos-bar-fill { background: #EC7C5A; }
+.demos-color-city .demos-bar-row:nth-child(4) .demos-bar-fill { background: #E87068; }
+.demos-color-city .demos-bar-row:nth-child(5) .demos-bar-fill { background: #E46478; }
+.demos-color-city .demos-bar-row:nth-child(6) .demos-bar-fill { background: #E05888; }
+.demos-color-city .demos-bar-row:nth-child(7) .demos-bar-fill { background: #DC4C98; }
+/* Subtle left border accent with gradient */
 .demos-color-gender { border-left: 2px solid #E8729A; }
-.demos-color-age { border-left: 2px solid #4AA8C7; }
-.demos-color-country { border-left: 2px solid #E8A855; }
-.demos-color-city { border-left: 2px solid #A78BFA; }
+.demos-color-age { border-image: linear-gradient(to bottom, #F0884A, #D840A8) 1; border-left-width: 2px; border-left-style: solid; }
+.demos-color-country { border-image: linear-gradient(to bottom, #F0884A, #D840A8) 1; border-left-width: 2px; border-left-style: solid; }
+.demos-color-city { border-image: linear-gradient(to bottom, #F0884A, #D840A8) 1; border-left-width: 2px; border-left-style: solid; }
 
 /* Gender donut chart */
 .demos-donut-wrap {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   justify-content: center;
 }
 .demos-donut {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   position: relative;
   flex-shrink: 0;
@@ -965,26 +982,26 @@ body.shift-held #mapContainer .leaflet-container {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--bg-primary);
 }
 .demos-donut-legend {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 .demos-legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 10px;
   color: var(--text-secondary);
 }
 .demos-legend-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -1001,8 +1018,8 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-bar-row {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 3px;
+  gap: 4px;
+  margin-bottom: 2px;
 }
 .demos-bar-row:last-child {
   margin-bottom: 0;
@@ -1019,9 +1036,9 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .demos-bar-track {
   flex: 1;
-  height: 7px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 .demos-bar-fill {
@@ -1041,34 +1058,34 @@ body.shift-held #mapContainer .leaflet-container {
 
 /* ── Sub-tab mode selector ── */
 .demos-sub-tabs {
-  padding: 10px 12px 0;
+  padding: 6px 10px 0;
   border-bottom: none;
   flex-shrink: 0;
 }
 .demos-sub-tabs .demos-creator-name {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.3px;
   text-align: center;
-  padding-bottom: 6px;
+  padding-bottom: 3px;
 }
 /* Niches row */
 .demos-niches-row {
   display: flex;
   flex-wrap: nowrap;
-  gap: 4px;
+  gap: 3px;
   justify-content: center;
-  padding: 0 4px 8px;
+  padding: 0 4px 4px;
   overflow: hidden;
 }
 .demos-niche-pill {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
   background: rgba(var(--accent-rgb), 0.12);
   color: var(--accent);
   border: 1px solid rgba(var(--accent-rgb), 0.2);
@@ -1082,7 +1099,7 @@ body.shift-held #mapContainer .leaflet-container {
   display: flex;
   gap: 3px;
   overflow-x: auto;
-  padding-bottom: 10px;
+  padding-bottom: 6px;
   margin-bottom: 0;
   border-bottom: 1px solid var(--glass-border);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);

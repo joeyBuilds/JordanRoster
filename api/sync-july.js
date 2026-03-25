@@ -750,10 +750,10 @@ async function syncToSupabase(supabase, julyCreators) {
     await supabase.from('creator_niches').insert(newNicheRows);
   }
   if (newRateRows.length > 0) {
-    await supabase.from('creator_rates').insert(newRateRows).catch(e => console.warn('[sync] creator_rates insert:', e.message));
+    try { await supabase.from('creator_rates').insert(newRateRows); } catch (e) { console.warn('[sync] creator_rates insert:', e.message); }
   }
   if (newCollabRows.length > 0) {
-    await supabase.from('creator_collabs').insert(newCollabRows).catch(e => console.warn('[sync] creator_collabs insert:', e.message));
+    try { await supabase.from('creator_collabs').insert(newCollabRows); } catch (e) { console.warn('[sync] creator_collabs insert:', e.message); }
   }
 
   // Update existing creators
@@ -806,8 +806,8 @@ async function syncToSupabase(supabase, julyCreators) {
     return existing ? existing.id : null;
   }).filter(Boolean);
   if (allSyncedIds.length > 0) {
-    await supabase.from('creator_rates').delete().in('creator_id', allSyncedIds).catch(() => {});
-    await supabase.from('creator_collabs').delete().in('creator_id', allSyncedIds).catch(() => {});
+    try { await supabase.from('creator_rates').delete().in('creator_id', allSyncedIds); } catch {}
+    try { await supabase.from('creator_collabs').delete().in('creator_id', allSyncedIds); } catch {}
     const rateRows = [];
     const collabRows = [];
     julyCreators.forEach(jc => {
@@ -818,8 +818,8 @@ async function syncToSupabase(supabase, julyCreators) {
       (jc.rates || []).forEach((r, i) => rateRows.push({ creator_id: cid, title: r.title || '', price: r.price ?? null, uuid: r.uuid || '', sort_order: r.order ?? i }));
       (jc.collabs || []).forEach((c, i) => collabRows.push({ creator_id: cid, title: c.title || '', description: c.description || null, url: c.url || null, logo_url: c.logoUrl || null, logo_uuid: c.logoUuid || '', sort_order: i }));
     });
-    if (rateRows.length > 0) await supabase.from('creator_rates').insert(rateRows).catch(() => {});
-    if (collabRows.length > 0) await supabase.from('creator_collabs').insert(collabRows).catch(() => {});
+    try { if (rateRows.length > 0) await supabase.from('creator_rates').insert(rateRows); } catch {}
+    try { if (collabRows.length > 0) await supabase.from('creator_collabs').insert(collabRows); } catch {}
   }
 
   return { added, updated, unchanged };

@@ -13,6 +13,11 @@ let _persistTimeout = null;
 let _recycleBinCount = 0;
 const PERSIST_DEBOUNCE_MS = 500;
 
+// Safe wrapper for Supabase queries that might fail (e.g. table doesn't exist yet)
+async function safeQuery(queryBuilder) {
+  try { return await queryBuilder; } catch { return { data: null, error: null }; }
+}
+
 // ── Column mapping: app (camelCase) ↔ Supabase (snake_case) ──
 
 function creatorToRow(c) {
@@ -99,8 +104,8 @@ const db = {
       _supabase.from('creator_platforms').select('*'),
       _supabase.from('creator_niches').select('*'),
       _supabase.from('creator_demographics').select('*'),
-      _supabase.from('creator_rates').select('*').then(r => r.error ? { data: [] } : r),
-      _supabase.from('creator_collabs').select('*').then(r => r.error ? { data: [] } : r)
+      safeQuery(_supabase.from('creator_rates').select('*')),
+      safeQuery(_supabase.from('creator_collabs').select('*'))
     ]);
 
     if (e1) { console.error('Failed to load creators:', e1); return []; }
@@ -173,8 +178,8 @@ const db = {
         allPlatforms.length ? _supabase.from('creator_platforms').insert(allPlatforms) : null,
         allNiches.length ? _supabase.from('creator_niches').insert(allNiches) : null,
         allDemos.length ? _supabase.from('creator_demographics').insert(allDemos) : null,
-        allRates.length ? _supabase.from('creator_rates').insert(allRates).catch(() => {}) : null,
-        allCollabs.length ? _supabase.from('creator_collabs').insert(allCollabs).catch(() => {}) : null
+        allRates.length ? safeQuery(_supabase.from('creator_rates').insert(allRates)) : null,
+        allCollabs.length ? safeQuery(_supabase.from('creator_collabs').insert(allCollabs)) : null
       ]);
     } catch (e) {
       console.error('Failed to save all creators:', e);
@@ -215,8 +220,8 @@ const db = {
         _supabase.from('creator_platforms').delete().in('creator_id', ids),
         _supabase.from('creator_niches').delete().in('creator_id', ids),
         _supabase.from('creator_demographics').delete().in('creator_id', ids),
-        _supabase.from('creator_rates').delete().in('creator_id', ids).catch(() => {}),
-        _supabase.from('creator_collabs').delete().in('creator_id', ids).catch(() => {})
+        safeQuery(_supabase.from('creator_rates').delete().in('creator_id', ids)),
+        safeQuery(_supabase.from('creator_collabs').delete().in('creator_id', ids))
       ]);
 
       const allPlatforms = [], allNiches = [], allDemos = [], allRates = [], allCollabs = [];
@@ -233,8 +238,8 @@ const db = {
         allPlatforms.length ? _supabase.from('creator_platforms').insert(allPlatforms) : null,
         allNiches.length ? _supabase.from('creator_niches').insert(allNiches) : null,
         allDemos.length ? _supabase.from('creator_demographics').insert(allDemos) : null,
-        allRates.length ? _supabase.from('creator_rates').insert(allRates).catch(() => {}) : null,
-        allCollabs.length ? _supabase.from('creator_collabs').insert(allCollabs).catch(() => {}) : null
+        allRates.length ? safeQuery(_supabase.from('creator_rates').insert(allRates)) : null,
+        allCollabs.length ? safeQuery(_supabase.from('creator_collabs').insert(allCollabs)) : null
       ]);
     } catch (e) {
       console.error('Sync to Supabase failed:', e);
@@ -251,8 +256,8 @@ const db = {
         _supabase.from('creator_platforms').delete().eq('creator_id', creator.id),
         _supabase.from('creator_niches').delete().eq('creator_id', creator.id),
         _supabase.from('creator_demographics').delete().eq('creator_id', creator.id),
-        _supabase.from('creator_rates').delete().eq('creator_id', creator.id).catch(() => {}),
-        _supabase.from('creator_collabs').delete().eq('creator_id', creator.id).catch(() => {})
+        safeQuery(_supabase.from('creator_rates').delete().eq('creator_id', creator.id)),
+        safeQuery(_supabase.from('creator_collabs').delete().eq('creator_id', creator.id))
       ]);
 
       const related = creatorRelatedRows(creator);
@@ -260,8 +265,8 @@ const db = {
         related.platforms.length ? _supabase.from('creator_platforms').insert(related.platforms) : null,
         related.niches.length ? _supabase.from('creator_niches').insert(related.niches) : null,
         related.demographics.length ? _supabase.from('creator_demographics').insert(related.demographics) : null,
-        related.rates.length ? _supabase.from('creator_rates').insert(related.rates).catch(() => {}) : null,
-        related.collabs.length ? _supabase.from('creator_collabs').insert(related.collabs).catch(() => {}) : null
+        related.rates.length ? safeQuery(_supabase.from('creator_rates').insert(related.rates)) : null,
+        related.collabs.length ? safeQuery(_supabase.from('creator_collabs').insert(related.collabs)) : null
       ]);
     } catch (e) {
       console.error('Failed to upsert creator:', e);

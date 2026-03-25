@@ -824,6 +824,11 @@ body.shift-held #mapContainer .leaflet-container {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.demos-content::-webkit-scrollbar {
+  display: none;
 }
 .demos-empty-state {
   display: flex;
@@ -912,6 +917,18 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-primary);
   letter-spacing: -0.3px;
   line-height: 1.2;
+}
+/* Empty placeholder cells — invisible but preserve grid space */
+.demos-stat-cell-empty {
+  visibility: hidden;
+}
+/* Empty demographic cards — invisible but preserve layout height */
+.demos-demo-card-empty {
+  visibility: hidden;
+}
+/* Empty bar rows — invisible but preserve row height */
+.demos-bar-row-empty {
+  visibility: hidden;
 }
 
 /* ── Demographic cards (gender donut, bar charts) ── */

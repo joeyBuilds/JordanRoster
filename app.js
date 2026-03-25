@@ -1943,12 +1943,9 @@ function updateMapMarkers() {
         else scoreLevel = 'low';
       }
 
-      // Build score ring SVG if in dispatch mode
-      const scoreRingHtml = (isDispatch && hasDispatchFilters) ? `
-        <svg class="marker-score-ring" viewBox="0 0 54 54">
-          <circle class="marker-score-track" cx="27" cy="27" r="24"/>
-          <circle class="marker-score-fill score-${scoreLevel}" cx="27" cy="27" r="24" transform="rotate(-90 27 27)"/>
-        </svg>
+      // Build score badge + border class for dispatch mode
+      const scoreBorderClass = (isDispatch && hasDispatchFilters) ? ` score-border-${scoreLevel}` : '';
+      const scoreBadgeHtml = (isDispatch && hasDispatchFilters) ? `
         <div class="marker-score-badge score-${scoreLevel}">${scoreText}</div>
       ` : '';
 
@@ -1974,12 +1971,12 @@ function updateMapMarkers() {
 
       const iconHtml = `
         <div class="marker-inner" style="${isMatch ? '--stagger:' + staggerMs + 'ms' : ''}">
-          ${scoreRingHtml}
+          ${scoreBadgeHtml}
           <div class="marker-avatar-wrap">
             ${sunrayHtml}
             ${gleamHtml}
             <div class="marker-glow"></div>
-            <div class="marker-avatar">
+            <div class="marker-avatar${scoreBorderClass}">
               ${creator.photo ? `<img src="${creator.photo}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="marker-initials" style="display:none">${getInitials(creator.firstName, creator.lastName)}</span>` : `<span class="marker-initials">${getInitials(creator.firstName, creator.lastName)}</span>`}
             </div>
           </div>
@@ -2019,15 +2016,13 @@ function updateMapMarkers() {
         showDetailPanel(creator.id);
       });
 
-      // Stagger score ring + badge visibility after markers render
+      // Stagger score badge visibility after markers render
       if (isDispatch && hasDispatchFilters) {
         marker.once('add', () => {
           const el = marker.getElement();
           if (el) {
             setTimeout(() => {
-              const ring = el.querySelector('.marker-score-ring');
               const badge = el.querySelector('.marker-score-badge');
-              if (ring) ring.classList.add('visible');
               if (badge) badge.classList.add('visible');
             }, 100 + idx * 30);
           }
@@ -2098,12 +2093,12 @@ function _stripDispatchMarkerState() {
     const el = markers[id] && markers[id].getElement();
     if (!el) return;
     el.classList.remove('dispatch-match', 'dispatch-faded', 'dispatch-card-hover', 'score-perfect');
-    // Remove score ring, badge, gleam ring, and sunray DOM elements
-    const scoreRing = el.querySelector('.marker-score-ring');
+    // Remove score badge, gleam ring, sunray DOM elements, and border classes
+    const avatar = el.querySelector('.marker-avatar');
+    if (avatar) avatar.classList.remove('score-border-full', 'score-border-most', 'score-border-half', 'score-border-low');
     const scoreBadge = el.querySelector('.marker-score-badge');
     const gleamRing = el.querySelector('.marker-gleam-ring');
     const sunray = el.querySelector('.marker-sunray');
-    if (scoreRing) scoreRing.remove();
     if (scoreBadge) scoreBadge.remove();
     if (gleamRing) gleamRing.remove();
     if (sunray) sunray.remove();

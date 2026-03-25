@@ -4649,7 +4649,7 @@ function renderPlatformStats(creator, platform, container) {
     genderCard.innerHTML = `<div class="demos-demo-title">Audience Gender</div>`;
     const donutWrap = document.createElement('div');
     donutWrap.className = 'demos-donut-wrap';
-    const GENDER_COLORS = { Female: '#E8729A', Male: '#5B8DEF', default: '#A0A8B8' };
+    const GENDER_COLORS = { Female: '#FF4D8D', Male: '#3B8BFF', default: '#A0A8B8' };
     const genderData = hasGender ? aud.gender : [{ label: 'Female', value: 50 }, { label: 'Male', value: 50 }];
     const colors = genderData.map(g => GENDER_COLORS[g.label] || GENDER_COLORS.default);
     let gradientParts = [], cumulative = 0;

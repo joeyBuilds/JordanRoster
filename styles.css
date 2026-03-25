@@ -548,8 +548,9 @@ body.dispatch-mode .title-niche {
 
 #mapContainer {
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
+  clip-path: none;
 }
 /* Crosshair cursor when Shift is held — hints at Shift+Click to set destination */
 body.shift-held #mapContainer .leaflet-container {
@@ -1220,6 +1221,7 @@ body.shift-held #mapContainer .leaflet-container {
   gap: 0;
   z-index: 900;
   pointer-events: none;
+  overflow: visible;
 }
 .compare-panel {
   width: 360px;
@@ -1261,6 +1263,10 @@ body.shift-held #mapContainer .leaflet-container {
   background: rgba(var(--bg-hover-rgb), 0.5);
 }
 /* Compare body uses .demos-content class — hide scrollbar */
+/* Push compare header down to align with primary sidebar content (below sidebar tab bar) */
+.compare-panel .demos-sub-tabs {
+  padding-top: 46px;
+}
 .compare-panel .demos-content {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -1287,7 +1293,7 @@ body.shift-held #mapContainer .leaflet-container {
 .compare-slot-0 .demos-stat-icon { color: #E05098; }
 .compare-slot-0 .demos-niche-pill { background: rgba(224, 80, 152, 0.15); color: #F088B8; border-color: rgba(224, 80, 152, 0.3); }
 .compare-slot-0 .demos-bar-track { background: rgba(224, 80, 152, 0.08); }
-.compare-slot-0 .demos-legend-dot { background: #E05098 !important; }
+/* Gender legend dots use inline styles — don't override them */
 
 /* Slot 1: Bright Amber */
 .compare-slot-1 {
@@ -1305,7 +1311,7 @@ body.shift-held #mapContainer .leaflet-container {
 .compare-slot-1 .demos-stat-icon { color: #E8A030; }
 .compare-slot-1 .demos-niche-pill { background: rgba(232, 160, 48, 0.15); color: #F0C060; border-color: rgba(232, 160, 48, 0.3); }
 .compare-slot-1 .demos-bar-track { background: rgba(232, 160, 48, 0.08); }
-.compare-slot-1 .demos-legend-dot { background: #E8A030 !important; }
+/* Gender legend dots use inline styles — don't override them */
 
 /* Recycle Bin tab */
 .recycle-header {

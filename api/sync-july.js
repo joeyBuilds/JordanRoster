@@ -311,6 +311,8 @@ async function enrichWithAudienceData(creators) {
             // Strategy 1: July media kit blocks (primary path)
             const mk = nextData?.props?.pageProps?.data?.mediaKit?.json?.data;
             if (mk && Array.isArray(mk.blocks)) {
+              // Grab the creator's about/bio from the media kit
+              if (mk.about && !creator.bio) creator.bio = mk.about;
               if (extractFromMediaKitBlocks(mk.blocks, creator.platforms, creator)) {
                 enriched++;
                 return;
@@ -649,7 +651,7 @@ async function syncToSupabase(supabase, julyCreators) {
         location: jc.location || null,
         lat: jc.lat ?? null,
         lng: jc.lng ?? null,
-        notes: jc.bio ? `Imported from July · ${jc.bio.substring(0, 200)}` : 'Imported from July',
+        notes: jc.bio ? jc.bio : 'Imported from July',
         created_at: now,
         updated_at: now,
       });

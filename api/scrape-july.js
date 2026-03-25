@@ -311,6 +311,7 @@ async function enrichWithAudienceData(creators) {
             // Strategy 1: July media kit blocks (primary path)
             const mk = nextData?.props?.pageProps?.data?.mediaKit?.json?.data;
             if (mk && Array.isArray(mk.blocks)) {
+              if (mk.about && !creator.bio) creator.bio = mk.about;
               if (extractFromMediaKitBlocks(mk.blocks, creator.platforms, creator)) {
                 enriched++;
                 return;

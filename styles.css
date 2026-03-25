@@ -1226,30 +1226,7 @@ body.shift-held #mapContainer .leaflet-container {
   from { opacity: 0; transform: translateX(-16px); }
   to { opacity: 1; transform: translateX(0); }
 }
-.compare-panel-header-area {
-  flex-shrink: 0;
-  padding: 6px 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-.compare-panel-header-area .demos-creator-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-align: center;
-  padding-bottom: 3px;
-}
-.compare-panel-header-area .demos-niches-row {
-  padding: 0 2px 4px;
-  overflow: hidden;
-  flex: 1;
-}
+/* Compare panels reuse .demos-sub-tabs and .demos-content classes directly */
 .compare-panel-close {
   position: absolute;
   top: 4px;
@@ -1269,24 +1246,13 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-primary);
   background: rgba(var(--bg-hover-rgb), 0.5);
 }
-.compare-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 0;
-  min-height: 0;
+/* Compare body uses .demos-content class — hide scrollbar */
+.compare-panel .demos-content {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.compare-panel-body::-webkit-scrollbar {
+.compare-panel .demos-content::-webkit-scrollbar {
   display: none;
-}
-/* Match primary's content density */
-.compare-panel-body .demos-platform-section {
-  padding: 4px 8px 6px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
 }
 
 /* ── Compare slot color themes ── */
@@ -1295,9 +1261,8 @@ body.shift-held #mapContainer .leaflet-container {
 .compare-slot-0 {
   background: rgba(50, 18, 38, 0.82);
 }
-.compare-slot-0 .compare-panel-header-area {
+.compare-slot-0 .demos-sub-tabs {
   background: rgba(224, 80, 152, 0.06);
-  border-bottom-color: rgba(224, 80, 152, 0.15);
 }
 .compare-slot-0 .demos-creator-name { color: #F0A0C8; }
 .compare-slot-0 .demos-demo-title { color: #E05098 !important; }
@@ -1314,9 +1279,8 @@ body.shift-held #mapContainer .leaflet-container {
 .compare-slot-1 {
   background: rgba(48, 36, 14, 0.82);
 }
-.compare-slot-1 .compare-panel-header-area {
+.compare-slot-1 .demos-sub-tabs {
   background: rgba(232, 160, 48, 0.06);
-  border-bottom-color: rgba(232, 160, 48, 0.15);
 }
 .compare-slot-1 .demos-creator-name { color: #F0D090; }
 .compare-slot-1 .demos-demo-title { color: #E8A030 !important; }

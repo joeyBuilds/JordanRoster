@@ -4857,9 +4857,11 @@ function renderAllComparePanels() {
     const panel = document.createElement('div');
     panel.className = 'compare-panel compare-slot-' + i;
 
-    // ── Header area — fixed height matching primary's subTabs ──
+    // ── Pinned header — uses exact same classes as primary's demosSubTabs ──
     const headerArea = document.createElement('div');
-    headerArea.className = 'compare-panel-header-area';
+    headerArea.className = 'demos-sub-tabs';
+    headerArea.style.display = 'block';
+    headerArea.style.position = 'relative';
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'compare-panel-close';
@@ -4885,11 +4887,18 @@ function renderAllComparePanels() {
       headerArea.appendChild(nichesRow);
     }
 
+    // Placeholder row matching sub-tab-row height
+    const tabPlaceholder = document.createElement('div');
+    tabPlaceholder.className = 'demos-sub-tab-row';
+    tabPlaceholder.style.visibility = 'hidden';
+    tabPlaceholder.style.minHeight = '26px';
+    headerArea.appendChild(tabPlaceholder);
+
     panel.appendChild(headerArea);
 
-    // ── Body — identical to primary's content area ──
+    // ── Body — uses exact same classes as primary's demosContent ──
     const body = document.createElement('div');
-    body.className = 'compare-panel-body';
+    body.className = 'demos-content';
 
     const section = document.createElement('div');
     section.className = 'demos-platform-section';
@@ -4904,22 +4913,6 @@ function renderAllComparePanels() {
     body.appendChild(section);
     panel.appendChild(body);
     stack.appendChild(panel);
-  });
-
-  // ── Pin header height + body top to match primary exactly ──
-  requestAnimationFrame(() => {
-    const primarySubTabs = document.getElementById('demosSubTabs');
-    if (!primarySubTabs) return;
-    const primaryHeaderH = primarySubTabs.offsetHeight;
-
-    stack.querySelectorAll('.compare-panel').forEach(panel => {
-      const headerArea = panel.querySelector('.compare-panel-header-area');
-      if (headerArea) {
-        headerArea.style.height = primaryHeaderH + 'px';
-        headerArea.style.minHeight = primaryHeaderH + 'px';
-        headerArea.style.maxHeight = primaryHeaderH + 'px';
-      }
-    });
   });
 }
 

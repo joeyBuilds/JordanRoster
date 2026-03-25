@@ -4603,12 +4603,15 @@ function renderPlatformStats(creator, platform, container) {
       const card = document.createElement('div');
       card.className = 'demos-demo-card ' + colorClass;
       card.innerHTML = `<div class="demos-demo-title">${title}</div>`;
-      const items = data.slice(0, maxItems || 6);
-      const maxVal = Math.max(...items.map(d => d.value), 1);
+      const top = data.slice(0, maxItems || 6);
+      // Add "Other" row if there are more items beyond the displayed ones
+      const topSum = top.reduce((s, d) => s + d.value, 0);
+      const items = topSum < 99.5 ? [...top, { label: 'Other', value: Math.max(0, 100 - topSum) }] : top;
+      // Bars represent % of 100 (not relative to max)
       items.forEach(item => {
         const row = document.createElement('div');
         row.className = 'demos-bar-row';
-        row.innerHTML = `<span class="demos-bar-label">${item.label}</span><div class="demos-bar-track"><div class="demos-bar-fill" style="width:${(item.value / maxVal) * 100}%"></div></div><span class="demos-bar-value">${item.value.toFixed(1)}%</span>`;
+        row.innerHTML = `<span class="demos-bar-label">${item.label}</span><div class="demos-bar-track"><div class="demos-bar-fill" style="width:${item.value}%"></div></div><span class="demos-bar-value">${item.value.toFixed(1)}%</span>`;
         card.appendChild(row);
       });
       demoGrid.appendChild(card);

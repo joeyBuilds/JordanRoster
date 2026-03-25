@@ -32,13 +32,17 @@
   ],
   "crons": [
     {
-      "path": "/api/scrape-july",
+      "path": "/api/sync-july",
       "schedule": "0 8 * * *"
     }
   ],
   "functions": {
     "api/scrape-july.js": {
       "maxDuration": 60,
+      "memory": 512
+    },
+    "api/sync-july.js": {
+      "maxDuration": 120,
       "memory": 512
     }
   }

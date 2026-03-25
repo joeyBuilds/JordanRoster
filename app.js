@@ -2264,11 +2264,7 @@ function renderRing(creator) {
   const avatarWrap = document.createElement('div');
   avatarWrap.className = 'ring-avatar-wrap';
 
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'ring-close-btn';
-  closeBtn.innerHTML = '&times;';
-  closeBtn.onclick = (e) => { e.stopPropagation(); closeDetailPanel(); };
-  avatarWrap.appendChild(closeBtn);
+  // Close button removed — clicking the map scrim closes the ring
 
   // Check if dispatch scoring should be shown
   const ringHasDispatch = document.body.classList.contains('dispatch-mode') && (
@@ -5003,6 +4999,41 @@ function clearDispatchDestination() {
 }
 
 // ===========================
+// CSS VARIABLE COLOR HELPERS
+// ===========================
+
+// Rank colors (gold / silver / bronze) resolved from CSS custom properties at call time.
+function getRankColors() {
+  const s = getComputedStyle(document.documentElement);
+  return [
+    s.getPropertyValue('--warning').trim() || '#c9a96e',
+    s.getPropertyValue('--text-secondary').trim() || '#a8a8a8',
+    s.getPropertyValue('--mocha').trim() || '#b87b5e'
+  ];
+}
+
+// Bloom-petal palette resolved from CSS custom properties.
+function getBloomPetalColors(isDispatch) {
+  const s = getComputedStyle(document.documentElement);
+  if (isDispatch) {
+    return [
+      s.getPropertyValue('--accent').trim() || '#E8A8A0',
+      s.getPropertyValue('--accent-dark').trim() || '#D4908E',
+      s.getPropertyValue('--accent-light').trim() || '#F0C8C0',
+      s.getPropertyValue('--lavender').trim() || '#BBA7CF',
+      s.getPropertyValue('--rose').trim() || '#F5DDD5'
+    ];
+  }
+  return [
+    s.getPropertyValue('--sage').trim() || '#9BB5A0',
+    s.getPropertyValue('--text-muted').trim() || '#8A7A70',
+    s.getPropertyValue('--mocha').trim() || '#C09A8A',
+    s.getPropertyValue('--lavender').trim() || '#BBA7CF',
+    s.getPropertyValue('--bg-hover').trim() || '#4A3E38'
+  ];
+}
+
+// ===========================
 // PROXIMITY RINGS + MAP LEGEND
 // ===========================
 
@@ -5065,9 +5096,9 @@ function _showMapLegend() {
     legend = document.createElement('div');
     legend.className = 'map-legend';
     legend.innerHTML = `
-      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--success); background: rgba(142,174,139,0.3);"></div> Full match</div>
-      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--success); background: rgba(142,174,139,0.15);"></div> High match</div>
-      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--warning, #C4A85A); background: rgba(196,168,90,0.15);"></div> Partial</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--success); background: rgba(var(--success-rgb), 0.3);"></div> Full match</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--success); background: rgba(var(--success-rgb), 0.15);"></div> High match</div>
+      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--warning, #C4A85A); background: rgba(var(--tag-niche-rgb), 0.15);"></div> Partial</div>
       <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--mocha); opacity: 0.5;"></div> Low / None</div>
     `;
     document.getElementById('mapContainer').appendChild(legend);
@@ -5253,7 +5284,7 @@ function renderNearestCreators() {
   // ── Panel-level hover management ──
   // Save map view once when mouse enters the panel, restore only when it leaves entirely.
   // Individual rows just fly + draw arcs without triggering restore.
-  const RANK_COLORS = ['#c9a96e', '#a8a8a8', '#b87b5e'];
+  const rankColors = getRankColors();
   let activeRowEnterTimeout = null;
 
   container.addEventListener('mouseleave', () => {
@@ -5313,11 +5344,11 @@ function renderNearestCreators() {
         if (container._hoverArc) { map.removeLayer(container._hoverArc); container._hoverArc = null; }
         const arcPts = _bezierArc([c.lat, c.lng], [dispatchDestination.lat, dispatchDestination.lng], 40);
         container._hoverArc = L.polyline(arcPts, {
-          color: RANK_COLORS[i] || 'var(--accent)', weight: 2.5,
+          color: rankColors[i] || 'var(--accent)', weight: 2.5,
           dashArray: '8, 6', opacity: 0.85
         }).addTo(map);
 
-        _showNearestCompareCard(c, item.distance, i, RANK_COLORS);
+        _showNearestCompareCard(c, item.distance, i, rankColors);
       }, 80);
     });
     row.addEventListener('mouseleave', () => {
@@ -5360,9 +5391,7 @@ function triggerBloom(toDispatch) {
   requestAnimationFrame(() => circle.classList.add('expanding'));
 
   // Scatter petals
-  const petalColors = toDispatch
-    ? ['#E8A8A0', '#D4908E', '#F0C8C0', '#BBA7CF', '#F5DDD5']
-    : ['#9BB5A0', '#8A7A70', '#C09A8A', '#BBA7CF', '#4A3E38'];
+  const petalColors = getBloomPetalColors(toDispatch);
 
   for (let i = 0; i < 12; i++) {
     const petal = document.createElement('div');
@@ -6262,8 +6291,61 @@ const julyImport = (() => {
     setTimeout(() => { overlay.style.display = 'none'; }, 250);
   }
 
+  // ── Sync: scrape July + auto-merge into roster via server-side endpoint ──
+  async function syncFromJuly() {
+    const btn = document.getElementById('julySyncBtn');
+    const btnLabel = btn.querySelector('.july-sync-label');
+    const btnIcon = btn.querySelector('.july-sync-icon');
+    const btnSpinner = btn.querySelector('.july-sync-spinner');
+
+    btn.disabled = true;
+    btnLabel.textContent = 'Syncing…';
+    btnIcon.style.display = 'none';
+    btnSpinner.style.display = 'inline-block';
+
+    try {
+      const resp = await fetch('/api/sync-july');
+      const data = await resp.json();
+
+      if (data.success) {
+        // Reload roster from Supabase to pick up changes
+        creators = await db.load();
+        creators.forEach(migratePlatforms);
+        creators.forEach(migrateDemographics);
+        creators.forEach(migrateLocation);
+        renderRosterTab();
+        updateMapMarkers();
+        updateStorageIndicator();
+
+        // Build toast message
+        const parts = [];
+        if (data.added > 0) parts.push(`${data.added} new`);
+        if (data.updated > 0) parts.push(`${data.updated} updated`);
+        if (parts.length === 0) {
+          showToast('Roster is up to date with July', 'success');
+        } else {
+          showToast(`Synced: ${parts.join(', ')}`, 'success');
+        }
+
+        // Geocode any new creators missing coordinates
+        geocodeMissing();
+      } else {
+        throw new Error(data.error || 'Sync failed');
+      }
+    } catch (e) {
+      console.error('[july-sync] Error:', e);
+      showToast('July sync failed — ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btnLabel.textContent = 'Sync July';
+      btnIcon.style.display = '';
+      btnSpinner.style.display = 'none';
+    }
+  }
+
   // Wire up events
-  document.getElementById('julyImportBtn').addEventListener('click', open);
+  document.getElementById('julySyncBtn').addEventListener('click', syncFromJuly);
+  document.getElementById('julyBrowseBtn').addEventListener('click', open);
   document.getElementById('julyCloseBtn').addEventListener('click', close);
   document.getElementById('julyCancelBtn').addEventListener('click', close);
   document.getElementById('julyAddBtn').addEventListener('click', addSelectedToRoster);
@@ -6277,7 +6359,7 @@ const julyImport = (() => {
     renderGrid();
   }, 150));
 
-  return { open, close, fetchFromJuly };
+  return { open, close, fetchFromJuly, syncFromJuly };
 })();
 
 // ===========================

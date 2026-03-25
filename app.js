@@ -1712,6 +1712,7 @@ function openCategoryOrganizer(type) {
   const getAllItems = type === 'niche' ? getAllNiches : getAllDemographics;
   const categories = loadTagCategories(type);
   let dragItem = null;
+  let dragCategory = null;
   let deleteMode = false;
   let deleteMarked = new Set();
 
@@ -1871,6 +1872,23 @@ function openCategoryOrganizer(type) {
     labelText.className = 'tag-category-label-text';
     labelText.textContent = catName;
 
+    // Category-level drag-and-drop reordering
+    if (!isCustomGroup && !deleteMode) {
+      label.draggable = true;
+      label.style.cursor = 'grab';
+      label.addEventListener('dragstart', (e) => {
+        dragCategory = catName;
+        dragItem = null;
+        label.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      label.addEventListener('dragend', () => {
+        label.classList.remove('dragging');
+        dragCategory = null;
+        grid.querySelectorAll('.drag-over-category').forEach(el => el.classList.remove('drag-over-category'));
+      });
+    }
+
     if (!isCustomGroup) {
       const editBtn = document.createElement('button');
       editBtn.className = 'tag-category-edit-btn';
@@ -1970,6 +1988,36 @@ function openCategoryOrganizer(type) {
         const group = document.createElement('div');
         group.className = 'tag-category-group';
         if (itemsInCat.length === 0) group.classList.add('empty-drop-target');
+        // Category-level drop zone — reorder categories by dragging headers
+        group.addEventListener('dragover', (e) => {
+          if (!dragCategory || dragCategory === catName) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          group.classList.add('drag-over-category');
+        });
+        group.addEventListener('dragleave', (e) => {
+          if (!group.contains(e.relatedTarget)) group.classList.remove('drag-over-category');
+        });
+        group.addEventListener('drop', (e) => {
+          group.classList.remove('drag-over-category');
+          if (!dragCategory || dragCategory === catName) return;
+          e.preventDefault();
+          e.stopPropagation();
+          // Reorder: move dragCategory before catName
+          const keys = Object.keys(categories);
+          const fromIdx = keys.indexOf(dragCategory);
+          const toIdx = keys.indexOf(catName);
+          if (fromIdx < 0 || toIdx < 0) return;
+          keys.splice(fromIdx, 1);
+          keys.splice(toIdx, 0, dragCategory);
+          const reordered = {};
+          keys.forEach(k => { reordered[k] = categories[k]; });
+          Object.keys(categories).forEach(k => delete categories[k]);
+          Object.assign(categories, reordered);
+          saveTagCategories(type, categories);
+          dragCategory = null;
+          renderGrid();
+        });
         group.appendChild(makeCategoryLabel(catName, false));
         const pillsWrap = document.createElement('div');
         pillsWrap.className = 'tag-category-pills';

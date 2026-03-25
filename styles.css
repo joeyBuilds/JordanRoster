@@ -5240,7 +5240,8 @@ a.ring-platform-chip:hover {
   opacity: 0.4;
   transform: scale(0.97);
 }
-.tag-category-group.cat-drop-before {
+.tag-category-group.cat-drop-before,
+.tag-category-group.drag-over-category {
   border-top: 2px solid var(--accent);
   padding-top: 2px;
 }

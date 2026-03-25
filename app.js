@@ -2003,7 +2003,9 @@ function updateMapMarkers() {
         iconAnchor: [28, 28]
       });
 
-      const marker = L.marker([creator.lat, creator.lng], { icon });
+      // In dispatch mode, boost z-index so higher-scoring pins stack on top
+      const zOffset = (isDispatch && hasDispatchFilters) ? Math.round(scorePct * 1000) : 0;
+      const marker = L.marker([creator.lat, creator.lng], { icon, zIndexOffset: zOffset });
       marker._dispatchScore = scorePct; // store for ring-sort priority
 
       // Hover tooltip — shows creator name + score in dispatch mode

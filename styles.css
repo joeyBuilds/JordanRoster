@@ -112,52 +112,52 @@
    DISPATCH MODE THEME OVERRIDE
    =========================== */
 body.dispatch-mode {
-  /* ── Warm Amber-Rose shift for Niche mode ── */
-  --bg-primary: #1A1410;
-  --bg-primary-rgb: 26, 20, 16;
-  --bg-secondary: #1E1814;
-  --bg-secondary-rgb: 30, 24, 20;
-  --bg-card: #2A2018;
-  --bg-card-rgb: 42, 32, 24;
-  --bg-hover: #342820;
-  --bg-hover-rgb: 52, 40, 32;
-  --bg-input: #221A14;
-  --bg-input-rgb: 34, 26, 20;
-  --accent: #D4A080;
-  --accent-rgb: 212, 160, 128;
-  --accent-light: #E8C0A8;
-  --accent-light-rgb: 232, 192, 168;
-  --accent-dark: #C0886A;
-  --accent-dark-rgb: 192, 136, 106;
-  --text-primary: #F0E8E0;
-  --text-primary-rgb: 240, 232, 224;
-  --text-secondary: #C4B0A0;
-  --text-secondary-rgb: 196, 176, 160;
-  --text-muted: #7A6858;
-  --text-muted-rgb: 122, 104, 88;
-  --border: #3A2E24;
-  --border-rgb: 58, 46, 36;
+  /* ── iamsocial blue-purple-pink shift for Niche mode ── */
+  --bg-primary: #12111A;
+  --bg-primary-rgb: 18, 17, 26;
+  --bg-secondary: #16141E;
+  --bg-secondary-rgb: 22, 20, 30;
+  --bg-card: #1E1A2A;
+  --bg-card-rgb: 30, 26, 42;
+  --bg-hover: #282234;
+  --bg-hover-rgb: 40, 34, 52;
+  --bg-input: #1A1622;
+  --bg-input-rgb: 26, 22, 34;
+  --accent: #9B7BD4;
+  --accent-rgb: 155, 123, 212;
+  --accent-light: #B8A0E8;
+  --accent-light-rgb: 184, 160, 232;
+  --accent-dark: #7B5CB8;
+  --accent-dark-rgb: 123, 92, 184;
+  --text-primary: #EDE8F4;
+  --text-primary-rgb: 237, 232, 244;
+  --text-secondary: #B0A4C4;
+  --text-secondary-rgb: 176, 164, 196;
+  --text-muted: #6A5E7A;
+  --text-muted-rgb: 106, 94, 122;
+  --border: #2E2840;
+  --border-rgb: 46, 40, 64;
   --success: #A8C8A5;
   --success-rgb: 168, 200, 165;
   --warning: #E0C88C;
   --warning-rgb: 224, 200, 140;
   --danger: #D48A8A;
   --danger-rgb: 212, 138, 138;
-  --shadow: 0 4px 20px rgba(26, 20, 16, 0.3);
-  --shadow-lg: 0 12px 40px rgba(26, 20, 16, 0.4);
-  --sage: #A0A880;
-  --sage-rgb: 160, 168, 128;
-  --lavender: #C0A8C8;
-  --lavender-rgb: 192, 168, 200;
-  --rose: #D4A0A0;
-  --rose-rgb: 212, 160, 160;
-  --mocha: #C09A80;
-  --mocha-rgb: 192, 154, 128;
-  --glass-bg: rgba(26, 20, 16, 0.28);
-  --glass-border: rgba(255, 255, 255, 0.10);
-  --glass-highlight: rgba(255, 255, 255, 0.08);
+  --shadow: 0 4px 20px rgba(18, 17, 26, 0.3);
+  --shadow-lg: 0 12px 40px rgba(18, 17, 26, 0.4);
+  --sage: #8898C0;
+  --sage-rgb: 136, 152, 192;
+  --lavender: #B8A0D8;
+  --lavender-rgb: 184, 160, 216;
+  --rose: #D480B8;
+  --rose-rgb: 212, 128, 184;
+  --mocha: #A088C0;
+  --mocha-rgb: 160, 136, 192;
+  --glass-bg: rgba(18, 17, 26, 0.28);
+  --glass-border: rgba(200, 180, 255, 0.10);
+  --glass-highlight: rgba(200, 180, 255, 0.08);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  --glass-inset: inset 0 1px 0 rgba(200, 180, 255, 0.08), inset 0 0 0 0.5px rgba(200, 180, 255, 0.04);
   --tag-platform: #A8C8A5;
   --tag-platform-rgb: 168, 200, 165;
   --tag-niche: #D4B468;
@@ -198,6 +198,14 @@ body.dispatch-mode #sidebar::after {
 body.dispatch-mode .sidebar-tabs {
   background: rgba(var(--bg-card-rgb), 0.3);
 }
+/* Niche mode tab indicator — iamsocial blue→pink gradient */
+body.dispatch-mode .sidebar-tabs::before {
+  background: linear-gradient(90deg, transparent, #5B8DEF, #9B7BD4, #D670BF, transparent);
+}
+body.dispatch-mode .sidebar-tabs::after {
+  background: rgba(155, 123, 212, 0.08);
+  border: 1px solid rgba(155, 123, 212, 0.20);
+}
 /* Map canvas: no mode-based filters or treatments */
 
 /* ===========================
@@ -237,12 +245,12 @@ body.dispatch-mode .sidebar-tabs {
   animation: modeEnter 0.5s cubic-bezier(0, 0, 0.2, 1) forwards;
 }
 @keyframes modeExit {
-  0%   { opacity: 1; transform: translateY(0); filter: blur(0); }
-  100% { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(8px) scale(0.98); }
 }
 @keyframes modeEnter {
-  0%   { opacity: 0; transform: translateY(-6px); filter: blur(2px); }
-  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+  0%   { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Phase 3: Map — no filter transitions */
@@ -472,7 +480,7 @@ body.dispatch-mode .title-niche {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -480,8 +488,8 @@ body.dispatch-mode .title-niche {
 
 .btn-primary {
   background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.5), rgba(var(--accent-dark-rgb), 0.6));
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   color: white;
   box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.2), var(--glass-inset);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -626,6 +634,7 @@ body.shift-held #mapContainer .leaflet-container {
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   transform: scale(var(--marker-scale, 1));
   transform-origin: center 28px;
+  will-change: transform;
 }
 /* Ring-grouped markers: translate + scale compose via CSS */
 .creator-marker .marker-inner.ring-offset {
@@ -855,8 +864,8 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .nuke-dialog {
   background: rgba(var(--bg-secondary-rgb), 0.3);
-  backdrop-filter: blur(36px) saturate(1.4);
-  -webkit-backdrop-filter: blur(36px) saturate(1.4);
+  \1;
+  -webkit-\1;
   border: 2px solid var(--danger);
   border-radius: 16px;
   padding: 28px 24px;
@@ -1119,8 +1128,8 @@ body.shift-held #mapContainer .leaflet-container {
   flex-direction: column;
   gap: 8px;
   background: rgba(var(--bg-card-rgb), 0.2);
-  backdrop-filter: blur(28px) saturate(1.2);
-  -webkit-backdrop-filter: blur(28px) saturate(1.2);
+  \1;
+  -webkit-\1;
 }
 
 /* Search + Add button on one row */
@@ -1168,12 +1177,12 @@ body.shift-held #mapContainer .leaflet-container {
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   color: var(--text-primary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 0;
   box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.08);
 }
@@ -1544,8 +1553,8 @@ body.shift-held #mapContainer .leaflet-container {
   height: 100%;
   z-index: 1002;
   background: rgba(var(--bg-card-rgb), 0.22);
-  backdrop-filter: blur(32px) saturate(1.3);
-  -webkit-backdrop-filter: blur(32px) saturate(1.3);
+  \1;
+  -webkit-\1;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 8px 0 40px rgba(0, 0, 0, 0.2), var(--glass-inset);
   display: none;
@@ -1793,13 +1802,13 @@ body.shift-held #mapContainer .leaflet-container {
   gap: 10px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.035);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 3px solid transparent;
   border-radius: 14px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: visible;
   flex-shrink: 0;
@@ -3372,8 +3381,8 @@ a.creator-platform-chip:hover {
 .nearest-float {
   width: 100%;
   background: rgba(var(--bg-hover-rgb), 0.2);
-  backdrop-filter: blur(32px) saturate(1.4);
-  -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  \1;
+  -webkit-\1;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), var(--glass-inset);
@@ -3689,8 +3698,8 @@ a.creator-platform-chip:hover {
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.2),
     var(--glass-inset);
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  \1;
+  -webkit-\1;
   flex: 0 0 auto;
   min-width: 120px;
   box-sizing: border-box;
@@ -3849,8 +3858,8 @@ a.ring-platform-chip:hover {
 .ring-name-card {
   text-align: center;
   background: rgba(var(--bg-hover-rgb), 0.25);
-  backdrop-filter: blur(32px) saturate(1.5);
-  -webkit-backdrop-filter: blur(32px) saturate(1.5);
+  \1;
+  -webkit-\1;
   border-radius: 16px;
   padding: 14px 24px 12px;
   box-shadow:
@@ -3943,8 +3952,8 @@ a.ring-platform-chip:hover {
   color: rgba(255,255,255,0.92);
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  \1;
+  -webkit-\1;
   box-shadow: 0 3px 12px rgba(0,0,0,0.15), var(--glass-inset);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -4003,18 +4012,12 @@ a.ring-platform-chip:hover {
 
 @keyframes graceGlow {
   0%, 100% {
-    box-shadow:
-      0 0 14px 4px rgba(255, 215, 80, 0.25),
-      0 0 40px 8px rgba(255, 200, 60, 0.08),
-      0 3px 12px rgba(0, 0, 0, 0.15),
-      var(--glass-inset);
+    opacity: 0.7;
+    transform: scale(1);
   }
   50% {
-    box-shadow:
-      0 0 22px 8px rgba(255, 215, 80, 0.45),
-      0 0 56px 14px rgba(255, 200, 60, 0.15),
-      0 3px 12px rgba(0, 0, 0, 0.15),
-      var(--glass-inset);
+    opacity: 1;
+    transform: scale(1.02);
   }
 }
 @keyframes graceSweep {
@@ -4158,8 +4161,8 @@ a.ring-platform-chip:hover {
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(28px) saturate(1.4);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  \1;
+  -webkit-\1;
   color: var(--text-primary);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.2),
@@ -4236,8 +4239,8 @@ a.ring-platform-chip:hover {
   max-width: 500px;
   max-height: 90vh;
   background: rgba(var(--bg-card-rgb), 0.35);
-  backdrop-filter: blur(36px) saturate(1.4);
-  -webkit-backdrop-filter: blur(36px) saturate(1.4);
+  \1;
+  -webkit-\1;
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
@@ -4332,8 +4335,8 @@ a.ring-platform-chip:hover {
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  \1;
+  -webkit-\1;
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   color: var(--text-primary);
@@ -5230,8 +5233,8 @@ a.ring-platform-chip:hover {
   width: 340px;
   max-height: 70vh;
   background: rgba(var(--bg-card-rgb), 0.25);
-  backdrop-filter: blur(36px) saturate(1.4);
-  -webkit-backdrop-filter: blur(36px) saturate(1.4);
+  \1;
+  -webkit-\1;
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
@@ -5521,8 +5524,8 @@ a.ring-platform-chip:hover {
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   opacity: 0;
@@ -5686,8 +5689,8 @@ body.dispatch-mode .marker-cluster-inner {
   height: 85vh;
   max-height: 750px;
   background: rgba(var(--bg-primary-rgb), 0.3);
-  backdrop-filter: blur(36px) saturate(1.4);
-  -webkit-backdrop-filter: blur(36px) saturate(1.4);
+  \1;
+  -webkit-\1;
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
@@ -6357,25 +6360,19 @@ body.dispatch-mode .marker-cluster-inner {
 .creator-marker.dispatch-match.score-perfect .marker-gleam-ring {
   border-color: rgba(255, 220, 100, 0.8);
   border-width: 2.5px;
+  box-shadow: 0 0 18px 6px rgba(255, 215, 80, 0.4), 0 0 40px 12px rgba(255, 200, 60, 0.15);
   animation: perfectBreathe 4.5s ease-in-out infinite;
   animation-delay: calc(-1 * var(--stagger, 0ms));
+  will-change: transform, opacity;
 }
 @keyframes perfectBreathe {
   0%, 100% {
-    opacity: 0.9;
+    opacity: 0.85;
     transform: scale(1);
-    box-shadow:
-      0 0 16px 6px rgba(255, 215, 80, 0.35),
-      0 0 40px 12px rgba(255, 200, 60, 0.15),
-      inset 0 0 8px 3px rgba(255, 230, 120, 0.12);
   }
   50% {
     opacity: 1;
     transform: scale(1.08);
-    box-shadow:
-      0 0 24px 8px rgba(255, 215, 80, 0.50),
-      0 0 56px 18px rgba(255, 200, 60, 0.20),
-      inset 0 0 12px 4px rgba(255, 230, 120, 0.18);
   }
 }
 
@@ -6439,16 +6436,10 @@ body.dispatch-mode .marker-cluster-inner {
   0%, 100% {
     opacity: 0.75;
     transform: scale(1);
-    box-shadow:
-      0 0 8px 3px rgba(var(--gold-rgb),0.2),
-      inset 0 0 4px 1px rgba(var(--gold-rgb),0.06);
   }
   50% {
     opacity: 0.95;
     transform: scale(1.04);
-    box-shadow:
-      0 0 12px 4px rgba(var(--gold-rgb),0.28),
-      inset 0 0 6px 2px rgba(var(--gold-rgb),0.08);
   }
 }
 

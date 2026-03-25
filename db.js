@@ -332,186 +332,29 @@ function flushPersist() {
   // No-op for Supabase — writes are already remote
 }
 
-// ── Migration from old SQLite/IndexedDB ──
-
-async function _migrateFromIndexedDB() {
-  try {
-    if (typeof initSqlJs === 'undefined') {
-      console.log('sql.js not available — skipping IndexedDB migration');
-      return false;
-    }
-
-    // Try to load old database from IndexedDB
-    const savedData = await new Promise((resolve) => {
-      const req = indexedDB.open('creator_roster', 1);
-      req.onupgradeneeded = () => {
-        const idb = req.result;
-        if (!idb.objectStoreNames.contains('sqliteDb')) {
-          idb.createObjectStore('sqliteDb');
-        }
-      };
-      req.onsuccess = () => {
-        const idb = req.result;
-        try {
-          const tx = idb.transaction('sqliteDb', 'readonly');
-          const store = tx.objectStore('sqliteDb');
-          const getReq = store.get('main');
-          getReq.onsuccess = () => resolve(getReq.result || null);
-          getReq.onerror = () => resolve(null);
-        } catch (e) {
-          resolve(null);
-        }
-      };
-      req.onerror = () => resolve(null);
-    });
-
-    if (!savedData) {
-      console.log('No IndexedDB data found — nothing to migrate');
-      return false;
-    }
-
-    console.log('Found old SQLite data in IndexedDB. Migrating to Supabase...');
-    if (typeof showToast === 'function') showToast('Migrating data to cloud...', 'info');
-
-    // Load old SQLite database
-    const SQL = await initSqlJs({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${file}`
-    });
-    const oldDb = new SQL.Database(new Uint8Array(savedData));
-
-    function oldQueryAll(sql) {
-      try {
-        const stmt = oldDb.prepare(sql);
-        const results = [];
-        while (stmt.step()) results.push(stmt.getAsObject());
-        stmt.free();
-        return results;
-      } catch (e) {
-        return [];
-      }
-    }
-
-    const oldCreators = oldQueryAll('SELECT * FROM creators');
-    const oldPlatforms = oldQueryAll('SELECT * FROM creator_platforms');
-    const oldNiches = oldQueryAll('SELECT * FROM creator_niches');
-    const oldDemos = oldQueryAll('SELECT * FROM creator_demographics');
-    const oldBin = oldQueryAll('SELECT * FROM recycle_bin');
-    const oldSettings = oldQueryAll('SELECT * FROM settings');
-
-    if (oldCreators.length === 0) {
-      console.log('No creators in old database');
-      oldDb.close();
-      return false;
-    }
-
-    console.log(`Migrating ${oldCreators.length} creators...`);
-
-    // Build lookup maps from old data
-    const platformMap = {};
-    oldPlatforms.forEach(p => {
-      if (!platformMap[p.creatorId]) platformMap[p.creatorId] = [];
-      platformMap[p.creatorId].push(p);
-    });
-
-    const nicheMap = {};
-    oldNiches.forEach(n => {
-      if (!nicheMap[n.creatorId]) nicheMap[n.creatorId] = [];
-      nicheMap[n.creatorId].push(n);
-    });
-
-    const demoMap = {};
-    oldDemos.forEach(d => {
-      if (!demoMap[d.creatorId]) demoMap[d.creatorId] = [];
-      demoMap[d.creatorId].push(d);
-    });
-
-    // Convert old format to app format
-    const creators = oldCreators.map(row => ({
-      id: row.id,
-      firstName: row.firstName || '',
-      lastName: row.lastName || '',
-      photo: row.photo || null,
-      email: row.email || null,
-      mediaKit: row.mediaKit || null,
-      birthday: row.birthday || null,
-      platforms: (() => {
-        const p = {};
-        (platformMap[row.id] || []).forEach(pr => {
-          p[pr.platform] = { handle: pr.handle || '', url: pr.url || '', followers: pr.followers };
-        });
-        return p;
-      })(),
-      niches: (nicheMap[row.id] || []).map(n => n.niche),
-      demographics: (demoMap[row.id] || []).map(d => d.demographic),
-      location: row.location || null,
-      lat: row.lat,
-      lng: row.lng,
-      notes: row.notes || null,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt
-    }));
-
-    // Write to Supabase
-    await db.save(creators);
-
-    // Migrate recycle bin
-    if (oldBin.length > 0) {
-      const binRows = oldBin.map(row => ({
-        id: row.id,
-        creator_data: JSON.parse(row.creatorData),
-        deleted_at: row.deletedAt
-      }));
-      await _supabase.from('recycle_bin').upsert(binRows);
-      _recycleBinCount = binRows.length;
-    }
-
-    // Migrate settings
-    if (oldSettings.length > 0) {
-      const settingsRows = oldSettings.map(s => {
-        let value;
-        try { value = JSON.parse(s.value); } catch { value = s.value; }
-        return { key: s.key, value };
-      });
-      await _supabase.from('settings').upsert(settingsRows);
-      settingsRows.forEach(s => { _settingsCache[s.key] = s.value; });
-    }
-
-    oldDb.close();
-    console.log('Migration complete!');
-    if (typeof showToast === 'function') showToast(`Migrated ${creators.length} creators to cloud!`, 'success');
-    return true;
-  } catch (e) {
-    console.error('Migration from IndexedDB failed:', e);
-    if (typeof showToast === 'function') showToast('Migration failed — check console', 'error');
-    return false;
-  }
-}
-
 // ── Initialization ──
 
 async function initDatabase() {
+  // Wait for Supabase to load (async script)
+  let retries = 0;
+  while (typeof window.supabase === 'undefined' && retries < 50) {
+    await new Promise(r => setTimeout(r, 100));
+    retries++;
+  }
   if (typeof window.supabase === 'undefined') {
     throw new Error('Supabase client not loaded — check script tag in index.html');
   }
 
   _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // Load settings into cache
-  const { data: settingsRows } = await _supabase.from('settings').select('*');
+  // Load settings and recycle bin count in parallel
+  const [{ data: settingsRows }, { count }] = await Promise.all([
+    _supabase.from('settings').select('*'),
+    _supabase.from('recycle_bin').select('*', { count: 'exact', head: true })
+  ]);
+
   (settingsRows || []).forEach(s => {
     _settingsCache[s.key] = s.value;
   });
-
-  // Load recycle bin count
-  const { count } = await _supabase.from('recycle_bin')
-    .select('*', { count: 'exact', head: true });
   _recycleBinCount = count || 0;
-
-  // Check if Supabase has any creators — if not, try migration from old IndexedDB
-  const { count: creatorCount } = await _supabase.from('creators')
-    .select('*', { count: 'exact', head: true });
-
-  if (creatorCount === 0) {
-    await _migrateFromIndexedDB();
-  }
 }

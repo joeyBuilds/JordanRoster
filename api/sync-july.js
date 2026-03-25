@@ -287,12 +287,33 @@ async function syncToSupabase(supabase, julyCreators) {
     supabase.from('creator_niches').select('*'),
   ]);
 
-  // Build lookup: lowercase full name → existing creator row
+  // Build lookup: lowercase full name → existing creator row (keep newest)
+  // Also collect duplicate IDs for cleanup
   const existingByName = {};
+  const duplicateIds = [];
   (existingRows || []).forEach(row => {
-    const fullName = ((row.first_name || '') + ' ' + (row.last_name || '')).trim().toLowerCase();
-    existingByName[fullName] = row;
+    const fullName = ((row.first_name || '') + ' ' + (row.last_name || '')).trim().toLowerCase().replace(/\s+/g, ' ');
+    if (existingByName[fullName]) {
+      // Duplicate found — keep the one with the newer updated_at, queue the other for deletion
+      const existing = existingByName[fullName];
+      const existingDate = existing.updated_at || existing.created_at || '';
+      const newDate = row.updated_at || row.created_at || '';
+      if (newDate > existingDate) {
+        duplicateIds.push(existing.id);
+        existingByName[fullName] = row;
+      } else {
+        duplicateIds.push(row.id);
+      }
+    } else {
+      existingByName[fullName] = row;
+    }
   });
+
+  // Clean up pre-existing duplicates (CASCADE handles related tables)
+  if (duplicateIds.length > 0) {
+    console.log(`[sync] Removing ${duplicateIds.length} duplicate creator(s):`, duplicateIds);
+    await supabase.from('creators').delete().in('id', duplicateIds);
+  }
 
   // Build existing platform map
   const existingPlatformMap = {};
@@ -322,7 +343,7 @@ async function syncToSupabase(supabase, julyCreators) {
   const updateNicheInserts = [];
 
   for (const jc of julyCreators) {
-    const jName = (jc.name || '').trim().toLowerCase();
+    const jName = (jc.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
     if (!jName) continue;
 
     const existing = existingByName[jName];

@@ -224,11 +224,13 @@ function pruneOrphanedTags(type) {
   return changed;
 }
 
-// Get all unique niches across the roster (no preset/custom distinction)
+// Get all unique niches across the roster (no preset/custom distinction) — cached
 function getAllNiches() {
+  if (_cachedAllNiches) return _cachedAllNiches;
   const fromCreators = creators.flatMap(c => c.niches || []);
   const fromCategories = Object.values(loadTagCategories('niche')).flat();
-  return [...new Set([...fromCategories, ...fromCreators])].sort((a, b) => a.localeCompare(b));
+  _cachedAllNiches = [...new Set([...fromCategories, ...fromCreators])].sort((a, b) => a.localeCompare(b));
+  return _cachedAllNiches;
 }
 
 const PRESET_DEMOGRAPHICS = [
@@ -238,10 +240,12 @@ const PRESET_DEMOGRAPHICS = [
 ];
 
 function getAllDemographics() {
+  if (_cachedAllDemos) return _cachedAllDemos;
   const fromCategories = Object.values(loadTagCategories('demographic')).flat();
   const activePresets = PRESET_DEMOGRAPHICS.filter(d => !deletedDemographics.includes(d));
   const custom = creators.flatMap(c => (c.demographics || []).filter(d => !PRESET_DEMOGRAPHICS.includes(d)));
-  return [...new Set([...fromCategories, ...activePresets, ...custom])].sort((a, b) => a.localeCompare(b));
+  _cachedAllDemos = [...new Set([...fromCategories, ...activePresets, ...custom])].sort((a, b) => a.localeCompare(b));
+  return _cachedAllDemos;
 }
 
 const TIERS = [
@@ -310,7 +314,33 @@ let dispatchFilters = {
 // NL search region filter — set by natural language parser, used by getFilteredCreators
 let nlRegionFilter = null; // { label, bounds: [latMin, latMax, lngMin, lngMax] }
 
-// rosterFilters removed — niches/demographics filtering is dispatch-only
+// ── Cached filter state check (replaces 8+ inline copies of this logic) ──
+function hasActiveDispatchFilters() {
+  return dispatchFilters.platformTiers.length > 0 ||
+         dispatchFilters.niches.length > 0 ||
+         dispatchFilters.demographics.length > 0 ||
+         dispatchFilters.ageMin !== null ||
+         dispatchFilters.ageMax !== null ||
+         nlRegionFilter !== null;
+}
+
+// ── Cached niche/demo lookups (invalidated on creator changes) ──
+let _cachedAllNiches = null;
+let _cachedAllDemos = null;
+let _cacheGeneration = 0;
+
+function invalidateTagCaches() {
+  _cachedAllNiches = null;
+  _cachedAllDemos = null;
+  _cacheGeneration++;
+}
+
+// Wrap db.persist to auto-invalidate caches when creators change
+const _origDbPersist = db.persist.bind(db);
+db.persist = function(creators) {
+  invalidateTagCaches();
+  return _origDbPersist(creators);
+};
 
 // ===========================
 // HELPERS
@@ -330,6 +360,38 @@ function getFullName(creator) {
     return `${creator.firstName || ''} ${creator.lastName || ''}`.trim();
   }
   return creator.name || 'Unknown';
+}
+
+// Deduplicate creators by normalized name, keeping the most recently updated entry
+function deduplicateCreators(list) {
+  const seen = new Map(); // normalized name → index in result
+  const result = [];
+  for (const creator of list) {
+    const key = getFullName(creator).toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!key || key === 'unknown') {
+      result.push(creator);
+      continue;
+    }
+    if (seen.has(key)) {
+      // Keep the one with the newer updatedAt (or the incoming one if tied)
+      const existingIdx = seen.get(key);
+      const existingDate = result[existingIdx].updatedAt || result[existingIdx].createdAt || '';
+      const newDate = creator.updatedAt || creator.createdAt || '';
+      if (newDate >= existingDate) {
+        // Replace with newer, but preserve the existing ID to avoid orphaned references
+        const keptId = result[existingIdx].id;
+        result[existingIdx] = { ...creator, id: keptId };
+      }
+      // else keep existing, discard this duplicate
+    } else {
+      seen.set(key, result.length);
+      result.push(creator);
+    }
+  }
+  if (result.length < list.length) {
+    console.log(`[dedup] Removed ${list.length - result.length} duplicate creator(s)`);
+  }
+  return result;
 }
 
 function migratePlatforms(creator) {
@@ -394,13 +456,8 @@ function formatEngagementRate(rate) {
   return display.toFixed(1) + '%';
 }
 
-// Normalize engagement rate to consistent percentage scale for sorting
-// Uses raw value (no 1% floor) so sort order stays accurate
-function getNormalizedEngagementRate(creator, platform) {
-  const rate = getEngagementRate(creator, platform);
-  if (rate === null || rate === undefined) return null;
-  return rate;
-}
+// getNormalizedEngagementRate is just getEngagementRate (no transform needed)
+const getNormalizedEngagementRate = getEngagementRate;
 
 function formatFollowers(count) {
   if (count === null || count === undefined) return '';
@@ -1015,13 +1072,7 @@ function renderDispatchTab() {
   const sortBy = document.getElementById('sortSelect').value;
   const filtered = getFilteredCreators('', sortBy, true);
 
-  // Check if any filters are active
-  const hasFilters = dispatchFilters.platformTiers.length > 0 ||
-                     dispatchFilters.niches.length > 0 ||
-                     dispatchFilters.demographics.length > 0 ||
-                     dispatchFilters.ageMin !== null ||
-                     dispatchFilters.ageMax !== null ||
-                     nlRegionFilter !== null;
+  const hasFilters = hasActiveDispatchFilters();
 
   // Sync the Who? clear button — show × when any filters are active OR input has text
   const nlClearBtn = document.getElementById('nlSearchClear');
@@ -1234,7 +1285,6 @@ function renderDispatchFilters() {
         }
         renderDispatchFilters();
         renderDispatchTab();
-        updateMapMarkers();
       };
 
       tierRow.appendChild(btn);
@@ -1257,7 +1307,6 @@ function renderDispatchFilters() {
       );
       renderDispatchFilters();
       renderDispatchTab();
-      updateMapMarkers();
     };
     pillsContainer.appendChild(pill);
   });
@@ -1285,7 +1334,6 @@ function clearVibesFilters() {
   if (nlInput) nlInput.value = '';
   renderDispatchFilterPills();
   renderDispatchTab();
-  updateMapMarkers();
   renderDispatchActiveStrip();
 }
 
@@ -1329,7 +1377,6 @@ function renderDispatchFilterPills() {
     clearVibeSearch();
     renderDispatchFilterPills();
     renderDispatchTab();
-    updateMapMarkers();
   }
   function onToggleDemo(d) {
     const idx = dispatchFilters.demographics.indexOf(d);
@@ -1338,7 +1385,6 @@ function renderDispatchFilterPills() {
     clearVibeSearch();
     renderDispatchFilterPills();
     renderDispatchTab();
-    updateMapMarkers();
   }
 
   // ── Render icon-row category lanes (always visible, typeahead filters) ──
@@ -1436,7 +1482,6 @@ function renderDispatchFilterPills() {
         dispatchFilters.ageMax = document.getElementById('dispatchAgeMax').value ? parseInt(document.getElementById('dispatchAgeMax').value) : null;
         renderDispatchActiveStrip();
         renderDispatchTab();
-        updateMapMarkers();
         const activeId = inp.id;
         setTimeout(() => { const el = document.getElementById(activeId); if (el) { el.focus(); el.selectionStart = el.selectionEnd = el.value.length; } }, 0);
       });
@@ -1503,7 +1548,6 @@ function renderDispatchActiveStrip() {
       dispatchFilters.niches = dispatchFilters.niches.filter(x => x !== n);
       renderDispatchFilterPills();
       renderDispatchTab();
-      updateMapMarkers();
     });
   });
 
@@ -1513,7 +1557,6 @@ function renderDispatchActiveStrip() {
       dispatchFilters.demographics = dispatchFilters.demographics.filter(x => x !== d);
       renderDispatchFilterPills();
       renderDispatchTab();
-      updateMapMarkers();
     });
   });
 
@@ -1525,7 +1568,6 @@ function renderDispatchActiveStrip() {
       dispatchFilters.ageMax = null;
       renderDispatchFilterPills();
       renderDispatchTab();
-      updateMapMarkers();
     });
   }
 
@@ -1568,7 +1610,6 @@ function renderDispatchActiveStrip() {
       nlRegionFilter = null;
       renderDispatchFilterPills();
       renderDispatchTab();
-      updateMapMarkers();
     });
     strip.appendChild(clearPill);
   } else if (!hasFilters && clearPill) {
@@ -1925,13 +1966,7 @@ function updateMapMarkers() {
   const sortBy = document.getElementById('sortSelect').value;
   const creatorsToShow = getFilteredCreators('', sortBy, false);
 
-  // Check if dispatch filters are active for scoring
-  const hasDispatchFilters = dispatchFilters.platformTiers.length > 0 ||
-                             dispatchFilters.niches.length > 0 ||
-                             dispatchFilters.demographics.length > 0 ||
-                             dispatchFilters.ageMin !== null ||
-                             dispatchFilters.ageMax !== null ||
-                             nlRegionFilter !== null;
+  const hasDispatchFilters = hasActiveDispatchFilters();
   const isDispatch = document.body.classList.contains('dispatch-mode');
 
   const newMarkers = [];
@@ -2319,13 +2354,7 @@ function renderRing(creator) {
   overlay.appendChild(spotlight);
 
   // === Dispatch scoring — computed early so platform chips + pills can use it ===
-  const ringHasDispatch = document.body.classList.contains('dispatch-mode') && (
-    dispatchFilters.platformTiers.length > 0 ||
-    dispatchFilters.niches.length > 0 ||
-    dispatchFilters.demographics.length > 0 ||
-    dispatchFilters.ageMin !== null ||
-    dispatchFilters.ageMax !== null
-  );
+  const ringHasDispatch = document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters();
   let ringScore = null;
   let ringScoreLevel = '';
   if (ringHasDispatch) {
@@ -2869,7 +2898,7 @@ function renderRing(creator) {
 window.showDetailPanel = showDetailPanel;
 
 // ── Viewport resize handler: fully re-render ring (petal arcs need recalculation) ──
-window.addEventListener('resize', () => {
+window.addEventListener('resize', debounce(() => {
   const overlay = document.getElementById('ringOverlay');
   if (overlay && overlay.classList.contains('open') && currentEditingCreator) {
     const creator = creators.find(c => c.id === currentEditingCreator);
@@ -2877,7 +2906,7 @@ window.addEventListener('resize', () => {
       renderRing(creator);
     }
   }
-});
+}, 150));
 
 function closeDetailPanel() {
   const overlay = document.getElementById('ringOverlay');
@@ -4310,7 +4339,7 @@ function importData(file) {
     try {
       const data = JSON.parse(e.target.result);
       if (!Array.isArray(data)) throw new Error('Invalid format');
-      creators = data;
+      creators = deduplicateCreators(data);
       creators.forEach(migratePlatforms);
       creators.forEach(migrateDemographics);
       db.persist(creators);
@@ -4594,7 +4623,6 @@ function applyNLSearch(query) {
   renderDispatchFilterPills();
   renderDispatchActiveStrip();
   renderDispatchTab();
-  updateMapMarkers();
 
   // Fly map to region bounds when a region filter is applied
   if (parsed.region && parsed.region.bounds && map) {
@@ -4606,13 +4634,6 @@ function applyNLSearch(query) {
     });
   }
 }
-
-// Override getFilteredCreators to also apply region bounding box
-const _origGetFilteredCreators = getFilteredCreators;
-
-// We need to patch the dispatch tab rendering to include region filtering
-// Instead of overriding getFilteredCreators (which is called in many places),
-// we'll hook into renderDispatchTab
 
 // ===========================
 // EVENT LISTENERS
@@ -4779,13 +4800,7 @@ let _nlApplyTimeout = null;
   // Live input — apply filters as you type (debounced) + show suggestions
   input.addEventListener('input', () => {
     const val = input.value.trim();
-    const anyFilters = dispatchFilters.platformTiers.length > 0 ||
-                       dispatchFilters.niches.length > 0 ||
-                       dispatchFilters.demographics.length > 0 ||
-                       dispatchFilters.ageMin !== null ||
-                       dispatchFilters.ageMax !== null ||
-                       nlRegionFilter !== null;
-    clearBtn.style.display = (val || anyFilters) ? '' : 'none';
+    clearBtn.style.display = (val || hasActiveDispatchFilters()) ? '' : 'none';
 
     // Show autocomplete suggestions immediately
     const suggestions = getSuggestions(val);
@@ -4811,7 +4826,6 @@ let _nlApplyTimeout = null;
       renderDispatchFilterPills();
       renderDispatchActiveStrip();
       renderDispatchTab();
-      updateMapMarkers();
     }
   });
 
@@ -4842,7 +4856,6 @@ let _nlApplyTimeout = null;
     renderDispatchFilterPills();
     renderDispatchActiveStrip();
     renderDispatchTab();
-    updateMapMarkers();
     input.focus();
   });
 })();
@@ -5742,7 +5755,6 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   if (nlClear) nlClear.style.display = 'none';
   renderDispatchFilterPills();
   renderDispatchTab();
-  updateMapMarkers();
 });
 
 // Recycle bin
@@ -5959,12 +5971,13 @@ function initMap() {
     // Show/hide name labels based on zoom
     document.documentElement.style.setProperty('--label-opacity', zoom >= 6 ? '1' : '0');
   }
+  const _debouncedArrangeRings = debounce(_arrangeMarkerRings, 100);
   map.on('zoomend', () => {
     updateMarkerScale();
-    _arrangeMarkerRings();
+    _debouncedArrangeRings();
   });
   map.on('zoom', updateMarkerScale);
-  map.on('moveend', _arrangeMarkerRings);
+  map.on('moveend', _debouncedArrangeRings);
   updateMarkerScale(); // set initial scale
 
   // ── Shift+Click on map → pick nearby city as dispatch destination ──
@@ -6198,11 +6211,11 @@ const julyImport = (() => {
     return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
   }
 
-  // Check if a July creator is already in the roster
+  // Check if a July creator is already in the roster (normalized name match)
   function isAlreadyInRoster(julyCreator) {
-    const jName = (julyCreator.name || '').toLowerCase().trim();
+    const jName = (julyCreator.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
     return creators.some(c => {
-      const rName = getFullName(c).toLowerCase().trim();
+      const rName = getFullName(c).toLowerCase().replace(/\s+/g, ' ').trim();
       return rName === jName;
     });
   }
@@ -6496,8 +6509,9 @@ const julyImport = (() => {
 
     if (toAdd.length === 0) return;
 
-    // Add creators to roster immediately
+    // Add creators to roster, then deduplicate in case of concurrent imports
     creators.push(...toAdd);
+    creators = deduplicateCreators(creators);
     db.persist(creators);
     renderRosterTab();
     updateMapMarkers();
@@ -6593,6 +6607,7 @@ const julyImport = (() => {
         creators.forEach(migratePlatforms);
         creators.forEach(migrateDemographics);
         creators.forEach(migrateLocation);
+        creators = deduplicateCreators(creators);
         renderRosterTab();
         updateMapMarkers();
         updateStorageIndicator();
@@ -6647,9 +6662,8 @@ const julyImport = (() => {
 // ===========================
 async function init() {
   try {
-    // Initialize SQLite database (loads WASM, opens/creates DB, migrates localStorage)
     await initDatabase();
-    console.log('SQLite database initialized successfully');
+    console.log('Database initialized successfully');
   } catch (e) {
     console.error('Database initialization failed:', e);
     showToast('Database failed to load — check console', 'error');
@@ -6670,6 +6684,14 @@ async function init() {
     creators.forEach(migratePlatforms);
     creators.forEach(migrateDemographics);
     creators.forEach(migrateLocation);
+
+    // Deduplicate on load in case duplicates crept in from concurrent imports
+    const beforeCount = creators.length;
+    creators = deduplicateCreators(creators);
+    if (creators.length < beforeCount) {
+      console.log(`[init] Cleaned up ${beforeCount - creators.length} duplicate(s)`);
+    }
+
     db.persist(creators);
 
     // Prune any orphaned tags left from previously deleted creators

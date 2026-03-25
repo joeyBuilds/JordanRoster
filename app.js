@@ -155,6 +155,7 @@ function loadTagCategories(type) {
 }
 function saveTagCategories(type, categories) {
   setSetting(`creator_roster_${type}_categories`, categories);
+  invalidateTagCaches();
 }
 function getCategoryForItem(item, categories) {
   for (const [cat, items] of Object.entries(categories)) {
@@ -1332,6 +1333,7 @@ function clearVibesFilters() {
   _vibeSearchTerm = '';
   const nlInput = document.getElementById('nlSearchInput');
   if (nlInput) nlInput.value = '';
+  clearNLInlinePills();
   renderDispatchFilterPills();
   renderDispatchTab();
   renderDispatchActiveStrip();
@@ -1369,6 +1371,7 @@ function renderDispatchFilterPills() {
       nlInput.value = '';
       setTimeout(() => nlInput.focus(), 0);
     }
+    clearNLInlinePills();
   }
   function onToggleNiche(n) {
     const idx = dispatchFilters.niches.indexOf(n);
@@ -1992,7 +1995,8 @@ function updateMapMarkers() {
 
       // Build gleam ring HTML for dispatch-matched creators
       const isMatch = isDispatch && hasDispatchFilters && _dispatchMatchedIds.has(creator.id);
-      const isPerfect = isMatch && scorePct >= 1.0;
+      // Sunrays only for perfect-score creators when multiple filters are active
+      const isPerfect = isMatch && scorePct >= 1.0 && score && score.totalFilters > 1;
       // Derive a pseudo-random stagger from creator id hash so each pin breathes at its own pace
       const staggerMs = isMatch ? (Math.abs([...creator.id].reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0), 0)) % 2500) : 0;
       const gleamHtml = isMatch ? `<div class="marker-gleam-ring" style="animation-delay: -${staggerMs}ms"></div>` : '';
@@ -2155,6 +2159,22 @@ function _stripDispatchMarkerState() {
 // ===========================
 let _ringFormations = []; // track offset markers for cleanup
 
+// Get cumulative followers across all platforms for a creator
+function _getCumulativeFollowing(creatorId) {
+  const creator = creators.find(c => c.id === creatorId);
+  if (!creator) return 0;
+  let total = 0;
+  const platforms = getCreatorPlatforms(creator);
+  platforms.forEach(p => {
+    const f = getFollowers(creator, p);
+    if (f) total += f;
+  });
+  return total;
+}
+
+// Zoom threshold: below this → stack mode, at or above → ring/fan mode
+const RING_ZOOM_THRESHOLD = 9;
+
 function _arrangeMarkerRings() {
   // Reset any previous CSS offsets
   _ringFormations.forEach(info => {
@@ -2162,12 +2182,13 @@ function _arrangeMarkerRings() {
     if (el) {
       const inner = el.querySelector('.marker-inner');
       if (inner) {
-        inner.classList.remove('ring-offset');
+        inner.classList.remove('ring-offset', 'stack-offset', 'stack-hidden',
+          'stack-depth-1', 'stack-depth-2', 'stack-depth-3', 'stack-depth-4');
         inner.style.removeProperty('--ring-tx');
         inner.style.removeProperty('--ring-ty');
       }
     }
-    // Reset z-index boost from dispatch scoring
+    // Reset z-index boost
     if (info._zIndexBoosted) {
       info.marker.setZIndexOffset(0);
     }
@@ -2184,8 +2205,7 @@ function _arrangeMarkerRings() {
   });
   _ringFormations = [];
 
-  // Only form rings when zoomed in enough that co-located pins actually overlap.
-  // At wide zoom, markers stay at their real positions — no grouping needed.
+  // Only arrange when zoomed in enough that co-located pins actually overlap.
   const zoom = map.getZoom();
   if (zoom < 5) return;
 
@@ -2197,8 +2217,7 @@ function _arrangeMarkerRings() {
     entries.push({ id, marker: m, latLng: ll, px, grouped: false });
   }
 
-  // Threshold: how close (in pixels) markers need to be to form a ring
-  // At high zoom only truly co-located markers should group
+  // Threshold: how close (in pixels) markers need to be to group
   const threshold = Math.max(20, 50 - (zoom - 5) * 5);
 
   // Find groups of overlapping markers
@@ -2224,65 +2243,134 @@ function _arrangeMarkerRings() {
     }
   }
 
-  // For each group, arrange markers in a ring using CSS transforms (not lat/lng changes)
-  // This prevents geographic displacement at any zoom level
   const isDispatchActive = document.body.classList.contains('dispatch-mode');
+  const useStack = zoom < RING_ZOOM_THRESHOLD;
+
   groups.forEach(group => {
-    // In dispatch mode, sort by score descending so best matches get top position + z-priority
-    if (isDispatchActive) {
-      group.sort((a, b) => {
-        const scoreA = a.marker._dispatchScore || 0;
-        const scoreB = b.marker._dispatchScore || 0;
-        return scoreB - scoreA;
+    if (useStack) {
+      // ── STACK MODE (zoomed out): pile up, biggest following on top ──
+      // Sort by cumulative following descending — winner on top
+      if (isDispatchActive) {
+        // In dispatch: primary sort by score, secondary by following
+        group.sort((a, b) => {
+          const scoreA = a.marker._dispatchScore || 0;
+          const scoreB = b.marker._dispatchScore || 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return _getCumulativeFollowing(b.id) - _getCumulativeFollowing(a.id);
+        });
+      } else {
+        group.sort((a, b) => _getCumulativeFollowing(b.id) - _getCumulativeFollowing(a.id));
+      }
+
+      // Calculate centroid
+      let cx = 0, cy = 0;
+      group.forEach(e => { cx += e.px.x; cy += e.px.y; });
+      cx /= group.length;
+      cy /= group.length;
+
+      // Stack offset: each card behind shifts slightly down-right to show depth
+      const stackStep = 3; // pixels of cascade per card
+      const maxVisible = Math.min(group.length, 5); // cap visible stack depth
+
+      group.forEach((entry, i) => {
+        // Center offset — nudge toward group centroid
+        const baseTx = -(entry.px.x - cx);
+        const baseTy = -(entry.px.y - cy);
+
+        // Stack cascade: i=0 is top (winner), higher i = further behind
+        const depth = Math.min(i, maxVisible - 1);
+        const stackTx = baseTx + depth * stackStep;
+        const stackTy = baseTy + depth * stackStep;
+        const stackScale = 1 - depth * 0.04; // subtle shrink for depth
+        // Z-index: top of stack gets highest
+        const zBase = (group.length - i) * 100;
+        const zBoost = isDispatchActive
+          ? (entry.marker._dispatchScore >= 1.0 ? 20000 : entry.marker._dispatchScore >= 0.66 ? 15000 : entry.marker._dispatchScore > 0 ? 12000 : 1)
+          : zBase;
+
+        _ringFormations.push({ marker: entry.marker, _zIndexBoosted: true });
+
+        const el = entry.marker.getElement();
+        if (el) {
+          const inner = el.querySelector('.marker-inner');
+          if (inner) {
+            if (i >= maxVisible) {
+              // Completely hidden behind the stack
+              inner.classList.add('stack-hidden');
+            } else {
+              inner.style.setProperty('--ring-tx', stackTx + 'px');
+              inner.style.setProperty('--ring-ty', stackTy + 'px');
+              inner.classList.add('stack-offset');
+              if (depth > 0) inner.classList.add('stack-depth-' + depth);
+            }
+          }
+          entry.marker.setZIndexOffset(zBoost);
+        }
+
+        // Tooltip: only show for the top-of-stack marker
+        entry.marker.unbindTooltip();
+        if (i === 0) {
+          const countLabel = group.length > 1 ? ` +${group.length - 1}` : '';
+          entry.marker.bindTooltip((entry.marker._tooltipText || '') + countLabel, {
+            direction: 'top',
+            offset: [stackTx, stackTy - 30],
+            className: 'creator-tooltip',
+            opacity: 1
+          });
+        }
+      });
+
+    } else {
+      // ── RING/FAN MODE (zoomed in): spread markers into a circle ──
+      if (isDispatchActive) {
+        group.sort((a, b) => {
+          const scoreA = a.marker._dispatchScore || 0;
+          const scoreB = b.marker._dispatchScore || 0;
+          return scoreB - scoreA;
+        });
+      }
+
+      // Calculate centroid in pixel space
+      let cx = 0, cy = 0;
+      group.forEach(e => { cx += e.px.x; cy += e.px.y; });
+      cx /= group.length;
+      cy /= group.length;
+
+      // Ring radius scales with group size
+      const markerSize = 28 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marker-scale')) || 1);
+      const ringRadius = Math.max(markerSize * 0.9, group.length * (markerSize * 0.45));
+
+      group.forEach((entry, i) => {
+        const angle = (2 * Math.PI * i / group.length) - Math.PI / 2;
+        const offsetX = Math.cos(angle) * ringRadius - (entry.px.x - cx);
+        const offsetY = Math.sin(angle) * ringRadius - (entry.px.y - cy);
+
+        _ringFormations.push({ marker: entry.marker, offsetX, offsetY });
+
+        const el = entry.marker.getElement();
+        if (el) {
+          const inner = el.querySelector('.marker-inner');
+          if (inner) {
+            inner.style.setProperty('--ring-tx', offsetX + 'px');
+            inner.style.setProperty('--ring-ty', offsetY + 'px');
+            inner.classList.add('ring-offset');
+          }
+          if (isDispatchActive) {
+            const score = entry.marker._dispatchScore || 0;
+            const zBoost = score >= 1.0 ? 20000 : score >= 0.66 ? 15000 : score > 0 ? 12000 : 1;
+            entry.marker.setZIndexOffset(zBoost);
+            _ringFormations[_ringFormations.length - 1]._zIndexBoosted = true;
+          }
+        }
+        entry.marker.unbindTooltip();
+        entry.marker.bindTooltip(entry.marker._tooltipText || '', {
+          direction: 'top',
+          offset: [offsetX, offsetY - 30],
+          className: 'creator-tooltip',
+          opacity: 1
+        });
       });
     }
-
-    // Calculate centroid in pixel space
-    let cx = 0, cy = 0;
-    group.forEach(e => { cx += e.px.x; cy += e.px.y; });
-    cx /= group.length;
-    cy /= group.length;
-
-    // Ring radius scales with group size — enough room for avatar circles
-    const markerSize = 28 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marker-scale')) || 1);
-    const ringRadius = Math.max(markerSize * 0.9, group.length * (markerSize * 0.45));
-
-    // Place each marker around the ring via CSS transform on inner element
-    group.forEach((entry, i) => {
-      const angle = (2 * Math.PI * i / group.length) - Math.PI / 2; // start from top
-      const offsetX = Math.cos(angle) * ringRadius - (entry.px.x - cx);
-      const offsetY = Math.sin(angle) * ringRadius - (entry.px.y - cy);
-
-      _ringFormations.push({ marker: entry.marker, offsetX, offsetY });
-
-      const el = entry.marker.getElement();
-      if (el) {
-        const inner = el.querySelector('.marker-inner');
-        if (inner) {
-          // Use CSS custom properties so translate composes with the
-          // scale(var(--marker-scale)) in the stylesheet rule
-          inner.style.setProperty('--ring-tx', offsetX + 'px');
-          inner.style.setProperty('--ring-ty', offsetY + 'px');
-          inner.classList.add('ring-offset');
-        }
-        // In dispatch mode, boost z-index for higher-scoring markers in the ring
-        if (isDispatchActive) {
-          const score = entry.marker._dispatchScore || 0;
-          // Perfect = 20000, high = 15000, partial = 12000, faded = 1
-          const zBoost = score >= 1.0 ? 20000 : score >= 0.66 ? 15000 : score > 0 ? 12000 : 1;
-          entry.marker.setZIndexOffset(zBoost);
-          _ringFormations[_ringFormations.length - 1]._zIndexBoosted = true;
-        }
-      }
-      // Shift tooltip to follow the visually offset pin
-      entry.marker.unbindTooltip();
-      entry.marker.bindTooltip(entry.marker._tooltipText || '', {
-        direction: 'top',
-        offset: [offsetX, offsetY - 30],
-        className: 'creator-tooltip',
-        opacity: 1
-      });
-    });
   });
 }
 
@@ -2340,11 +2428,11 @@ function renderRing(creator) {
   overlay.style.width = mapRect.width + 'px';
   overlay.style.height = mapRect.height + 'px';
 
-  // Scrim covers entire viewport so clicking anywhere outside ring closes it
-  scrim.style.left = '0';
-  scrim.style.top = '0';
-  scrim.style.width = '100vw';
-  scrim.style.height = '100vh';
+  // Scrim covers only the map area — sidebar and toolbar stay clear
+  scrim.style.left = mapRect.left + 'px';
+  scrim.style.top = mapRect.top + 'px';
+  scrim.style.width = mapRect.width + 'px';
+  scrim.style.height = mapRect.height + 'px';
 
   // === Radial spotlight glow behind the ring ===
   const spotlight = document.createElement('div');
@@ -2411,8 +2499,8 @@ function renderRing(creator) {
       }
       chip.appendChild(textWrap);
 
-      // Shimmer effect on platform chips that match dispatch filters
-      if (ringHasDispatch && dispatchFilters.platformTiers.length > 0) {
+      // Shimmer effect on platform chips — only in multi-filter scenarios
+      if (ringHasDispatch && ringScore && ringScore.totalFilters > 1 && dispatchFilters.platformTiers.length > 0) {
         const followers = getFollowers(creator, p);
         const creatorTier = tierFromFollowers(followers);
         const isMatchedPlatform = dispatchFilters.platformTiers.some(pt => pt.platform === p && pt.tier === creatorTier);
@@ -2700,13 +2788,16 @@ function renderRing(creator) {
   function renderPillJail(tagList, categories, tagType, isLeft) {
     const categoryOrder = Object.keys(categories);
 
-    // Group tags by category in sidebar order
+    // Group tags by category in saved category order (respects drag-and-drop reordering)
     const groups = [];
+    const tagSet = new Set(tagList);
     categoryOrder.forEach(cat => {
-      const catTags = tagList.filter(t => getCategoryForItem(t, categories) === cat);
+      // Use category array order so pill ordering is consistent across all views
+      const catTags = (categories[cat] || []).filter(t => tagSet.has(t));
       if (catTags.length > 0) groups.push({ cat, tags: catTags });
     });
-    const uncat = tagList.filter(t => !getCategoryForItem(t, categories));
+    const placed = new Set(groups.flatMap(g => g.tags));
+    const uncat = tagList.filter(t => !placed.has(t));
     if (uncat.length > 0) groups.push({ cat: null, tags: uncat });
     if (groups.length === 0) return;
 
@@ -2789,16 +2880,18 @@ function renderRing(creator) {
           const isMatchedTag = ringScore.matchDetails.some(d => d.type === tagType && d.label === tag);
           if (isMatchedTag) {
             el.classList.add('dispatch-matched-tag');
-            // Add grace particles to matched pills
-            for (let gp = 0; gp < 4; gp++) {
-              const particle = document.createElement('div');
-              particle.className = 'pill-grace-particle';
-              const xPct = 15 + Math.random() * 70;
-              const dur = 1.8 + Math.random() * 1.5;
-              const pDelay = Math.random() * dur;
-              const sz = 1.5 + Math.random() * 2;
-              particle.style.cssText = `left:${xPct}%;--pg-dur:${dur}s;--pg-delay:-${pDelay.toFixed(1)}s;--pg-size:${sz}px`;
-              el.appendChild(particle);
+            // Only add grace particles when multiple filters are active (not single-filter)
+            if (ringScore.totalFilters > 1) {
+              for (let gp = 0; gp < 3; gp++) {
+                const particle = document.createElement('div');
+                particle.className = 'pill-grace-particle';
+                const xPct = 15 + Math.random() * 70;
+                const dur = 1.8 + Math.random() * 1.5;
+                const pDelay = Math.random() * dur;
+                const sz = 1.5 + Math.random() * 2;
+                particle.style.cssText = `left:${xPct}%;--pg-dur:${dur}s;--pg-delay:-${pDelay.toFixed(1)}s;--pg-size:${sz}px`;
+                el.appendChild(particle);
+              }
             }
           }
         }
@@ -3600,6 +3693,7 @@ function renderModalBody() {
 
     const categories = loadTagCategories(type);
     let dragItem = null;
+    let dragCategory = null; // for category-level drag-and-drop
 
     function makePill(item) {
       const pill = document.createElement('div');
@@ -3616,9 +3710,10 @@ function renderModalBody() {
       pill.draggable = !deleteMode;
       pill.dataset.tag = item;
 
-      // Drag start
+      // Drag start (pill-level — not a category drag)
       pill.addEventListener('dragstart', (e) => {
         dragItem = item;
+        dragCategory = null;
         pill.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', item);
@@ -3650,6 +3745,24 @@ function renderModalBody() {
     function makeCategoryLabel(catName, isCustomGroup) {
       const label = document.createElement('div');
       label.className = 'tag-category-label';
+
+      // Make category labels draggable for reordering categories
+      if (!isCustomGroup && !deleteMode) {
+        label.draggable = true;
+        label.dataset.catDrag = catName;
+        label.addEventListener('dragstart', (e) => {
+          dragCategory = catName;
+          dragItem = null; // not a pill drag
+          label.closest('.tag-category-group').classList.add('cat-dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', 'cat:' + catName);
+        });
+        label.addEventListener('dragend', () => {
+          dragCategory = null;
+          grid.querySelectorAll('.cat-dragging, .cat-drop-before').forEach(el =>
+            el.classList.remove('cat-dragging', 'cat-drop-before'));
+        });
+      }
 
       const labelText = document.createElement('span');
       labelText.className = 'tag-category-label-text';
@@ -3729,24 +3842,54 @@ function renderModalBody() {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         pillsWrap.classList.add('drag-over');
+
+        // Find the pill we're hovering over for positional insertion
+        const pills = [...pillsWrap.querySelectorAll('.tag-panel-pill:not(.dragging)')];
+        pills.forEach(p => p.classList.remove('drop-before', 'drop-after'));
+        const target = pills.find(p => {
+          const rect = p.getBoundingClientRect();
+          return e.clientY < rect.bottom && e.clientX < rect.right;
+        });
+        if (target) target.classList.add('drop-before');
       });
       pillsWrap.addEventListener('dragleave', (e) => {
         if (!pillsWrap.contains(e.relatedTarget)) {
           pillsWrap.classList.remove('drag-over');
+          pillsWrap.querySelectorAll('.drop-before, .drop-after').forEach(p => p.classList.remove('drop-before', 'drop-after'));
         }
       });
       pillsWrap.addEventListener('drop', (e) => {
         e.preventDefault();
         pillsWrap.classList.remove('drag-over');
+        pillsWrap.querySelectorAll('.drop-before, .drop-after').forEach(p => p.classList.remove('drop-before', 'drop-after'));
         if (!dragItem) return;
+
+        // Determine insertion position from drop target
+        const pills = [...pillsWrap.querySelectorAll('.tag-panel-pill:not(.dragging)')];
+        let insertBeforeTag = null;
+        const target = pills.find(p => {
+          const rect = p.getBoundingClientRect();
+          return e.clientY < rect.bottom && e.clientX < rect.right;
+        });
+        if (target) insertBeforeTag = target.dataset.tag;
+
         // Remove from all categories
         Object.values(categories).forEach(arr => {
           const idx = arr.indexOf(dragItem);
           if (idx >= 0) arr.splice(idx, 1);
         });
-        // Add to target category (or create uncategorized)
+        // Add to target category at the correct position
         if (catName && categories[catName]) {
-          categories[catName].push(dragItem);
+          if (insertBeforeTag) {
+            const targetIdx = categories[catName].indexOf(insertBeforeTag);
+            if (targetIdx >= 0) {
+              categories[catName].splice(targetIdx, 0, dragItem);
+            } else {
+              categories[catName].push(dragItem);
+            }
+          } else {
+            categories[catName].push(dragItem);
+          }
         }
         saveTagCategories(type, categories);
         renderGrid();
@@ -3756,21 +3899,23 @@ function renderModalBody() {
     function renderGrid() {
       const filter = search.value.toLowerCase();
       grid.innerHTML = '';
-      const allItems = [...new Set([...getAllItems(), ...panelSelections, ...panelCustomItems])].sort((a, b) => a.localeCompare(b));
+      const allItems = [...new Set([...getAllItems(), ...panelSelections, ...panelCustomItems])];
       const filtered = filter ? allItems.filter(n => n.toLowerCase().includes(filter)) : allItems;
 
-      // If searching, show flat list
+      // If searching, show flat list (alphabetical for discoverability)
       if (filter) {
         grid.classList.add('flat-mode');
-        filtered.forEach(item => grid.appendChild(makePill(item)));
+        [...filtered].sort((a, b) => a.localeCompare(b)).forEach(item => grid.appendChild(makePill(item)));
       } else {
         grid.classList.remove('flat-mode');
         const placed = new Set();
         Object.entries(categories).forEach(([catName, catItems]) => {
-          const itemsInCat = filtered.filter(item => catItems.includes(item));
+          // Use category array order (not alphabetical) — this is the user's custom order
+          const itemsInCat = catItems.filter(item => filtered.includes(item));
           // Show empty categories too (as drop targets)
           const group = document.createElement('div');
           group.className = 'tag-category-group';
+          group.dataset.catName = catName;
           if (itemsInCat.length === 0) group.classList.add('empty-drop-target');
           group.appendChild(makeCategoryLabel(catName, false));
           const pillsWrap = document.createElement('div');
@@ -3782,6 +3927,41 @@ function renderModalBody() {
             placed.add(item);
           });
           group.appendChild(pillsWrap);
+
+          // Category-level drop zone for reordering categories
+          group.addEventListener('dragover', (e) => {
+            if (!dragCategory || dragCategory === catName) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            grid.querySelectorAll('.cat-drop-before').forEach(el => el.classList.remove('cat-drop-before'));
+            group.classList.add('cat-drop-before');
+          });
+          group.addEventListener('dragleave', (e) => {
+            if (!group.contains(e.relatedTarget)) {
+              group.classList.remove('cat-drop-before');
+            }
+          });
+          group.addEventListener('drop', (e) => {
+            if (!dragCategory || dragCategory === catName) return;
+            e.preventDefault();
+            e.stopPropagation();
+            group.classList.remove('cat-drop-before');
+            // Reorder: move dragCategory before catName
+            const keys = Object.keys(categories);
+            const items = keys.map(k => [k, categories[k]]);
+            const fromIdx = items.findIndex(([k]) => k === dragCategory);
+            if (fromIdx < 0) return;
+            const [moved] = items.splice(fromIdx, 1);
+            const toIdx = items.findIndex(([k]) => k === catName);
+            items.splice(toIdx, 0, moved);
+            // Rebuild categories object in new order
+            Object.keys(categories).forEach(k => delete categories[k]);
+            items.forEach(([k, v]) => { categories[k] = v; });
+            saveTagCategories(type, categories);
+            dragCategory = null;
+            renderGrid();
+          });
+
           grid.appendChild(group);
         });
         // Uncategorized items
@@ -3861,7 +4041,14 @@ function renderModalBody() {
       };
       picker.appendChild(newCatRow);
 
-      pickerOverlay.onclick = (e) => { if (e.target === pickerOverlay) { pickerOverlay.remove(); search.focus(); } };
+      pickerOverlay.onclick = (e) => {
+        if (e.target === pickerOverlay) {
+          pickerOverlay.remove();
+          search.value = '';
+          renderGrid();
+          search.focus();
+        }
+      };
       pickerOverlay.appendChild(picker);
       document.body.appendChild(pickerOverlay);
     }
@@ -4662,34 +4849,150 @@ _searchClearBtn.addEventListener('click', () => {
 
 // Roster filter panel removed — search is simple name/location/email/handles only
 
-// ── Natural Language Search with Live Filtering + Autocomplete ──
+// ── Natural Language Search with Live Filtering + Autocomplete + Inline Pills ──
 let _nlApplyTimeout = null;
+
+// Tracked inline pills — each entry: { value, type, rawValue?, regionKey?, element }
+let _nlInlinePills = [];
+
+// Global helper to clear inline pills from outside setupNLSearch
+function clearNLInlinePills() {
+  const wrap = document.querySelector('.nl-search-wrap');
+  if (!wrap) return;
+  _nlInlinePills.forEach(p => p.element.remove());
+  _nlInlinePills = [];
+  wrap.classList.remove('has-pills');
+}
 
 (function setupNLSearch() {
   const input = document.getElementById('nlSearchInput');
   const clearBtn = document.getElementById('nlSearchClear');
   const sugBox = document.getElementById('nlSuggestions');
-  if (!input) return;
+  const wrap = input?.closest('.nl-search-wrap');
+  if (!input || !wrap) return;
+
+  // Click anywhere in the wrap to focus the input
+  wrap.addEventListener('click', (e) => {
+    if (e.target === wrap || e.target.classList.contains('nl-inline-pill')) return;
+    input.focus();
+  });
 
   let _nlSelectedIdx = -1;
 
+  // ── Inline pill management ──
+
+  function syncWrapClass() {
+    wrap.classList.toggle('has-pills', _nlInlinePills.length > 0);
+  }
+
+  function addInlinePill(value, type, extra) {
+    // Prevent duplicates
+    if (_nlInlinePills.some(p => p.value === value && p.type === type)) return;
+
+    const pill = document.createElement('span');
+    pill.className = `nl-inline-pill ${type}`;
+    pill.innerHTML = `${value}<span class="nl-pill-x">\u00d7</span>`;
+    pill.querySelector('.nl-pill-x').addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeInlinePill(pill);
+    });
+
+    // Insert before the input element
+    wrap.insertBefore(pill, input);
+    _nlInlinePills.push({ value, type, element: pill, ...extra });
+    syncWrapClass();
+  }
+
+  function removeInlinePill(pillEl, skipReapply) {
+    const idx = _nlInlinePills.findIndex(p => p.element === pillEl);
+    if (idx < 0) return;
+    const removed = _nlInlinePills.splice(idx, 1)[0];
+    pillEl.classList.add('removing');
+    setTimeout(() => pillEl.remove(), 150);
+    syncWrapClass();
+    if (!skipReapply) reapplyFromPills();
+  }
+
+  function removeLastPill() {
+    if (_nlInlinePills.length === 0) return;
+    const last = _nlInlinePills[_nlInlinePills.length - 1];
+    removeInlinePill(last.element);
+  }
+
+  function clearAllPills(skipReapply) {
+    _nlInlinePills.forEach(p => p.element.remove());
+    _nlInlinePills = [];
+    syncWrapClass();
+    if (!skipReapply) reapplyFromPills();
+  }
+
+  // Rebuild dispatchFilters from current inline pills
+  function reapplyFromPills() {
+    dispatchFilters.niches = [];
+    dispatchFilters.demographics = [];
+    dispatchFilters.platformTiers = [];
+    dispatchFilters.ageMin = null;
+    dispatchFilters.ageMax = null;
+    nlRegionFilter = null;
+    _vibeSearchTerm = '';
+
+    for (const p of _nlInlinePills) {
+      if (p.type === 'niche') {
+        if (!dispatchFilters.niches.includes(p.value)) dispatchFilters.niches.push(p.value);
+      } else if (p.type === 'demographic') {
+        if (!dispatchFilters.demographics.includes(p.value)) dispatchFilters.demographics.push(p.value);
+      } else if (p.type === 'platform') {
+        // Platform without tier → all tiers
+        TIERS.forEach(t => {
+          dispatchFilters.platformTiers.push({ platform: p.value, tier: t });
+        });
+      } else if (p.type === 'tier') {
+        const tierVal = p.rawValue || p.value;
+        // Tier without platform → all platforms
+        PLATFORMS.forEach(pl => {
+          dispatchFilters.platformTiers.push({ platform: pl, tier: tierVal });
+        });
+      } else if (p.type === 'region' && p.regionData) {
+        nlRegionFilter = p.regionData;
+      }
+    }
+
+    // Also parse any remaining text in the input
+    const remainingText = input.value.trim();
+    if (remainingText) {
+      const parsed = parseNLSearch(remainingText);
+      parsed.niches.forEach(n => { if (!dispatchFilters.niches.includes(n)) dispatchFilters.niches.push(n); });
+      parsed.demographics.forEach(d => { if (!dispatchFilters.demographics.includes(d)) dispatchFilters.demographics.push(d); });
+      if (parsed.region && !nlRegionFilter) nlRegionFilter = parsed.region;
+    }
+
+    document.getElementById('nlSearchHint').style.display = 'none';
+    clearBtn.style.display = (_nlInlinePills.length > 0 || input.value.trim()) ? '' : 'none';
+    renderDispatchFilters();
+    renderDispatchFilterPills();
+    renderDispatchActiveStrip();
+    renderDispatchTab();
+
+    // Fly to region if one was just set
+    if (nlRegionFilter && nlRegionFilter.bounds && map) {
+      const [latMin, latMax, lngMin, lngMax] = nlRegionFilter.bounds;
+      map.flyToBounds([[latMin, lngMin], [latMax, lngMax]], {
+        padding: [30, 30], duration: 0.8, maxZoom: 7
+      });
+    }
+  }
+
+  // ── Suggestions (only for current token being typed) ──
+
   function getSuggestions(query) {
     if (!query || query.length < 2) return [];
-    const q = query.toLowerCase();
+    const lastToken = query.toLowerCase().trim();
+    if (lastToken.length < 2) return [];
     const suggestions = [];
     const seen = new Set();
-    const tokens = q.split(/[\s,]+/).filter(Boolean);
-    const lastToken = tokens[tokens.length - 1] || '';
-    if (lastToken.length < 2) return suggestions;
 
-    // Exclude values that the parser already matched from earlier tokens
-    // (so we only suggest NEW things for what the user is currently typing)
-    const alreadyParsed = parseNLSearch(tokens.slice(0, -1).join(' '));
-    const alreadyMatched = new Set([
-      ...alreadyParsed.niches, ...alreadyParsed.demographics,
-      ...alreadyParsed.platforms, ...alreadyParsed.tiers.map(t => TIER_SHORT[t] || t),
-    ]);
-    if (alreadyParsed.region) alreadyMatched.add(alreadyParsed.region.label);
+    // Exclude values already present as pills
+    const alreadyMatched = new Set(_nlInlinePills.map(p => p.value));
 
     // Niches
     getAllNiches().forEach(n => {
@@ -4753,15 +5056,45 @@ let _nlApplyTimeout = null;
   }
 
   function applySuggestion(s) {
-    // Replace the last partial token with the suggestion's canonical value
-    const tokens = input.value.split(/\s+/);
-    tokens.pop();
-    tokens.push(s.value);
-    input.value = tokens.join(' ') + ' ';
+    // Add the suggestion as an inline pill and clear the input text
+    const extra = {};
+    if (s.rawValue) extra.rawValue = s.rawValue;
+    if (s.type === 'region' && s.regionKey && NL_REGIONS[s.regionKey]) {
+      extra.regionData = NL_REGIONS[s.regionKey];
+    }
+    addInlinePill(s.value, s.type, extra);
+    input.value = '';
     sugBox.classList.remove('open');
     input.focus();
-    // Immediately apply filters with the updated input
-    applyNLSearch(input.value);
+    reapplyFromPills();
+  }
+
+  // ── Lock in recognized tokens as pills (on Enter or debounced typing) ──
+  function lockRecognizedTokens() {
+    const val = input.value.trim();
+    if (!val) return;
+    const parsed = parseNLSearch(val);
+    let consumed = false;
+
+    parsed.niches.forEach(n => { addInlinePill(n, 'niche'); consumed = true; });
+    parsed.demographics.forEach(d => { addInlinePill(d, 'demographic'); consumed = true; });
+    parsed.platforms.forEach(p => { addInlinePill(p, 'platform'); consumed = true; });
+    parsed.tiers.forEach(t => {
+      addInlinePill(TIER_SHORT[t] || t, 'tier', { rawValue: t });
+      consumed = true;
+    });
+    if (parsed.region) {
+      // Find the region key
+      const regionKey = Object.keys(NL_REGIONS).find(k => NL_REGIONS[k] === parsed.region || NL_REGIONS[k].label === parsed.region.label);
+      addInlinePill(parsed.region.label, 'region', { regionData: parsed.region, regionKey });
+      consumed = true;
+    }
+
+    if (consumed) {
+      // Keep only unmatched text in the input
+      input.value = parsed.unmatched.join(' ');
+      reapplyFromPills();
+    }
   }
 
   // Keyboard navigation
@@ -4782,7 +5115,7 @@ let _nlApplyTimeout = null;
         if (suggestions[_nlSelectedIdx]) applySuggestion(suggestions[_nlSelectedIdx]);
       } else {
         sugBox.classList.remove('open');
-        applyNLSearch(input.value);
+        lockRecognizedTokens();
       }
     } else if (e.key === 'Escape') {
       sugBox.classList.remove('open');
@@ -4794,26 +5127,30 @@ let _nlApplyTimeout = null;
         e.preventDefault();
         applySuggestion(suggestions[idx]);
       }
+    } else if (e.key === 'Backspace' && input.value === '' && _nlInlinePills.length > 0) {
+      // Backspace on empty input removes the last pill
+      e.preventDefault();
+      removeLastPill();
     }
   });
 
-  // Live input — apply filters as you type (debounced) + show suggestions
+  // Live input — show suggestions + debounced auto-lock
   input.addEventListener('input', () => {
     const val = input.value.trim();
-    clearBtn.style.display = (val || hasActiveDispatchFilters()) ? '' : 'none';
+    clearBtn.style.display = (val || _nlInlinePills.length > 0 || hasActiveDispatchFilters()) ? '' : 'none';
 
     // Show autocomplete suggestions immediately
     const suggestions = getSuggestions(val);
     renderSuggestions(suggestions);
 
-    // Debounce the actual filter application (so typing feels snappy)
+    // Debounce auto-locking recognized tokens into pills
     clearTimeout(_nlApplyTimeout);
     if (val) {
       _nlApplyTimeout = setTimeout(() => {
-        applyNLSearch(input.value);
-      }, 300);
-    } else {
-      // Cleared — reset everything
+        lockRecognizedTokens();
+      }, 500);
+    } else if (_nlInlinePills.length === 0) {
+      // Input cleared and no pills — reset everything
       nlRegionFilter = null;
       _vibeSearchTerm = '';
       dispatchFilters.niches = [];
@@ -4831,7 +5168,11 @@ let _nlApplyTimeout = null;
 
   // Hide suggestions on blur
   input.addEventListener('blur', () => {
-    setTimeout(() => sugBox.classList.remove('open'), 150);
+    setTimeout(() => {
+      sugBox.classList.remove('open');
+      // Auto-lock any remaining recognized text when leaving the field
+      if (input.value.trim()) lockRecognizedTokens();
+    }, 150);
   });
   input.addEventListener('focus', () => {
     if (input.value.trim().length >= 2) {
@@ -4839,9 +5180,10 @@ let _nlApplyTimeout = null;
     }
   });
 
-  // Clear button
+  // Clear button — removes all pills + text
   clearBtn.addEventListener('click', () => {
     input.value = '';
+    clearAllPills(true); // skip reapply, we'll do it ourselves
     clearBtn.style.display = 'none';
     nlRegionFilter = null;
     _vibeSearchTerm = '';
@@ -5708,6 +6050,7 @@ function _handleTabLogic(tab, wasDispatch) {
     nlRegionFilter = null;
     const nlInput = document.getElementById('nlSearchInput');
     if (nlInput) nlInput.value = '';
+    clearNLInlinePills();
     const nlHint = document.getElementById('nlSearchHint');
     if (nlHint) nlHint.style.display = 'none';
     const nlClear = document.getElementById('nlSearchClear');
@@ -5746,9 +6089,10 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   dispatchFilters.ageMin = null;
   dispatchFilters.ageMax = null;
   nlRegionFilter = null;
-  // Clear NL search input
+  // Clear NL search input + inline pills
   const nlInput = document.getElementById('nlSearchInput');
   if (nlInput) nlInput.value = '';
+  clearNLInlinePills();
   const nlHint = document.getElementById('nlSearchHint');
   if (nlHint) nlHint.style.display = 'none';
   const nlClear = document.getElementById('nlSearchClear');

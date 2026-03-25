@@ -639,6 +639,38 @@ body.shift-held #mapContainer .leaflet-container {
 /* Ring-grouped markers: translate + scale compose via CSS */
 .creator-marker .marker-inner.ring-offset {
   transform: translate(var(--ring-tx, 0), var(--ring-ty, 0)) scale(var(--marker-scale, 1));
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Stack-grouped markers (zoomed out): cascading pile with depth cues */
+.creator-marker .marker-inner.stack-offset {
+  transform: translate(var(--ring-tx, 0), var(--ring-ty, 0)) scale(var(--marker-scale, 1));
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease,
+              filter 0.3s ease;
+}
+/* Depth cards behind the top: progressive dimming */
+.creator-marker .marker-inner.stack-depth-1 {
+  opacity: 0.55;
+  filter: brightness(0.85);
+}
+.creator-marker .marker-inner.stack-depth-2 {
+  opacity: 0.35;
+  filter: brightness(0.75);
+}
+.creator-marker .marker-inner.stack-depth-3 {
+  opacity: 0.22;
+  filter: brightness(0.65) grayscale(0.3);
+}
+.creator-marker .marker-inner.stack-depth-4 {
+  opacity: 0.14;
+  filter: brightness(0.55) grayscale(0.5);
+}
+/* Fully hidden stack members (beyond visible depth) */
+.creator-marker .marker-inner.stack-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.5);
 }
 
 /* Avatar wrapper — positions glow behind avatar */
@@ -864,8 +896,8 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .nuke-dialog {
   background: rgba(var(--bg-secondary-rgb), 0.3);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border: 2px solid var(--danger);
   border-radius: 16px;
   padding: 28px 24px;
@@ -1128,8 +1160,8 @@ body.shift-held #mapContainer .leaflet-container {
   flex-direction: column;
   gap: 8px;
   background: rgba(var(--bg-card-rgb), 0.2);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
 }
 
 /* Search + Add button on one row */
@@ -1553,8 +1585,8 @@ body.shift-held #mapContainer .leaflet-container {
   height: 100%;
   z-index: 1002;
   background: rgba(var(--bg-card-rgb), 0.22);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 8px 0 40px rgba(0, 0, 0, 0.2), var(--glass-inset);
   display: none;
@@ -2325,33 +2357,114 @@ a.creator-platform-chip:hover {
 .nl-search-wrap {
   position: relative;
   width: 100%;
-}
-.nl-search-input {
-  width: 100%;
-  padding: 10px 32px 10px 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 32px 6px 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: text;
+}
+.nl-search-wrap:focus-within {
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset);
+}
+.nl-search-input {
+  flex: 1;
+  min-width: 60px;
+  padding: 4px 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   color: var(--text-primary);
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;
   outline: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+  text-align: left;
+}
+.nl-search-wrap:not(.has-pills) .nl-search-input {
   text-align: center;
-  box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 .nl-search-input::placeholder {
   color: var(--text-muted);
   font-style: italic;
   font-size: 12px;
+}
+.nl-search-wrap:not(.has-pills) .nl-search-input::placeholder {
   text-align: center;
 }
 .nl-search-input:focus {
-  border-color: rgba(var(--accent-rgb), 0.3);
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+/* Inline filter pills inside Who? search box */
+.nl-inline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.4;
+  white-space: nowrap;
+  animation: nlPillPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: default;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.nl-inline-pill.niche {
+  background: rgba(176, 149, 86, 0.2);
+  border: 1px solid rgba(176, 149, 86, 0.4);
+  color: var(--tag-niche);
+}
+.nl-inline-pill.demographic {
+  background: rgba(142, 120, 166, 0.2);
+  border: 1px solid rgba(142, 120, 166, 0.4);
+  color: var(--tag-tier);
+}
+.nl-inline-pill.platform {
+  background: rgba(110, 154, 118, 0.2);
+  border: 1px solid rgba(110, 154, 118, 0.4);
+  color: var(--tag-platform);
+}
+.nl-inline-pill.tier {
+  background: rgba(var(--accent-rgb), 0.15);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  color: var(--accent);
+}
+.nl-inline-pill.region {
+  background: rgba(155, 181, 160, 0.2);
+  border: 1px solid rgba(155, 181, 160, 0.4);
+  color: var(--sage);
+}
+.nl-inline-pill .nl-pill-x {
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 13px;
+  line-height: 1;
+  transition: opacity 0.15s;
+  margin-left: 1px;
+}
+.nl-inline-pill .nl-pill-x:hover { opacity: 1; }
+.nl-inline-pill.removing {
+  opacity: 0;
+  transform: scale(0.7);
+}
+@keyframes nlPillPop {
+  0% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1); }
 }
 .nl-search-clear {
   position: absolute;
@@ -3381,8 +3494,8 @@ a.creator-platform-chip:hover {
 .nearest-float {
   width: 100%;
   background: rgba(var(--bg-hover-rgb), 0.2);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), var(--glass-inset);
@@ -3630,9 +3743,10 @@ a.creator-platform-chip:hover {
 .ring-scrim {
   position: fixed;
   z-index: 1050;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border-radius: 0;
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
@@ -3698,8 +3812,8 @@ a.creator-platform-chip:hover {
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.2),
     var(--glass-inset);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   flex: 0 0 auto;
   min-width: 120px;
   box-sizing: border-box;
@@ -3858,8 +3972,8 @@ a.ring-platform-chip:hover {
 .ring-name-card {
   text-align: center;
   background: rgba(var(--bg-hover-rgb), 0.25);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border-radius: 16px;
   padding: 14px 24px 12px;
   box-shadow:
@@ -3952,8 +4066,8 @@ a.ring-platform-chip:hover {
   color: rgba(255,255,255,0.92);
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   box-shadow: 0 3px 12px rgba(0,0,0,0.15), var(--glass-inset);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -3965,18 +4079,18 @@ a.ring-platform-chip:hover {
 
 /* ── Dispatch-matched grace glow on ring pills ── */
 .ring-pill.dispatch-matched-tag {
-  border-color: rgba(255, 220, 100, 0.65);
-  background-image: linear-gradient(135deg, rgba(255, 215, 80, 0.15), rgba(255, 200, 60, 0.08));
+  border-color: rgba(255, 220, 100, 0.35);
+  background-image: linear-gradient(135deg, rgba(255, 215, 80, 0.08), rgba(255, 200, 60, 0.04));
   box-shadow:
-    0 0 14px 4px rgba(255, 215, 80, 0.30),
-    0 0 40px 8px rgba(255, 200, 60, 0.10),
+    0 0 8px 2px rgba(255, 215, 80, 0.15),
+    0 0 20px 4px rgba(255, 200, 60, 0.05),
     0 3px 12px rgba(0, 0, 0, 0.15),
     var(--glass-inset);
   animation: graceGlow 4s ease-in-out infinite;
   position: relative;
   overflow: hidden;
   color: rgba(255, 245, 210, 1);
-  text-shadow: 0 0 6px rgba(255, 215, 80, 0.4);
+  text-shadow: 0 0 3px rgba(255, 215, 80, 0.2);
 }
 /* Sweeping light beam */
 .ring-pill.dispatch-matched-tag::after {
@@ -3987,11 +4101,11 @@ a.ring-platform-chip:hover {
   background: linear-gradient(
     105deg,
     transparent 20%,
-    rgba(255, 240, 170, 0.10) 35%,
-    rgba(255, 230, 140, 0.30) 45%,
-    rgba(255, 245, 200, 0.40) 50%,
-    rgba(255, 230, 140, 0.30) 55%,
-    rgba(255, 240, 170, 0.10) 65%,
+    rgba(255, 240, 170, 0.05) 35%,
+    rgba(255, 230, 140, 0.14) 45%,
+    rgba(255, 245, 200, 0.18) 50%,
+    rgba(255, 230, 140, 0.14) 55%,
+    rgba(255, 240, 170, 0.05) 65%,
     transparent 80%
   );
   background-size: 300% 100%;
@@ -4004,20 +4118,20 @@ a.ring-platform-chip:hover {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  border: 1px solid rgba(255, 240, 170, 0.25);
-  box-shadow: inset 0 1px 0 rgba(255, 245, 200, 0.20), inset 0 -1px 0 rgba(255, 200, 60, 0.10);
+  border: 1px solid rgba(255, 240, 170, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 245, 200, 0.10), inset 0 -1px 0 rgba(255, 200, 60, 0.05);
   pointer-events: none;
   animation: graceInner 4s ease-in-out infinite;
 }
 
 @keyframes graceGlow {
   0%, 100% {
-    opacity: 0.7;
+    opacity: 0.8;
     transform: scale(1);
   }
   50% {
     opacity: 1;
-    transform: scale(1.02);
+    transform: scale(1.01);
   }
 }
 @keyframes graceSweep {
@@ -4037,8 +4151,8 @@ a.ring-platform-chip:hover {
   width: var(--pg-size, 2px);
   height: var(--pg-size, 2px);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 245, 200, 0.95), rgba(255, 215, 80, 0.5));
-  box-shadow: 0 0 3px 1px rgba(255, 220, 100, 0.5);
+  background: radial-gradient(circle, rgba(255, 245, 200, 0.55), rgba(255, 215, 80, 0.25));
+  box-shadow: 0 0 2px 1px rgba(255, 220, 100, 0.2);
   pointer-events: none;
   z-index: 2;
   animation: pillParticleRise var(--pg-dur, 2.5s) ease-out infinite;
@@ -4063,10 +4177,10 @@ a.ring-platform-chip:hover {
 
 /* ── Grace glow on platform chips too ── */
 .ring-platform-chip.dispatch-matched-tag {
-  border-color: rgba(255, 220, 100, 0.65) !important;
+  border-color: rgba(255, 220, 100, 0.35) !important;
   box-shadow:
-    0 0 14px 4px rgba(255, 215, 80, 0.30),
-    0 0 40px 8px rgba(255, 200, 60, 0.10),
+    0 0 8px 2px rgba(255, 215, 80, 0.15),
+    0 0 20px 4px rgba(255, 200, 60, 0.05),
     0 2px 8px rgba(0, 0, 0, 0.2);
   animation: graceGlow 4s ease-in-out infinite;
   position: relative;
@@ -4080,11 +4194,11 @@ a.ring-platform-chip:hover {
   background: linear-gradient(
     105deg,
     transparent 20%,
-    rgba(255, 240, 170, 0.10) 35%,
-    rgba(255, 230, 140, 0.28) 45%,
-    rgba(255, 245, 200, 0.35) 50%,
-    rgba(255, 230, 140, 0.28) 55%,
-    rgba(255, 240, 170, 0.10) 65%,
+    rgba(255, 240, 170, 0.05) 35%,
+    rgba(255, 230, 140, 0.13) 45%,
+    rgba(255, 245, 200, 0.16) 50%,
+    rgba(255, 230, 140, 0.13) 55%,
+    rgba(255, 240, 170, 0.05) 65%,
     transparent 80%
   );
   background-size: 300% 100%;
@@ -4161,8 +4275,8 @@ a.ring-platform-chip:hover {
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   color: var(--text-primary);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.2),
@@ -4239,8 +4353,8 @@ a.ring-platform-chip:hover {
   max-width: 500px;
   max-height: 90vh;
   background: rgba(var(--bg-card-rgb), 0.35);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
@@ -4335,8 +4449,8 @@ a.ring-platform-chip:hover {
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.04);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   color: var(--text-primary);
@@ -4680,6 +4794,18 @@ a.ring-platform-chip:hover {
 }
 .tag-category-group {
   margin-bottom: 6px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.tag-category-group.cat-dragging {
+  opacity: 0.4;
+  transform: scale(0.97);
+}
+.tag-category-group.cat-drop-before {
+  border-top: 2px solid var(--accent);
+  padding-top: 2px;
+}
+.tag-panel-pill.drop-before {
+  box-shadow: -2px 0 0 0 var(--accent);
 }
 .tag-category-label {
   font-size: 9px;
@@ -4692,8 +4818,14 @@ a.ring-platform-chip:hover {
   align-items: center;
   gap: 6px;
 }
+.tag-category-label[draggable="true"] {
+  cursor: grab;
+}
+.tag-category-label[draggable="true"]:active {
+  cursor: grabbing;
+}
 .tag-category-label-text {
-  cursor: default;
+  cursor: inherit;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -5233,8 +5365,8 @@ a.ring-platform-chip:hover {
   width: 340px;
   max-height: 70vh;
   background: rgba(var(--bg-card-rgb), 0.25);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
@@ -5689,8 +5821,8 @@ body.dispatch-mode .marker-cluster-inner {
   height: 85vh;
   max-height: 750px;
   background: rgba(var(--bg-primary-rgb), 0.3);
-  \1;
-  -webkit-\1;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
@@ -6232,7 +6364,7 @@ body.dispatch-mode .marker-cluster-inner {
 /* ── Layer 1: Slow-rotating conic sunburst (wide, dramatic rays) ── */
 .marker-sunray {
   position: absolute;
-  inset: -22px;
+  inset: -18px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
@@ -6240,21 +6372,21 @@ body.dispatch-mode .marker-cluster-inner {
   background:
     conic-gradient(
       from 0deg,
-      transparent 0deg,   rgba(255, 215, 80, 0.55) 4deg,  rgba(255, 235, 140, 0.3) 8deg,  transparent 14deg,
-      transparent 25deg,  rgba(255, 200, 60, 0.45) 29deg,  rgba(255, 230, 120, 0.2) 34deg, transparent 40deg,
-      transparent 50deg,  rgba(255, 220, 90, 0.50) 54deg,  rgba(255, 240, 160, 0.25) 58deg, transparent 64deg,
-      transparent 75deg,  rgba(255, 205, 70, 0.40) 79deg,  transparent 86deg,
-      transparent 95deg,  rgba(255, 225, 100, 0.48) 99deg,  rgba(255, 245, 170, 0.22) 103deg, transparent 109deg,
-      transparent 120deg, rgba(255, 210, 75, 0.52) 124deg, rgba(255, 235, 130, 0.28) 128deg, transparent 134deg,
-      transparent 145deg, rgba(255, 200, 60, 0.38) 149deg, transparent 156deg,
-      transparent 167deg, rgba(255, 225, 95, 0.50) 171deg, rgba(255, 240, 155, 0.25) 175deg, transparent 181deg,
-      transparent 192deg, rgba(255, 215, 80, 0.44) 196deg, transparent 203deg,
-      transparent 215deg, rgba(255, 230, 110, 0.48) 219deg, rgba(255, 245, 165, 0.22) 223deg, transparent 229deg,
-      transparent 240deg, rgba(255, 205, 65, 0.42) 244deg, transparent 251deg,
-      transparent 263deg, rgba(255, 220, 85, 0.52) 267deg, rgba(255, 240, 145, 0.28) 271deg, transparent 277deg,
-      transparent 290deg, rgba(255, 210, 75, 0.40) 294deg, transparent 301deg,
-      transparent 312deg, rgba(255, 225, 100, 0.50) 316deg, rgba(255, 245, 170, 0.24) 320deg, transparent 326deg,
-      transparent 338deg, rgba(255, 215, 80, 0.36) 342deg, transparent 348deg,
+      transparent 0deg,   rgba(255, 215, 80, 0.25) 4deg,  rgba(255, 235, 140, 0.14) 8deg,  transparent 14deg,
+      transparent 25deg,  rgba(255, 200, 60, 0.22) 29deg,  rgba(255, 230, 120, 0.10) 34deg, transparent 40deg,
+      transparent 50deg,  rgba(255, 220, 90, 0.24) 54deg,  rgba(255, 240, 160, 0.12) 58deg, transparent 64deg,
+      transparent 75deg,  rgba(255, 205, 70, 0.20) 79deg,  transparent 86deg,
+      transparent 95deg,  rgba(255, 225, 100, 0.22) 99deg,  rgba(255, 245, 170, 0.10) 103deg, transparent 109deg,
+      transparent 120deg, rgba(255, 210, 75, 0.25) 124deg, rgba(255, 235, 130, 0.13) 128deg, transparent 134deg,
+      transparent 145deg, rgba(255, 200, 60, 0.18) 149deg, transparent 156deg,
+      transparent 167deg, rgba(255, 225, 95, 0.24) 171deg, rgba(255, 240, 155, 0.12) 175deg, transparent 181deg,
+      transparent 192deg, rgba(255, 215, 80, 0.20) 196deg, transparent 203deg,
+      transparent 215deg, rgba(255, 230, 110, 0.22) 219deg, rgba(255, 245, 165, 0.10) 223deg, transparent 229deg,
+      transparent 240deg, rgba(255, 205, 65, 0.20) 244deg, transparent 251deg,
+      transparent 263deg, rgba(255, 220, 85, 0.25) 267deg, rgba(255, 240, 145, 0.13) 271deg, transparent 277deg,
+      transparent 290deg, rgba(255, 210, 75, 0.18) 294deg, transparent 301deg,
+      transparent 312deg, rgba(255, 225, 100, 0.24) 316deg, rgba(255, 245, 170, 0.11) 320deg, transparent 326deg,
+      transparent 338deg, rgba(255, 215, 80, 0.16) 342deg, transparent 348deg,
       transparent 360deg
     );
   mask: radial-gradient(circle, transparent 36%, white 46%, white 85%, transparent 100%);
@@ -6272,43 +6404,43 @@ body.dispatch-mode .marker-cluster-inner {
   background:
     conic-gradient(
       from 45deg,
-      transparent 0deg,   rgba(255, 240, 170, 0.35) 6deg,  transparent 12deg,
-      transparent 30deg,  rgba(255, 230, 130, 0.30) 36deg,  transparent 42deg,
-      transparent 60deg,  rgba(255, 245, 180, 0.38) 66deg,  transparent 72deg,
-      transparent 90deg,  rgba(255, 235, 150, 0.28) 96deg,  transparent 102deg,
-      transparent 120deg, rgba(255, 240, 165, 0.35) 126deg, transparent 132deg,
-      transparent 150deg, rgba(255, 230, 140, 0.32) 156deg, transparent 162deg,
-      transparent 180deg, rgba(255, 245, 175, 0.36) 186deg, transparent 192deg,
-      transparent 210deg, rgba(255, 235, 145, 0.30) 216deg, transparent 222deg,
-      transparent 240deg, rgba(255, 240, 160, 0.34) 246deg, transparent 252deg,
-      transparent 270deg, rgba(255, 230, 135, 0.32) 276deg, transparent 282deg,
-      transparent 300deg, rgba(255, 245, 170, 0.36) 306deg, transparent 312deg,
-      transparent 330deg, rgba(255, 235, 150, 0.28) 336deg, transparent 342deg,
+      transparent 0deg,   rgba(255, 240, 170, 0.16) 6deg,  transparent 12deg,
+      transparent 30deg,  rgba(255, 230, 130, 0.14) 36deg,  transparent 42deg,
+      transparent 60deg,  rgba(255, 245, 180, 0.18) 66deg,  transparent 72deg,
+      transparent 90deg,  rgba(255, 235, 150, 0.13) 96deg,  transparent 102deg,
+      transparent 120deg, rgba(255, 240, 165, 0.16) 126deg, transparent 132deg,
+      transparent 150deg, rgba(255, 230, 140, 0.15) 156deg, transparent 162deg,
+      transparent 180deg, rgba(255, 245, 175, 0.17) 186deg, transparent 192deg,
+      transparent 210deg, rgba(255, 235, 145, 0.14) 216deg, transparent 222deg,
+      transparent 240deg, rgba(255, 240, 160, 0.16) 246deg, transparent 252deg,
+      transparent 270deg, rgba(255, 230, 135, 0.15) 276deg, transparent 282deg,
+      transparent 300deg, rgba(255, 245, 170, 0.17) 306deg, transparent 312deg,
+      transparent 330deg, rgba(255, 235, 150, 0.13) 336deg, transparent 342deg,
       transparent 360deg
     );
   mask: radial-gradient(circle, transparent 40%, white 52%, white 78%, transparent 92%);
   -webkit-mask: radial-gradient(circle, transparent 40%, white 52%, white 78%, transparent 92%);
   animation: sunrayCounterRotate 22s linear infinite;
-  opacity: 0.8;
+  opacity: 0.6;
 }
 
 /* ── Layer 3: Pulsing golden bloom behind everything ── */
 .marker-sunray::after {
   content: '';
   position: absolute;
-  inset: -8px;
+  inset: -6px;
   border-radius: 50%;
   background: radial-gradient(circle,
-    rgba(255, 220, 100, 0.50) 0%,
-    rgba(255, 200, 60, 0.25) 35%,
-    rgba(255, 180, 40, 0.10) 55%,
+    rgba(255, 220, 100, 0.22) 0%,
+    rgba(255, 200, 60, 0.10) 35%,
+    rgba(255, 180, 40, 0.04) 55%,
     transparent 75%
   );
   animation: graceBloom 3s ease-in-out infinite;
 }
 
 .creator-marker.dispatch-match.score-perfect .marker-sunray {
-  opacity: 1;
+  opacity: 0.7;
 }
 
 @keyframes sunrayRotate {
@@ -6330,8 +6462,8 @@ body.dispatch-mode .marker-cluster-inner {
   width: var(--p-size, 3px);
   height: var(--p-size, 3px);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 245, 200, 0.95), rgba(255, 215, 80, 0.6));
-  box-shadow: 0 0 4px 1px rgba(255, 220, 100, 0.6), 0 0 10px 2px rgba(255, 200, 60, 0.3);
+  background: radial-gradient(circle, rgba(255, 245, 200, 0.6), rgba(255, 215, 80, 0.3));
+  box-shadow: 0 0 3px 1px rgba(255, 220, 100, 0.3), 0 0 6px 1px rgba(255, 200, 60, 0.12);
   left: 50%;
   top: 50%;
   pointer-events: none;
@@ -6358,9 +6490,9 @@ body.dispatch-mode .marker-cluster-inner {
 
 /* Perfect score gleam ring — golden grace halo */
 .creator-marker.dispatch-match.score-perfect .marker-gleam-ring {
-  border-color: rgba(255, 220, 100, 0.8);
-  border-width: 2.5px;
-  box-shadow: 0 0 18px 6px rgba(255, 215, 80, 0.4), 0 0 40px 12px rgba(255, 200, 60, 0.15);
+  border-color: rgba(255, 220, 100, 0.45);
+  border-width: 2px;
+  box-shadow: 0 0 10px 3px rgba(255, 215, 80, 0.2), 0 0 22px 6px rgba(255, 200, 60, 0.08);
   animation: perfectBreathe 4.5s ease-in-out infinite;
   animation-delay: calc(-1 * var(--stagger, 0ms));
   will-change: transform, opacity;

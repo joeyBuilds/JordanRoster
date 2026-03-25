@@ -1078,8 +1078,9 @@ body.shift-held #mapContainer .leaflet-container {
   gap: 2px;
   justify-content: center;
   padding: 0 4px 4px;
-  max-height: 32px;
-  overflow: hidden;
+}
+.demos-niches-row:hover {
+  opacity: 0.8;
 }
 .demos-niche-pill {
   font-size: 8px;

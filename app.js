@@ -4706,9 +4706,18 @@ function renderDemosPanel(creator) {
     subTabsEl.style.display = 'block';
     const niches = (creator.niches || []);
     const nichesHtml = niches.length > 0
-      ? `<div class="demos-niches-row">${niches.map(n => `<span class="demos-niche-pill">${n}</span>`).join('')}</div>`
+      ? `<div class="demos-niches-row" title="Click to edit niches">${niches.map(n => `<span class="demos-niche-pill">${n}</span>`).join('')}</div>`
       : '';
     subTabsEl.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div>${nichesHtml}`;
+    // Make niches row clickable → opens Edit Creator modal
+    const nichesRow = subTabsEl.querySelector('.demos-niches-row');
+    if (nichesRow) {
+      nichesRow.style.cursor = 'pointer';
+      nichesRow.onclick = () => {
+        closeDetailPanel();
+        openEditModal(creator.id);
+      };
+    }
     const tabRow = document.createElement('div');
     tabRow.className = 'demos-sub-tab-row';
     tabs.forEach(t => {

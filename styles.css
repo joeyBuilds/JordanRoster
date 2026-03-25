@@ -5950,9 +5950,39 @@ body.dispatch-mode .marker-cluster-inner {
 
 /* Full-card color wash based on match score */
 .creator-card[data-score="full"] {
-  background: linear-gradient(135deg, rgba(var(--success-rgb),0.22) 0%, rgba(var(--success-rgb),0.10) 100%) !important;
-  border-color: rgba(var(--success-rgb),0.35) !important;
-  border-left: 3px solid var(--success) !important;
+  background: linear-gradient(135deg, rgba(var(--gold-rgb),0.22) 0%, rgba(var(--gold-rgb),0.08) 100%) !important;
+  border-color: rgba(var(--gold-rgb),0.40) !important;
+  border-left: 3px solid var(--gold) !important;
+  position: relative;
+  overflow: hidden;
+  animation: cardPerfectGlow 3s ease-in-out infinite;
+}
+/* Sweeping shimmer on perfect-score cards */
+.creator-card[data-score="full"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(var(--gold-rgb), 0.12) 42%,
+    rgba(var(--gold-rgb), 0.20) 50%,
+    rgba(var(--gold-rgb), 0.12) 58%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  animation: cardShimmerSweep 4s ease-in-out infinite;
+  z-index: 1;
+}
+@keyframes cardPerfectGlow {
+  0%, 100% { box-shadow: inset 0 0 20px rgba(var(--gold-rgb), 0.06), 0 2px 12px rgba(0, 0, 0, 0.15); }
+  50%      { box-shadow: inset 0 0 30px rgba(var(--gold-rgb), 0.12), 0 2px 16px rgba(var(--gold-rgb), 0.10); }
+}
+@keyframes cardShimmerSweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -50% 0; }
 }
 .creator-card[data-score="most"] {
   background: linear-gradient(135deg, rgba(var(--success-rgb),0.14) 0%, rgba(var(--success-rgb),0.06) 100%) !important;
@@ -5996,6 +6026,10 @@ body.dispatch-mode .marker-cluster-inner {
   background: var(--success);
   box-shadow: 0 0 5px rgba(var(--success-rgb),0.45);
 }
+.creator-card[data-score="full"] .card-pip-seg.filled {
+  background: var(--gold);
+  box-shadow: 0 0 6px rgba(var(--gold-rgb),0.5);
+}
 .creator-card[data-score="half"] .card-pip-seg.filled {
   background: var(--warning);
   box-shadow: 0 0 5px rgba(var(--tag-niche-rgb),0.35);
@@ -6024,7 +6058,7 @@ body.dispatch-mode .marker-cluster-inner {
   opacity: 0.7;
   transform: translateY(0);
 }
-.creator-card[data-score="full"] .card-score-fraction { color: var(--success); }
+.creator-card[data-score="full"] .card-score-fraction { color: var(--gold); font-weight: 800; z-index: 2; position: relative; }
 .creator-card[data-score="most"] .card-score-fraction { color: var(--success); }
 .creator-card[data-score="half"] .card-score-fraction { color: var(--warning); }
 .creator-card[data-score="low"] .card-score-fraction { color: var(--mocha); }
@@ -6087,7 +6121,11 @@ body.dispatch-mode .marker-cluster-inner {
   transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);
   filter: drop-shadow(0 0 4px rgba(var(--success-rgb),0.5));
 }
-.marker-score-fill.score-full { stroke-dashoffset: 0; }
+.marker-score-fill.score-full {
+  stroke-dashoffset: 0;
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 6px rgba(var(--gold-rgb), 0.7));
+}
 .marker-score-fill.score-most { stroke-dashoffset: 38; }
 .marker-score-fill.score-half { stroke-dashoffset: 75; stroke: var(--warning); }
 .marker-score-fill.score-low { stroke-dashoffset: 112; stroke: var(--mocha); }
@@ -6118,10 +6156,96 @@ body.dispatch-mode .marker-cluster-inner {
   opacity: 1;
   transform: scale(1);
 }
-.marker-score-badge.score-full { background: linear-gradient(135deg, #5aad6a, #3d8a4e); }
+.marker-score-badge.score-full {
+  background: linear-gradient(135deg, #d4a832, #c4922a);
+  color: #fff;
+  border-color: rgba(255, 230, 140, 0.7);
+  box-shadow: 0 0 10px 2px rgba(212, 168, 50, 0.5), 0 1px 6px rgba(0, 0, 0, 0.4);
+  animation: perfectBadgePulse 2s ease-in-out infinite;
+}
+@keyframes perfectBadgePulse {
+  0%, 100% { box-shadow: 0 0 10px 2px rgba(212, 168, 50, 0.4), 0 1px 6px rgba(0, 0, 0, 0.4); }
+  50%      { box-shadow: 0 0 16px 4px rgba(212, 168, 50, 0.65), 0 1px 6px rgba(0, 0, 0, 0.4); }
+}
 .marker-score-badge.score-most { background: linear-gradient(135deg, #5aad6a, #3d8a4e); }
 .marker-score-badge.score-half { background: linear-gradient(135deg, #c9a84c, #a8883a); color: white; }
 .marker-score-badge.score-low { background: linear-gradient(135deg, #a08060, #7a6048); }
+
+/* ===========================
+   PERFECT SCORE — Gold Sunray
+   =========================== */
+
+/* Rotating sunray starburst behind avatar for perfect-score pins */
+.marker-sunray {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  background:
+    conic-gradient(
+      from 0deg,
+      transparent 0deg, rgba(var(--gold-rgb), 0.35) 8deg, transparent 16deg,
+      transparent 30deg, rgba(var(--gold-rgb), 0.28) 38deg, transparent 46deg,
+      transparent 60deg, rgba(var(--gold-rgb), 0.32) 68deg, transparent 76deg,
+      transparent 90deg, rgba(var(--gold-rgb), 0.25) 98deg, transparent 106deg,
+      transparent 120deg, rgba(var(--gold-rgb), 0.30) 128deg, transparent 136deg,
+      transparent 150deg, rgba(var(--gold-rgb), 0.22) 158deg, transparent 166deg,
+      transparent 180deg, rgba(var(--gold-rgb), 0.33) 188deg, transparent 196deg,
+      transparent 210deg, rgba(var(--gold-rgb), 0.27) 218deg, transparent 226deg,
+      transparent 240deg, rgba(var(--gold-rgb), 0.30) 248deg, transparent 256deg,
+      transparent 270deg, rgba(var(--gold-rgb), 0.24) 278deg, transparent 286deg,
+      transparent 300deg, rgba(var(--gold-rgb), 0.35) 308deg, transparent 316deg,
+      transparent 330deg, rgba(var(--gold-rgb), 0.20) 338deg, transparent 346deg,
+      transparent 360deg
+    );
+  mask: radial-gradient(circle, transparent 42%, white 50%, white 80%, transparent 100%);
+  -webkit-mask: radial-gradient(circle, transparent 42%, white 50%, white 80%, transparent 100%);
+  animation: sunrayRotate 20s linear infinite;
+  transition: opacity 0.6s ease;
+}
+.creator-marker.dispatch-match.score-perfect .marker-sunray {
+  opacity: 1;
+}
+@keyframes sunrayRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Perfect score gleam ring — gold instead of generic */
+.creator-marker.dispatch-match.score-perfect .marker-gleam-ring {
+  border-color: rgba(var(--gold-rgb), 0.7);
+  animation: perfectBreathe 4s ease-in-out infinite;
+  animation-delay: calc(-1 * var(--stagger, 0ms));
+}
+@keyframes perfectBreathe {
+  0%, 100% {
+    opacity: 0.85;
+    transform: scale(1);
+    box-shadow:
+      0 0 12px 4px rgba(var(--gold-rgb), 0.30),
+      inset 0 0 6px 2px rgba(var(--gold-rgb), 0.10);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+    box-shadow:
+      0 0 18px 6px rgba(var(--gold-rgb), 0.40),
+      inset 0 0 8px 3px rgba(var(--gold-rgb), 0.14);
+  }
+}
+
+/* Perfect score glow — gold bloom */
+.creator-marker.dispatch-match.score-perfect .marker-glow {
+  background: radial-gradient(circle,
+    rgba(var(--gold-rgb), 0.45) 0%,
+    rgba(var(--gold-rgb), 0.20) 50%,
+    transparent 70%
+  );
+  inset: -10px;
+  opacity: 0.9;
+}
 
 /* ===========================
    DISPATCH MATCH — Breathing halo highlight

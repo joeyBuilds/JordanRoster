@@ -1927,14 +1927,17 @@ function updateMapMarkers() {
 
       // Build gleam ring HTML for dispatch-matched creators
       const isMatch = isDispatch && hasDispatchFilters && _dispatchMatchedIds.has(creator.id);
+      const isPerfect = isMatch && scorePct >= 1.0;
       // Derive a pseudo-random stagger from creator id hash so each pin breathes at its own pace
       const staggerMs = isMatch ? (Math.abs([...creator.id].reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0), 0)) % 2500) : 0;
       const gleamHtml = isMatch ? `<div class="marker-gleam-ring" style="animation-delay: -${staggerMs}ms"></div>` : '';
+      const sunrayHtml = isPerfect ? `<div class="marker-sunray"></div>` : '';
 
       const iconHtml = `
         <div class="marker-inner" style="${isMatch ? '--stagger:' + staggerMs + 'ms' : ''}">
           ${scoreRingHtml}
           <div class="marker-avatar-wrap">
+            ${sunrayHtml}
             ${gleamHtml}
             <div class="marker-glow"></div>
             <div class="marker-avatar">
@@ -1948,7 +1951,8 @@ function updateMapMarkers() {
       const shouldFade = isDispatch && hasDispatchFilters && !isMatch;
       const markerClassName = 'creator-marker'
         + (shouldFade ? ' dispatch-faded' : '')
-        + (isMatch ? ' dispatch-match' : '');
+        + (isMatch ? ' dispatch-match' : '')
+        + (isPerfect ? ' score-perfect' : '');
 
       const icon = L.divIcon({
         html: iconHtml,
@@ -2054,14 +2058,16 @@ function _stripDispatchMarkerState() {
   Object.keys(markers).forEach(id => {
     const el = markers[id] && markers[id].getElement();
     if (!el) return;
-    el.classList.remove('dispatch-match', 'dispatch-faded', 'dispatch-card-hover');
-    // Remove score ring, badge, and gleam ring DOM elements
+    el.classList.remove('dispatch-match', 'dispatch-faded', 'dispatch-card-hover', 'score-perfect');
+    // Remove score ring, badge, gleam ring, and sunray DOM elements
     const scoreRing = el.querySelector('.marker-score-ring');
     const scoreBadge = el.querySelector('.marker-score-badge');
     const gleamRing = el.querySelector('.marker-gleam-ring');
+    const sunray = el.querySelector('.marker-sunray');
     if (scoreRing) scoreRing.remove();
     if (scoreBadge) scoreBadge.remove();
     if (gleamRing) gleamRing.remove();
+    if (sunray) sunray.remove();
   });
   _hideMapLegend();
 }

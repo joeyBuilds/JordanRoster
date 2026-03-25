@@ -6688,6 +6688,9 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   const nlClear = document.getElementById('nlSearchClear');
   if (nlClear) nlClear.style.display = 'none';
 
+  // Close ring if open
+  closeDetailPanel();
+
   // Slide back to Roster mode
   const rosterBtn = document.querySelector('.tab-button[data-tab="roster"]');
   if (rosterBtn) rosterBtn.click();

@@ -923,14 +923,14 @@ body.shift-held #mapContainer .leaflet-container {
   background: rgba(var(--bg-card-rgb), 0.4);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
-  padding: 6px 8px;
+  padding: 5px 7px;
 }
 .demos-demo-title {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 /* Color-coded — alchemy circle gradient (orange→pink/magenta top-to-bottom) */
 .demos-color-gender .demos-demo-title { color: #E8729A; }
@@ -967,7 +967,7 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-donut-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
 }
 .demos-donut {
@@ -1018,17 +1018,17 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-bar-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 2px;
+  gap: 3px;
+  margin-bottom: 1px;
 }
 .demos-bar-row:last-child {
   margin-bottom: 0;
 }
 .demos-bar-label {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-primary);
-  min-width: 36px;
-  max-width: 58px;
+  min-width: 32px;
+  max-width: 54px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1036,7 +1036,7 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .demos-bar-track {
   flex: 1;
-  height: 6px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   overflow: hidden;
@@ -1048,9 +1048,9 @@ body.shift-held #mapContainer .leaflet-container {
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .demos-bar-value {
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-secondary);
-  min-width: 28px;
+  min-width: 26px;
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1074,26 +1074,23 @@ body.shift-held #mapContainer .leaflet-container {
 /* Niches row */
 .demos-niches-row {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 3px;
+  flex-wrap: wrap;
+  gap: 2px;
   justify-content: center;
   padding: 0 4px 4px;
+  max-height: 32px;
   overflow: hidden;
 }
 .demos-niche-pill {
   font-size: 8px;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  padding: 1px 6px;
+  letter-spacing: 0.2px;
+  padding: 1px 5px;
   border-radius: 8px;
   background: rgba(var(--accent-rgb), 0.12);
   color: var(--accent);
   border: 1px solid rgba(var(--accent-rgb), 0.2);
   white-space: nowrap;
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .demos-sub-tab-row {
   display: flex;

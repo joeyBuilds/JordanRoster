@@ -192,6 +192,51 @@ function extractAudienceFromHtml($) {
   return Object.keys(result).length > 0 ? result : null;
 }
 
+// Extract audience data from July's media kit block structure:
+// blocks[].fields.stats.all[] = [{name, value}, ...]
+function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
+  const PLATFORM_MAP = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
+  const STAT_MAP = {
+    views: 'views', reach: 'reach', likes: 'likes', comments: 'comments',
+    shares: 'shares', saves: 'saves', total_interactions: 'totalInteractions',
+    average_likes: 'avgPostLikes', average_comments: 'avgPostComments',
+    story_views: 'avgStoryViews',
+  };
+  let found = false;
+
+  for (const block of blocks) {
+    const platform = PLATFORM_MAP[(block.type || '').toLowerCase()];
+    if (!platform || !creatorPlatforms[platform]) continue;
+
+    const allStats = block.fields?.stats?.all;
+    if (!Array.isArray(allStats)) continue;
+
+    const result = { stats: {} };
+
+    for (const s of allStats) {
+      if (!s || typeof s !== 'object' || s.value == null) continue;
+
+      // Map performance stats
+      const mapped = STAT_MAP[s.name];
+      if (mapped) {
+        result.stats[mapped] = typeof s.value === 'number' ? s.value : parseFloat(s.value);
+      }
+
+      // Map demographic breakdowns (gender, age, country, city) — array of {label, value}
+      if (['gender', 'age', 'country', 'city'].includes(s.name) && Array.isArray(s.value) && s.value.length > 0) {
+        result[s.name] = normalizeBreakdown(s.value);
+      }
+    }
+
+    if (Object.keys(result.stats).length > 0 || result.gender || result.age || result.country || result.city) {
+      if (Object.keys(result.stats).length === 0) delete result.stats;
+      creatorPlatforms[platform].audienceData = result;
+      found = true;
+    }
+  }
+  return found;
+}
+
 async function enrichWithAudienceData(creators) {
   const needsEnrichment = creators.filter(c => c.username && !Object.values(c.platforms || {}).some(p => p.audienceData));
   if (needsEnrichment.length === 0) return;
@@ -209,7 +254,8 @@ async function enrichWithAudienceData(creators) {
     const batch = needsEnrichment.slice(i, i + BATCH);
     await Promise.allSettled(batch.map(async (creator) => {
       try {
-        const resp = await fetchWithTimeout(`https://july.bio/iamsocial/${creator.username}`, {
+        // Detail pages live at /username (NOT /iamsocial/username)
+        const resp = await fetchWithTimeout(`https://july.bio/${creator.username}`, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', 'Accept': 'text/html' }
         });
         if (!resp.ok) return;
@@ -219,6 +265,17 @@ async function enrichWithAudienceData(creators) {
         if (nextScript) {
           try {
             const nextData = JSON.parse(nextScript);
+
+            // Strategy 1: July media kit blocks (primary path)
+            const mk = nextData?.props?.pageProps?.data?.mediaKit?.json?.data;
+            if (mk && Array.isArray(mk.blocks)) {
+              if (extractFromMediaKitBlocks(mk.blocks, creator.platforms)) {
+                enriched++;
+                return;
+              }
+            }
+
+            // Strategy 2: Generic platform array with audience fields
             const platformsData = findPlatformsWithAudience(nextData);
             if (platformsData) {
               let found = false;
@@ -230,6 +287,8 @@ async function enrichWithAudienceData(creators) {
               });
               if (found) { enriched++; return; }
             }
+
+            // Strategy 3: Single creator object
             const sc = findSingleCreator(nextData);
             if (sc && Array.isArray(sc.platforms)) {
               let found = false;

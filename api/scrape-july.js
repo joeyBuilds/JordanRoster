@@ -198,6 +198,41 @@ function extractAudienceFromHtml($) {
   return Object.keys(result).length > 0 ? result : null;
 }
 
+// Extract audience data from July's media kit block structure
+function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
+  const PLATFORM_MAP = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
+  const STAT_MAP = {
+    views: 'views', reach: 'reach', likes: 'likes', comments: 'comments',
+    shares: 'shares', saves: 'saves', total_interactions: 'totalInteractions',
+    average_likes: 'avgPostLikes', average_comments: 'avgPostComments',
+    story_views: 'avgStoryViews',
+  };
+  let found = false;
+  for (const block of blocks) {
+    const platform = PLATFORM_MAP[(block.type || '').toLowerCase()];
+    if (!platform || !creatorPlatforms[platform]) continue;
+    const allStats = block.fields?.stats?.all;
+    if (!Array.isArray(allStats)) continue;
+    const result = { stats: {} };
+    for (const s of allStats) {
+      if (!s || typeof s !== 'object' || s.value == null) continue;
+      const mapped = STAT_MAP[s.name];
+      if (mapped) {
+        result.stats[mapped] = typeof s.value === 'number' ? s.value : parseFloat(s.value);
+      }
+      if (['gender', 'age', 'country', 'city'].includes(s.name) && Array.isArray(s.value) && s.value.length > 0) {
+        result[s.name] = normalizeBreakdown(s.value);
+      }
+    }
+    if (Object.keys(result.stats).length > 0 || result.gender || result.age || result.country || result.city) {
+      if (Object.keys(result.stats).length === 0) delete result.stats;
+      creatorPlatforms[platform].audienceData = result;
+      found = true;
+    }
+  }
+  return found;
+}
+
 // Enrich creators with audience data by visiting their July detail pages
 async function enrichWithAudienceData(creators) {
   const needsEnrichment = creators.filter(c => {
@@ -225,7 +260,8 @@ async function enrichWithAudienceData(creators) {
     const batch = needsEnrichment.slice(i, i + BATCH);
     await Promise.allSettled(batch.map(async (creator) => {
       try {
-        const detailUrl = `https://july.bio/iamsocial/${creator.username}`;
+        // Detail pages live at /username (NOT /iamsocial/username)
+        const detailUrl = `https://july.bio/${creator.username}`;
         const resp = await fetchWithTimeout(detailUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -242,6 +278,17 @@ async function enrichWithAudienceData(creators) {
         if (nextScript) {
           try {
             const nextData = JSON.parse(nextScript);
+
+            // Strategy 1: July media kit blocks (primary path)
+            const mk = nextData?.props?.pageProps?.data?.mediaKit?.json?.data;
+            if (mk && Array.isArray(mk.blocks)) {
+              if (extractFromMediaKitBlocks(mk.blocks, creator.platforms)) {
+                enriched++;
+                return;
+              }
+            }
+
+            // Strategy 2: Generic platform array with audience fields
             const platformsData = findPlatformsWithAudience(nextData);
             if (platformsData) {
               let found = false;
@@ -259,7 +306,7 @@ async function enrichWithAudienceData(creators) {
               if (found) { enriched++; return; }
             }
 
-            // Fallback: search for a single creator object with audience data
+            // Strategy 3: Single creator object with audience data
             const singleCreator = findSingleCreator(nextData);
             if (singleCreator && Array.isArray(singleCreator.platforms)) {
               let found = false;
@@ -381,7 +428,7 @@ module.exports = async function handler(req, res) {
       const username = req.query.username || (creatorsFromJson[0] && normalizeCreator(creatorsFromJson[0])?.username);
       if (username) {
         try {
-          const detailResp = await fetch(`https://july.bio/iamsocial/${username}`, {
+          const detailResp = await fetch(`https://july.bio/${username}`, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Accept': 'text/html' }
           });
           const detailHtml = await detailResp.text();

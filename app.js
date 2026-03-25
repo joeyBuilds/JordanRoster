@@ -5469,6 +5469,23 @@ function triggerModeTransition(toDispatch) {
 // Tab switching — orchestrated transition
 let _modeTransitioning = false;
 
+// ── Animated tab indicator ──
+function updateTabIndicator(activeBtn) {
+  const tabs = document.querySelector('.sidebar-tabs');
+  if (!tabs || !activeBtn) return;
+  const tabsRect = tabs.getBoundingClientRect();
+  const btnRect = activeBtn.getBoundingClientRect();
+  const left = btnRect.left - tabsRect.left;
+  const width = btnRect.width;
+  tabs.style.setProperty('--tab-indicator-left', left + 'px');
+  tabs.style.setProperty('--tab-indicator-width', width + 'px');
+}
+// Initialize on first paint
+requestAnimationFrame(() => {
+  const activeTab = document.querySelector('.tab-button.active');
+  if (activeTab) updateTabIndicator(activeTab);
+});
+
 document.querySelectorAll('.tab-button').forEach(btn => {
   btn.addEventListener('click', () => {
     if (_modeTransitioning) return; // debounce during transition
@@ -5483,6 +5500,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     // Update active tab immediately
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    updateTabIndicator(btn);
 
     if (modeChanging) {
       _modeTransitioning = true;

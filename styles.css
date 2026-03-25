@@ -85,9 +85,12 @@
   --dest-blue-rgb: 0, 212, 255;
 
   /* Glass effect tokens */
-  --glass-bg: rgba(15, 26, 20, 0.65);
-  --glass-border: rgba(139, 191, 150, 0.08);
-  --glass-blur: 20px;
+  --glass-bg: rgba(15, 26, 20, 0.45);
+  --glass-border: rgba(139, 191, 150, 0.12);
+  --glass-blur: 24px;
+  --glass-highlight: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
   /* Tag colors */
   --tag-platform: #7CC98A;
@@ -150,8 +153,11 @@ body.dispatch-mode {
   --rose-rgb: 212, 160, 160;
   --mocha: #C09A80;
   --mocha-rgb: 192, 154, 128;
-  --glass-bg: rgba(26, 20, 16, 0.65);
-  --glass-border: rgba(212, 160, 128, 0.08);
+  --glass-bg: rgba(26, 20, 16, 0.45);
+  --glass-border: rgba(212, 160, 128, 0.12);
+  --glass-highlight: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --tag-platform: #A8C8A5;
   --tag-platform-rgb: 168, 200, 165;
   --tag-niche: #D4B468;
@@ -190,14 +196,9 @@ body.dispatch-mode #sidebar::after {
   background: linear-gradient(to top, rgba(var(--accent-rgb), 0.04) 0%, transparent 100%);
 }
 body.dispatch-mode .sidebar-tabs {
-  background: transparent;
+  background: rgba(var(--bg-card-rgb), 0.3);
 }
-body.dispatch-mode .leaflet-tile {
-  filter: brightness(0.75) saturate(0.8) contrast(1.1);
-}
-body.dispatch-mode #mapContainer::before {
-  background: linear-gradient(to right, rgba(var(--bg-primary-rgb), 0.5) 0%, transparent 100%);
-}
+/* Map canvas: no mode-based filters or treatments */
 
 /* ===========================
    MODE TRANSITION SYSTEM
@@ -244,10 +245,7 @@ body.dispatch-mode #mapContainer::before {
   100% { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
-/* Phase 3: Map atmosphere shift — smooth filter crossfade via transition */
-.leaflet-tile {
-  transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
+/* Phase 3: Map — no filter transitions */
 
 /* Phase 4: Ambient glow particles — subtle floating motes */
 .mode-mote {
@@ -440,9 +438,12 @@ body.dispatch-mode .title-niche {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.7), rgba(var(--accent-dark-rgb), 0.8));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: white;
-  box-shadow: 0 2px 12px rgba(var(--accent-rgb), 0.2);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.25), var(--glass-inset);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -462,18 +463,22 @@ body.dispatch-mode .title-niche {
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--accent-dark), var(--accent-dark));
-  box-shadow: 0 4px 20px rgba(var(--accent-rgb), 0.3);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.85), rgba(var(--accent-dark-rgb), 0.95));
+  box-shadow: 0 6px 24px rgba(var(--accent-rgb), 0.35), var(--glass-inset);
 }
 
 .btn-secondary {
-  background: var(--bg-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text-primary);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--glass-inset);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 #mainContainer {
@@ -520,16 +525,9 @@ body.dispatch-mode .title-niche {
 body.shift-held #mapContainer .leaflet-container {
   cursor: crosshair !important;
 }
+/* Map canvas — clean, no overlay gradients */
 #mapContainer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 40px;
-  background: linear-gradient(to right, rgba(var(--bg-primary-rgb), 0.5) 0%, transparent 100%);
-  z-index: 500;
-  pointer-events: none;
+  display: none;
 }
 
 #map {
@@ -709,9 +707,8 @@ body.shift-held #mapContainer .leaflet-container {
    MAP TILES & LEAFLET OVERRIDES
    =========================== */
 
-/* Leaflet satellite imagery — slightly dimmed for pin contrast + GPU compositing */
+/* Leaflet tiles — clean, no filters */
 .leaflet-tile {
-  transition: filter 0.8s ease;
   will-change: transform;
   /* Eliminate tile seam "prison bars" */
   margin: -0.5px;
@@ -813,14 +810,16 @@ body.shift-held #mapContainer .leaflet-container {
   to { opacity: 1; }
 }
 .nuke-dialog {
-  background: var(--bg-secondary);
+  background: rgba(var(--bg-secondary-rgb), 0.6);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
   border: 2px solid var(--danger);
   border-radius: 16px;
   padding: 28px 24px;
   max-width: 340px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 0 40px rgba(var(--danger-rgb), 0.3);
+  box-shadow: 0 0 40px rgba(var(--danger-rgb), 0.3), var(--glass-inset);
   animation: nukeShake 0.3s ease;
 }
 @keyframes nukeShake {
@@ -987,44 +986,76 @@ body.shift-held #mapContainer .leaflet-container {
 .sidebar-tabs {
   display: flex;
   border-bottom: 1px solid var(--glass-border);
-  background: transparent;
+  background: rgba(var(--bg-card-rgb), 0.3);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: background 0.6s ease, border-color 0.6s ease;
   position: relative;
   z-index: 1;
-  padding: 0 12px;
+  padding: 6px 10px;
+  gap: 2px;
+}
+
+/* Animated sliding indicator behind active tab */
+.sidebar-tabs::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: var(--tab-indicator-left, 10px);
+  width: var(--tab-indicator-width, 33.333%);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  border-radius: 2px 2px 0 0;
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+/* Sliding glass pill behind active tab */
+.sidebar-tabs::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: var(--tab-indicator-left, 10px);
+  width: var(--tab-indicator-width, 33.333%);
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.12);
+  border-radius: 10px;
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+  pointer-events: none;
 }
 
 .tab-button {
   flex: 1;
-  padding: 14px 14px 11px;
+  padding: 10px 14px;
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
+  border-bottom: none;
+  border-radius: 8px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: rgba(var(--text-primary-rgb), 0.30);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: color 0.35s ease;
   font-family: 'DM Sans', sans-serif;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
 }
 
 .tab-button.active {
-  border-bottom-color: var(--accent);
   color: var(--text-primary);
   background: transparent;
 }
 
-.tab-button:hover {
-  color: rgba(var(--text-primary-rgb), 0.6);
-  background: rgba(var(--accent-rgb), 0.04);
+.tab-button:hover:not(.active) {
+  color: rgba(var(--text-primary-rgb), 0.55);
 }
 
 /* ===========================
@@ -1039,11 +1070,13 @@ body.shift-held #mapContainer .leaflet-container {
 
 .roster-header {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.08);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--bg-card);
+  background: rgba(var(--bg-card-rgb), 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /* Search + Add button on one row */
@@ -1088,14 +1121,17 @@ body.shift-held #mapContainer .leaflet-container {
 .search-input {
   width: 100%;
   padding: 9px 28px 9px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   color: var(--text-primary);
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 0;
+  box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .search-input::placeholder {
@@ -1104,9 +1140,9 @@ body.shift-held #mapContainer .leaflet-container {
 
 .search-input:focus {
   outline: none;
-  border-color: rgba(var(--sage-rgb), 0.3);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 3px rgba(var(--sage-rgb), 0.06);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset), 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 /* July sync button group */
@@ -1126,14 +1162,17 @@ body.shift-held #mapContainer .leaflet-container {
   font-weight: 600;
   font-family: 'DM Sans', sans-serif;
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-  background: rgba(var(--success-rgb), 0.25);
-  border: 1px solid rgba(var(--success-rgb), 0.4);
+  background: rgba(var(--success-rgb), 0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--success-rgb), 0.25);
   color: var(--sage);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--glass-inset);
 }
 .btn-july-sync:hover:not(:disabled) {
-  background: rgba(var(--success-rgb), 0.4);
+  background: rgba(var(--success-rgb), 0.3);
   border-color: var(--sage);
   transform: translateY(-1px);
 }
@@ -1460,12 +1499,11 @@ body.shift-held #mapContainer .leaflet-container {
   width: 370px;
   height: 100%;
   z-index: 1002;
-  background: linear-gradient(165deg, rgba(var(--sage-rgb), 0.15) 0%, var(--bg-card) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-right: 1px solid rgba(var(--tag-demographic-rgb), 0.2);
-  border-bottom: 1px solid rgba(var(--tag-demographic-rgb), 0.2);
-  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(var(--tag-demographic-rgb), 0.08);
+  background: rgba(var(--bg-card-rgb), 0.4);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.25), var(--glass-inset);
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -1710,22 +1748,25 @@ body.shift-held #mapContainer .leaflet-container {
   display: flex;
   gap: 10px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-left: 3px solid transparent;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: visible;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), var(--glass-inset);
 }
 .creator-card:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.06);
-  border-left-color: rgba(var(--sage-rgb), 0.3);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  transform: translateX(1px);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(var(--accent-rgb), 0.15);
+  border-left-color: rgba(var(--sage-rgb), 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(var(--accent-rgb), 0.06), var(--glass-inset);
+  transform: translateX(2px);
 }
 
 .card-divider {
@@ -1776,16 +1817,18 @@ body.shift-held #mapContainer .leaflet-container {
   font-weight: 600;
   font-family: 'DM Sans', sans-serif;
   color: var(--text-secondary);
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
 }
 .creator-card-edit-btn:hover {
   color: var(--accent);
-  border-color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 .creator-card-edit-btn svg {
   opacity: 0.7;
@@ -1804,7 +1847,8 @@ body.shift-held #mapContainer .leaflet-container {
   font-weight: 600;
   color: white;
   overflow: hidden;
-  border: 2px solid var(--border);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .creator-avatar img {
@@ -2232,15 +2276,18 @@ a.creator-platform-chip:hover {
 .nl-search-input {
   width: 100%;
   padding: 10px 32px 10px 32px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text-primary);
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
+  box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 .nl-search-input::placeholder {
   color: var(--text-muted);
@@ -2249,8 +2296,9 @@ a.creator-platform-chip:hover {
   text-align: center;
 }
 .nl-search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset);
 }
 .nl-search-clear {
   position: absolute;
@@ -2669,15 +2717,18 @@ a.creator-platform-chip:hover {
 
 .location-filter-input {
   padding: 6px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
-  background: var(--bg-input);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   color: var(--text-primary);
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   text-align: center;
+  box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .location-filter-input::placeholder {
@@ -2686,9 +2737,9 @@ a.creator-platform-chip:hover {
 
 .location-filter-input:focus {
   outline: none;
-  border-color: var(--accent);
-  background: var(--bg-card);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset);
 }
 
 /* Clear button inside location input */
@@ -2986,8 +3037,10 @@ a.creator-platform-chip:hover {
   font-size: 9px;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--text-secondary);
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   user-select: none;
@@ -2995,8 +3048,8 @@ a.creator-platform-chip:hover {
 }
 .dispatch-pill:hover {
   transform: scale(1.05);
-  border-color: var(--accent);
-  background: var(--bg-hover);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.06);
 }
 .dispatch-pill:active {
   transform: scale(0.95);
@@ -3271,12 +3324,12 @@ a.creator-platform-chip:hover {
 /* Floating nearest-creators panel on map */
 .nearest-float {
   width: 100%;
-  background: rgba(var(--bg-hover-rgb), 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  background: rgba(var(--bg-hover-rgb), 0.4);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius);
-  box-shadow: 0 8px 32px rgba(var(--mocha-rgb), 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--glass-inset);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -3580,25 +3633,26 @@ a.creator-platform-chip:hover {
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  border-radius: 12px;
+  border-radius: 14px;
   text-decoration: none;
   color: white;
   cursor: default;
-  background: rgba(var(--tag-platform-rgb), 0.88);
-  border: 1px solid rgba(var(--bg-hover-rgb), 0.5);
+  background: rgba(var(--tag-platform-rgb), 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow:
-    0 3px 16px rgba(0, 0, 0, 0.3),
-    0 0 1px rgba(255, 255, 255, 0.1) inset;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
   flex: 0 0 auto;
   min-width: 120px;
   box-sizing: border-box;
   justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.ring-platform-chip.platform-instagram { background: rgba(225, 48, 108, 0.85); }
-.ring-platform-chip.platform-tiktok { background: rgba(0, 242, 234, 0.8); }
-.ring-platform-chip.platform-youtube { background: rgba(255, 0, 0, 0.8); }
+.ring-platform-chip.platform-instagram { background: rgba(225, 48, 108, 0.5); border-color: rgba(225, 48, 108, 0.3); }
+.ring-platform-chip.platform-tiktok { background: rgba(0, 242, 234, 0.4); border-color: rgba(0, 242, 234, 0.3); }
+.ring-platform-chip.platform-youtube { background: rgba(255, 0, 0, 0.45); border-color: rgba(255, 0, 0, 0.3); }
 a.ring-platform-chip {
   cursor: pointer;
   transition: filter 0.15s ease, transform 0.15s ease;
@@ -3695,14 +3749,14 @@ a.ring-platform-chip:hover {
   position: absolute;
   top: -6px;
   right: -6px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: none;
-  background: rgba(var(--bg-hover-rgb), 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(var(--bg-hover-rgb), 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   color: var(--text-secondary);
   font-size: 16px;
   line-height: 1;
@@ -3711,12 +3765,13 @@ a.ring-platform-chip:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ring-close-btn:hover {
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: scale(1.1);
 }
 
 
@@ -3743,18 +3798,19 @@ a.ring-platform-chip:hover {
   align-items: flex-start;
 }
 
-/* Name + location card (center of info row) */
+/* Name + location card (center of info row) — frosted glass */
 .ring-name-card {
   text-align: center;
-  background: rgba(var(--bg-hover-rgb), 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 14px;
-  padding: 12px 22px 10px;
+  background: rgba(var(--bg-hover-rgb), 0.45);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-radius: 16px;
+  padding: 14px 24px 12px;
   box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.35),
-    0 0 1px rgba(255, 255, 255, 0.08) inset;
-  border: 1px solid rgba(var(--mocha-rgb), 0.5);
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -3830,7 +3886,7 @@ a.ring-platform-chip:hover {
   margin-top: 2px;
 }
 
-/* Tag pills (niches & demographics) — category-colored */
+/* Tag pills (niches & demographics) — glassmorphism category-colored */
 .ring-pill {
   padding: 5px 13px;
   border-radius: 20px;
@@ -3839,16 +3895,16 @@ a.ring-platform-chip:hover {
   white-space: nowrap;
   color: rgba(255,255,255,0.92);
   cursor: pointer;
-  border: 1px solid transparent;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .ring-pill:hover {
   transform: translateY(-2px) scale(1.06);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-  filter: brightness(1.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  filter: brightness(1.1);
 }
 
 /* Niche category colors */
@@ -3918,19 +3974,21 @@ a.ring-platform-chip:hover {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid rgba(var(--mocha-rgb), 0.5);
-  background: rgba(var(--bg-hover-rgb), 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(var(--bg-hover-rgb), 0.4);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
   color: var(--text-primary);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.3),
-    0 0 1px rgba(255, 255, 255, 0.08) inset;
-  transition: all 0.2s;
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ring-action-btn:hover {
-  background: rgba(var(--bg-hover-rgb), 0.95);
-  box-shadow: var(--shadow-lg);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
 }
 .ring-action-btn.danger {
   color: var(--danger);
@@ -3995,16 +4053,19 @@ a.ring-platform-chip:hover {
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
-  background: var(--bg-card);
+  background: rgba(var(--bg-card-rgb), 0.65);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  border: 1px solid rgba(var(--accent-rgb), 0.1);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), var(--glass-inset);
   z-index: 2001;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   opacity: 0;
   pointer-events: none;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-backdrop.open ~ .modal {
@@ -4015,7 +4076,7 @@ a.ring-platform-chip:hover {
 
 .modal-header {
   padding: 20px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4086,13 +4147,16 @@ a.ring-platform-chip:hover {
 
 .form-input, .form-textarea {
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-sm);
-  background: var(--bg-input);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   color: var(--text-primary);
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--glass-inset);
 }
 
 .form-input::placeholder, .form-textarea::placeholder {
@@ -4101,9 +4165,9 @@ a.ring-platform-chip:hover {
 
 .form-input:focus, .form-textarea:focus {
   outline: none;
-  border-color: var(--accent);
-  background: var(--bg-card);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset);
 }
 
 .form-textarea {
@@ -4130,10 +4194,12 @@ a.ring-platform-chip:hover {
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border);
-  background: var(--bg-input);
+  border: 1.5px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
   opacity: 0.55;
 }
 .platform-col.checked {
@@ -4942,7 +5008,7 @@ a.ring-platform-chip:hover {
 
 .modal-footer {
   padding: 16px 20px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   gap: 8px;
   flex-shrink: 0;
@@ -4981,10 +5047,12 @@ a.ring-platform-chip:hover {
 .tag-modal-panel {
   width: 340px;
   max-height: 70vh;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: rgba(var(--bg-card-rgb), 0.6);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  border: 1px solid rgba(var(--accent-rgb), 0.1);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), var(--glass-inset);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5271,7 +5339,10 @@ a.ring-platform-chip:hover {
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
-  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   opacity: 0;
   transform: translateX(400px);
   animation: slideIn 0.3s ease forwards;
@@ -5305,17 +5376,17 @@ a.ring-platform-chip:hover {
 }
 
 .toast.success {
-  background: var(--success);
+  background: rgba(var(--success-rgb), 0.7);
   color: white;
 }
 
 .toast.error {
-  background: var(--danger);
+  background: rgba(var(--danger-rgb), 0.7);
   color: white;
 }
 
 .toast.info {
-  background: var(--accent);
+  background: rgba(var(--accent-rgb), 0.7);
   color: white;
 }
 
@@ -5433,10 +5504,12 @@ body.dispatch-mode .marker-cluster-inner {
   max-width: 960px;
   height: 85vh;
   max-height: 750px;
-  background: var(--bg-primary);
+  background: rgba(var(--bg-primary-rgb), 0.6);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
   border-radius: var(--radius);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(var(--accent-rgb), 0.1);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), var(--glass-inset);
   display: flex;
   flex-direction: column;
   overflow: hidden;

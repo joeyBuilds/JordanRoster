@@ -2722,7 +2722,13 @@ function renderRing(creator, forceDispatch) {
   const avatarWrap = document.createElement('div');
   avatarWrap.className = 'ring-avatar-wrap';
 
-  // Close button removed — clicking the map scrim closes the ring
+  // Close button — since scrim no longer blocks, we need an explicit dismiss
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'ring-close-btn';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.title = 'Close';
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeDetailPanel(); });
+  avatarWrap.appendChild(closeBtn);
 
   const avatar = document.createElement('div');
   avatar.className = 'ring-avatar';
@@ -6772,7 +6778,7 @@ document.getElementById('modalSaveBtn').addEventListener('click', saveCreator);
 // Backdrop click no longer closes modal — use ×, Cancel, or Esc instead
 
 // Ring scrim — click outside to close, stay at current map position
-document.getElementById('ringScrim').addEventListener('click', () => closeDetailPanel());
+// Ring scrim is now non-blocking (no dark overlay) — close via × button or Escape key
 
 // Tag modal scrim — click to close
 document.getElementById('tagModalScrim').addEventListener('click', (e) => {

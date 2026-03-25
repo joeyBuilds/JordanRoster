@@ -4248,18 +4248,15 @@ a.creator-platform-chip:hover {
 .ring-scrim {
   position: fixed;
   z-index: 1050;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: none;
   border-radius: 0;
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
-  cursor: pointer;
 }
 .ring-scrim.open {
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: none; /* Map stays interactive — no blocking scrim */
 }
 
 /* Radial spotlight glow behind the ring */

@@ -2087,7 +2087,7 @@ body.shift-held #mapContainer .leaflet-container {
   left: 360px;
   width: 370px;
   height: 100%;
-  z-index: 1055; /* Above ring scrim (1050), below ring overlay (1060) */
+  z-index: 1065; /* Above ring overlay (1060) so close button is always reachable */
   background: rgba(var(--bg-card-rgb), 0.82);
   backdrop-filter: blur(24px) saturate(1.1);
   -webkit-backdrop-filter: blur(24px) saturate(1.1);
@@ -2142,10 +2142,18 @@ body.shift-held #mapContainer .leaflet-container {
   color: rgba(255, 255, 255, 0.4);
   font-size: 18px;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 6px 8px;
   border-radius: 6px;
   transition: all 0.15s ease;
   line-height: 1;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
 }
 .match-float-close:hover {
   color: rgba(255, 255, 255, 0.8);

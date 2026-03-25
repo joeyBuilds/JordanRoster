@@ -4857,24 +4857,21 @@ function renderAllComparePanels() {
     const panel = document.createElement('div');
     panel.className = 'compare-panel compare-slot-' + i;
 
-    // ── Header area (matches primary: name → niches → close button) ──
+    // ── Header area — fixed height matching primary's subTabs ──
     const headerArea = document.createElement('div');
     headerArea.className = 'compare-panel-header-area';
 
-    // Close button (top-right)
     const closeBtn = document.createElement('button');
     closeBtn.className = 'compare-panel-close';
     closeBtn.innerHTML = '&times;';
     closeBtn.onclick = () => removeCompareCreator(i);
     headerArea.appendChild(closeBtn);
 
-    // Creator name (centered, matching primary)
     const nameEl = document.createElement('div');
     nameEl.className = 'demos-creator-name';
     nameEl.textContent = getFullName(creator);
     headerArea.appendChild(nameEl);
 
-    // Niches row
     const niches = creator.niches || [];
     if (niches.length > 0) {
       const nichesRow = document.createElement('div');
@@ -4888,14 +4885,9 @@ function renderAllComparePanels() {
       headerArea.appendChild(nichesRow);
     }
 
-    // Spacer to match primary's sub-tab row height (aligns stat cards)
-    const spacer = document.createElement('div');
-    spacer.className = 'compare-panel-tab-spacer';
-    headerArea.appendChild(spacer);
-
     panel.appendChild(headerArea);
 
-    // ── Body — same layout as primary ──
+    // ── Body — identical to primary's content area ──
     const body = document.createElement('div');
     body.className = 'compare-panel-body';
 
@@ -4914,23 +4906,19 @@ function renderAllComparePanels() {
     stack.appendChild(panel);
   });
 
-  // ── Align compare panels to primary sidebar sections ──
+  // ── Pin header height + body top to match primary exactly ──
   requestAnimationFrame(() => {
     const primarySubTabs = document.getElementById('demosSubTabs');
     if (!primarySubTabs) return;
-
-    // Measure primary's total header height (name + niches + sub-tab row)
     const primaryHeaderH = primarySubTabs.offsetHeight;
 
     stack.querySelectorAll('.compare-panel').forEach(panel => {
       const headerArea = panel.querySelector('.compare-panel-header-area');
-      const spacer = panel.querySelector('.compare-panel-tab-spacer');
-      if (!headerArea || !spacer) return;
-
-      // Set spacer to fill the gap so header area matches primary height
-      const currentH = headerArea.offsetHeight - spacer.offsetHeight;
-      const gap = Math.max(0, primaryHeaderH - currentH);
-      spacer.style.height = gap + 'px';
+      if (headerArea) {
+        headerArea.style.height = primaryHeaderH + 'px';
+        headerArea.style.minHeight = primaryHeaderH + 'px';
+        headerArea.style.maxHeight = primaryHeaderH + 'px';
+      }
     });
   });
 }

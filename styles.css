@@ -1232,6 +1232,10 @@ body.shift-held #mapContainer .leaflet-container {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 .compare-panel-header-area .demos-creator-name {
   font-family: 'Playfair Display', serif;
@@ -1243,10 +1247,8 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .compare-panel-header-area .demos-niches-row {
   padding: 0 2px 4px;
-  max-height: 32px;
-}
-.compare-panel-tab-spacer {
-  flex-shrink: 0;
+  overflow: hidden;
+  flex: 1;
 }
 .compare-panel-close {
   position: absolute;
@@ -1272,11 +1274,19 @@ body.shift-held #mapContainer .leaflet-container {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
+  min-height: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 .compare-panel-body::-webkit-scrollbar {
   display: none;
+}
+/* Match primary's content density */
+.compare-panel-body .demos-platform-section {
+  padding: 4px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 /* ── Compare slot color themes ── */

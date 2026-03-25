@@ -224,10 +224,22 @@ function extractFromMediaKitBlocks(blocks, creatorPlatforms, creatorObj) {
     if (!statList) continue;
     const result = { stats: {} };
     for (const s of statList) {
-      if (!s || typeof s !== 'object' || s.value == null) continue;
-      const mapped = STAT_MAP[s.name];
-      if (mapped) {
-        result.stats[mapped] = typeof s.value === 'number' ? s.value : parseFloat(s.value);
+      if (!s || typeof s !== 'object') continue;
+      if (s.value != null) {
+        const mapped = STAT_MAP[s.name];
+        if (mapped) {
+          result.stats[mapped] = typeof s.value === 'number' ? s.value : parseFloat(s.value);
+        }
+      }
+      // Demographics in s.data (object {label: count/pct}), s.value is null
+      if (['gender', 'age', 'country', 'city'].includes(s.name) && s.data && typeof s.data === 'object' && !Array.isArray(s.data)) {
+        const entries = Object.entries(s.data).filter(([k, v]) => k && v != null && k !== 'U');
+        if (entries.length > 0) {
+          const total = entries.reduce((sum, [, v]) => sum + v, 0);
+          const asPct = total > 100;
+          const breakdown = entries.map(([label, value]) => ({ label, value: asPct ? (value / total) * 100 : value })).sort((a, b) => b.value - a.value);
+          result[s.name] = breakdown;
+        }
       }
       if (['gender', 'age', 'country', 'city'].includes(s.name) && Array.isArray(s.value) && s.value.length > 0) {
         result[s.name] = normalizeBreakdown(s.value);

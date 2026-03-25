@@ -38,11 +38,11 @@
   ],
   "functions": {
     "api/scrape-july.js": {
-      "maxDuration": 60,
+      "maxDuration": 120,
       "memory": 512
     },
     "api/sync-july.js": {
-      "maxDuration": 120,
+      "maxDuration": 180,
       "memory": 512
     }
   }

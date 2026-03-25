@@ -73,6 +73,187 @@ function findCreatorData(obj, depth = 0) {
   return null;
 }
 
+// ── Audience data helpers ──
+
+function normalizeBreakdown(data) {
+  if (!data) return null;
+  if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+    const mapped = data.map(d => {
+      const label = d.label || d.name || d.country || d.city || d.range || d.gender || d.key || '';
+      const value = d.value ?? d.percentage ?? d.percent ?? d.pct ?? null;
+      return { label: String(label), value: value !== null ? parseFloat(value) : 0 };
+    }).filter(d => d.label);
+    return mapped.length > 0 ? mapped : null;
+  }
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    const mapped = Object.entries(data).map(([label, value]) => ({
+      label, value: parseFloat(value || 0)
+    })).filter(d => d.label && !isNaN(d.value));
+    return mapped.length > 0 ? mapped : null;
+  }
+  return null;
+}
+
+function extractPlatformAudienceData(p) {
+  if (!p || typeof p !== 'object') return null;
+  const result = {};
+  const fieldMap = {
+    gender: ['audienceGender', 'audience_gender', 'genderBreakdown', 'genderSplit'],
+    age: ['audienceAge', 'audience_age', 'ageBreakdown', 'ageRanges', 'ageSplit'],
+    country: ['audienceCountry', 'audience_country', 'countryBreakdown', 'countries', 'geoCountry'],
+    city: ['audienceCity', 'audience_city', 'cityBreakdown', 'cities', 'geoCity'],
+  };
+  for (const [metric, fields] of Object.entries(fieldMap)) {
+    for (const field of fields) {
+      if (p[field]) {
+        const normalized = normalizeBreakdown(p[field]);
+        if (normalized && normalized.length > 0) { result[metric] = normalized; break; }
+      }
+    }
+  }
+  const stats = {};
+  const statFields = {
+    views: ['views', 'totalViews', 'total_views'],
+    reach: ['reach', 'totalReach', 'total_reach'],
+    likes: ['likes', 'totalLikes', 'total_likes'],
+    comments: ['comments', 'totalComments', 'total_comments'],
+    shares: ['shares', 'totalShares', 'total_shares'],
+    saves: ['saves', 'totalSaves', 'total_saves'],
+    totalInteractions: ['totalInteractions', 'total_interactions', 'interactions'],
+    avgPostLikes: ['avgPostLikes', 'avg_post_likes', 'averageLikes'],
+    avgPostComments: ['avgPostComments', 'avg_post_comments', 'averageComments'],
+    avgStoryViews: ['avgStoryViews', 'avg_story_views', 'averageStoryViews'],
+  };
+  for (const [stat, fields] of Object.entries(statFields)) {
+    for (const field of fields) {
+      if (p[field] != null) {
+        stats[stat] = typeof p[field] === 'string' ? parseCount(p[field]) : p[field];
+        break;
+      }
+    }
+  }
+  if (Object.keys(stats).length > 0) result.stats = stats;
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function findPlatformsWithAudience(obj, depth = 0) {
+  if (depth > 12 || !obj || typeof obj !== 'object') return null;
+  if (Array.isArray(obj) && obj.length > 0 && obj[0] && typeof obj[0] === 'object') {
+    const keys = Object.keys(obj[0]);
+    if (keys.some(k => /^platform$/i.test(k)) && keys.some(k => /audience|gender|country|city|ageBr|ageR|geoC/i.test(k)))
+      return obj;
+  }
+  const priorityKeys = [];
+  const otherKeys = [];
+  for (const key of Object.keys(obj)) {
+    (/platform|social|channel|creator|talent|pageProps|props|data/i.test(key) ? priorityKeys : otherKeys).push(key);
+  }
+  for (const key of [...priorityKeys, ...otherKeys]) {
+    const result = findPlatformsWithAudience(obj[key], depth + 1);
+    if (result) return result;
+  }
+  return null;
+}
+
+function findSingleCreator(obj, depth = 0) {
+  if (depth > 10 || !obj || typeof obj !== 'object') return null;
+  if (!Array.isArray(obj)) {
+    const keys = Object.keys(obj);
+    if (keys.some(k => /^(name|firstName|displayName)$/i.test(k)) && keys.some(k => /follower|platform|social|audience/i.test(k)))
+      return obj;
+  }
+  for (const key of Object.keys(obj)) {
+    const result = findSingleCreator(obj[key], depth + 1);
+    if (result) return result;
+  }
+  return null;
+}
+
+function extractAudienceFromHtml($) {
+  const result = {};
+  const sections = { country: /audience.*country/i, city: /audience.*city/i, age: /audience.*age/i, gender: /audience.*gender/i };
+  for (const [metric, pattern] of Object.entries(sections)) {
+    $('div, section').each((_, el) => {
+      if (result[metric]) return;
+      const $el = $(el);
+      const heading = $el.find('h2, h3, h4, h5, [class*="heading"], [class*="title"], [class*="Header"]').first().text();
+      if (!pattern.test(heading)) return;
+      const pairs = [];
+      $el.find('[class*="row"], [class*="item"], [class*="bar"], [class*="entry"], tr, li, div').each((_, item) => {
+        const text = $(item).text().trim();
+        const match = text.match(/^([A-Za-z][A-Za-z .,'-]+?)\s+([\d.]+)\s*%?$/);
+        if (match && !pairs.some(p => p.label === match[1].trim())) {
+          pairs.push({ label: match[1].trim(), value: parseFloat(match[2]) });
+        }
+      });
+      if (pairs.length > 0) result[metric] = pairs;
+    });
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+async function enrichWithAudienceData(creators) {
+  const needsEnrichment = creators.filter(c => c.username && !Object.values(c.platforms || {}).some(p => p.audienceData));
+  if (needsEnrichment.length === 0) return;
+  console.log(`[sync] Fetching audience data for ${needsEnrichment.length} creators...`);
+
+  function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+  }
+
+  const BATCH = 5;
+  let enriched = 0;
+  for (let i = 0; i < needsEnrichment.length; i += BATCH) {
+    const batch = needsEnrichment.slice(i, i + BATCH);
+    await Promise.allSettled(batch.map(async (creator) => {
+      try {
+        const resp = await fetchWithTimeout(`https://july.bio/iamsocial/${creator.username}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', 'Accept': 'text/html' }
+        });
+        if (!resp.ok) return;
+        const html = await resp.text();
+        const $d = cheerio.load(html);
+        const nextScript = $d('script#__NEXT_DATA__').html();
+        if (nextScript) {
+          try {
+            const nextData = JSON.parse(nextScript);
+            const platformsData = findPlatformsWithAudience(nextData);
+            if (platformsData) {
+              let found = false;
+              platformsData.forEach(p => {
+                const mapped = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' }[(p.platform || '').toLowerCase()];
+                if (!mapped || !creator.platforms[mapped]) return;
+                const ad = extractPlatformAudienceData(p);
+                if (ad) { creator.platforms[mapped].audienceData = ad; found = true; }
+              });
+              if (found) { enriched++; return; }
+            }
+            const sc = findSingleCreator(nextData);
+            if (sc && Array.isArray(sc.platforms)) {
+              let found = false;
+              sc.platforms.forEach(p => {
+                const mapped = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' }[(p.platform || '').toLowerCase()];
+                if (!mapped || !creator.platforms[mapped]) return;
+                const ad = extractPlatformAudienceData(p);
+                if (ad) { creator.platforms[mapped].audienceData = ad; found = true; }
+              });
+              if (found) { enriched++; return; }
+            }
+          } catch { /* skip */ }
+        }
+        const htmlAud = extractAudienceFromHtml($d);
+        if (htmlAud) {
+          const primary = Object.keys(creator.platforms).find(p => creator.platforms[p].followers);
+          if (primary) { creator.platforms[primary].audienceData = htmlAud; enriched++; }
+        }
+      } catch { /* skip */ }
+    }));
+  }
+  console.log(`[sync] Enriched ${enriched}/${needsEnrichment.length} creators with audience data`);
+}
+
 function normalizeCreator(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const name = raw.name || '';
@@ -88,11 +269,14 @@ function normalizeCreator(raw) {
       const url = p.platformUrl || '';
       const extracted = extractHandle(url);
       const handle = extracted || (pName === 'instagram' ? (raw.username || '') : '');
-      platforms[finalName] = {
+      const entry = {
         handle, url,
         followers: p.size ?? null,
         engagementRate: p.engagementRate ?? p.engagement_rate ?? p.engagement ?? null
       };
+      const audienceData = extractPlatformAudienceData(p);
+      if (audienceData) entry.audienceData = audienceData;
+      platforms[finalName] = entry;
     });
   }
 
@@ -208,6 +392,7 @@ async function scrapeJuly() {
   if (creatorsFromJson && creatorsFromJson.length > 0) {
     const creators = creatorsFromJson.map(normalizeCreator).filter(Boolean);
     await resolveHandles(creators);
+    await enrichWithAudienceData(creators);
     return creators;
   }
 
@@ -262,6 +447,7 @@ async function scrapeJuly() {
   });
 
   await resolveHandles(creators);
+  await enrichWithAudienceData(creators);
   return creators;
 }
 
@@ -374,6 +560,7 @@ async function syncToSupabase(supabase, julyCreators) {
           url: data.url || '',
           followers: data.followers ?? null,
           engagement_rate: data.engagementRate ?? null,
+          audience_data: data.audienceData || null,
         });
       });
 
@@ -405,14 +592,16 @@ async function syncToSupabase(supabase, julyCreators) {
             handle: data.handle || '', url: data.url || '',
             followers: data.followers ?? null,
             engagement_rate: data.engagementRate ?? null,
+            audience_data: data.audienceData || null,
           });
           changed = true;
         } else {
-          // Check if followers or engagement rate changed
+          // Check if followers, engagement rate, or audience data changed
           const followersChanged = data.followers != null && data.followers !== ep.followers;
           const engChanged = data.engagementRate != null && data.engagementRate !== ep.engagement_rate;
           const handleChanged = data.handle && data.handle !== ep.handle;
-          if (followersChanged || engChanged || handleChanged) {
+          const audienceChanged = data.audienceData && JSON.stringify(data.audienceData) !== JSON.stringify(ep.audience_data);
+          if (followersChanged || engChanged || handleChanged || audienceChanged) {
             updatePlatformDeletes.push(creatorId);
             updatePlatformInserts.push({
               creator_id: creatorId, platform,
@@ -420,6 +609,7 @@ async function syncToSupabase(supabase, julyCreators) {
               url: data.url || ep.url || '',
               followers: data.followers ?? ep.followers,
               engagement_rate: data.engagementRate ?? ep.engagement_rate,
+              audience_data: data.audienceData || ep.audience_data || null,
             });
             changed = true;
           }
@@ -484,6 +674,7 @@ async function syncToSupabase(supabase, julyCreators) {
           creator_id: cid, platform: ep.platform,
           handle: ep.handle || '', url: ep.url || '',
           followers: ep.followers, engagement_rate: ep.engagement_rate,
+          audience_data: ep.audience_data || null,
         }));
       reinsertPlatforms.push(...fromInserts, ...fromExisting);
     });

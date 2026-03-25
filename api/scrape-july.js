@@ -54,6 +54,248 @@ function extractHandle(url) {
   }
 }
 
+// ── Audience data helpers ──
+
+// Normalize audience breakdown data to [{label, value}] format
+function normalizeBreakdown(data) {
+  if (!data) return null;
+
+  // Already [{label, value}]
+  if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+    const mapped = data.map(d => {
+      const label = d.label || d.name || d.country || d.city || d.range || d.gender || d.key || '';
+      const value = d.value ?? d.percentage ?? d.percent ?? d.pct ?? null;
+      return { label: String(label), value: value !== null ? parseFloat(value) : 0 };
+    }).filter(d => d.label);
+    return mapped.length > 0 ? mapped : null;
+  }
+
+  // Object format: { 'USA': 46.4, 'India': 10.1 }
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    const mapped = Object.entries(data).map(([label, value]) => ({
+      label, value: parseFloat(value || 0)
+    })).filter(d => d.label && !isNaN(d.value));
+    return mapped.length > 0 ? mapped : null;
+  }
+
+  return null;
+}
+
+// Extract audience demographics + performance stats from a July platform object
+function extractPlatformAudienceData(p) {
+  if (!p || typeof p !== 'object') return null;
+
+  const result = {};
+
+  const fieldMap = {
+    gender: ['audienceGender', 'audience_gender', 'genderBreakdown', 'genderSplit'],
+    age: ['audienceAge', 'audience_age', 'ageBreakdown', 'ageRanges', 'ageSplit'],
+    country: ['audienceCountry', 'audience_country', 'countryBreakdown', 'countries', 'geoCountry'],
+    city: ['audienceCity', 'audience_city', 'cityBreakdown', 'cities', 'geoCity'],
+  };
+
+  for (const [metric, fields] of Object.entries(fieldMap)) {
+    for (const field of fields) {
+      if (p[field]) {
+        const normalized = normalizeBreakdown(p[field]);
+        if (normalized && normalized.length > 0) {
+          result[metric] = normalized;
+          break;
+        }
+      }
+    }
+  }
+
+  // Performance stats
+  const stats = {};
+  const statFields = {
+    views: ['views', 'totalViews', 'total_views'],
+    reach: ['reach', 'totalReach', 'total_reach'],
+    likes: ['likes', 'totalLikes', 'total_likes'],
+    comments: ['comments', 'totalComments', 'total_comments'],
+    shares: ['shares', 'totalShares', 'total_shares'],
+    saves: ['saves', 'totalSaves', 'total_saves'],
+    totalInteractions: ['totalInteractions', 'total_interactions', 'interactions'],
+    avgPostLikes: ['avgPostLikes', 'avg_post_likes', 'averageLikes'],
+    avgPostComments: ['avgPostComments', 'avg_post_comments', 'averageComments'],
+    avgStoryViews: ['avgStoryViews', 'avg_story_views', 'averageStoryViews'],
+  };
+
+  for (const [stat, fields] of Object.entries(statFields)) {
+    for (const field of fields) {
+      if (p[field] != null) {
+        stats[stat] = typeof p[field] === 'string' ? parseCount(p[field]) : p[field];
+        break;
+      }
+    }
+  }
+  if (Object.keys(stats).length > 0) result.stats = stats;
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+// Search JSON tree for platform arrays that contain audience data
+function findPlatformsWithAudience(obj, depth = 0) {
+  if (depth > 12 || !obj || typeof obj !== 'object') return null;
+
+  if (Array.isArray(obj) && obj.length > 0 && obj[0] && typeof obj[0] === 'object') {
+    const keys = Object.keys(obj[0]);
+    const isPlatformArray = keys.some(k => /^platform$/i.test(k));
+    const hasAudience = keys.some(k =>
+      /audience|gender|country|city|ageBr|ageR|geoC/i.test(k)
+    );
+    if (isPlatformArray && hasAudience) return obj;
+  }
+
+  // Prioritize keys likely to contain platform data
+  const priorityKeys = [];
+  const otherKeys = [];
+  for (const key of Object.keys(obj)) {
+    (/platform|social|channel|creator|talent|pageProps|props|data/i.test(key)
+      ? priorityKeys : otherKeys).push(key);
+  }
+  for (const key of [...priorityKeys, ...otherKeys]) {
+    const result = findPlatformsWithAudience(obj[key], depth + 1);
+    if (result) return result;
+  }
+  return null;
+}
+
+// HTML fallback: extract audience breakdowns from visible page elements
+function extractAudienceFromHtml($) {
+  const result = {};
+
+  // Strategy: find sections headed "Audience Country", "Audience Gender", etc.
+  const sections = {
+    country: /audience.*country/i,
+    city: /audience.*city/i,
+    age: /audience.*age/i,
+    gender: /audience.*gender/i,
+  };
+
+  for (const [metric, pattern] of Object.entries(sections)) {
+    $('div, section').each((_, el) => {
+      if (result[metric]) return; // already found
+      const $el = $(el);
+      const heading = $el.find('h2, h3, h4, h5, [class*="heading"], [class*="title"], [class*="Header"]').first().text();
+      if (!pattern.test(heading)) return;
+
+      const pairs = [];
+      // Look for label + percentage pairs in child elements
+      $el.find('[class*="row"], [class*="item"], [class*="bar"], [class*="entry"], tr, li, div').each((_, item) => {
+        const text = $(item).text().trim();
+        // Match patterns like "USA  46.4%" or "Female  69%"
+        const match = text.match(/^([A-Za-z][A-Za-z .,'-]+?)\s+([\d.]+)\s*%?$/);
+        if (match && !pairs.some(p => p.label === match[1].trim())) {
+          pairs.push({ label: match[1].trim(), value: parseFloat(match[2]) });
+        }
+      });
+
+      if (pairs.length > 0) result[metric] = pairs;
+    });
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+// Enrich creators with audience data by visiting their July detail pages
+async function enrichWithAudienceData(creators) {
+  const needsEnrichment = creators.filter(c => {
+    if (!c.username) return false;
+    return !Object.values(c.platforms || {}).some(p => p.audienceData);
+  });
+
+  if (needsEnrichment.length === 0) {
+    console.log('[scraper] All creators already have audience data from roster');
+    return;
+  }
+
+  console.log(`[scraper] Fetching audience data for ${needsEnrichment.length} creators...`);
+
+  function fetchWithTimeout(url, opts = {}, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+  }
+
+  const BATCH = 5;
+  let enriched = 0;
+
+  for (let i = 0; i < needsEnrichment.length; i += BATCH) {
+    const batch = needsEnrichment.slice(i, i + BATCH);
+    await Promise.allSettled(batch.map(async (creator) => {
+      try {
+        const detailUrl = `https://july.bio/iamsocial/${creator.username}`;
+        const resp = await fetchWithTimeout(detailUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          }
+        });
+        if (!resp.ok) return;
+
+        const html = await resp.text();
+        const $d = cheerio.load(html);
+
+        // Try __NEXT_DATA__ first
+        const nextScript = $d('script#__NEXT_DATA__').html();
+        if (nextScript) {
+          try {
+            const nextData = JSON.parse(nextScript);
+            const platformsData = findPlatformsWithAudience(nextData);
+            if (platformsData) {
+              let found = false;
+              platformsData.forEach(p => {
+                const pName = (p.platform || '').toLowerCase();
+                const mapped = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' }[pName];
+                if (!mapped || !creator.platforms[mapped]) return;
+
+                const audienceData = extractPlatformAudienceData(p);
+                if (audienceData) {
+                  creator.platforms[mapped].audienceData = audienceData;
+                  found = true;
+                }
+              });
+              if (found) { enriched++; return; }
+            }
+
+            // Fallback: search for a single creator object with audience data
+            const singleCreator = findSingleCreator(nextData);
+            if (singleCreator && Array.isArray(singleCreator.platforms)) {
+              let found = false;
+              singleCreator.platforms.forEach(p => {
+                const pName = (p.platform || '').toLowerCase();
+                const mapped = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' }[pName];
+                if (!mapped || !creator.platforms[mapped]) return;
+
+                const audienceData = extractPlatformAudienceData(p);
+                if (audienceData) {
+                  creator.platforms[mapped].audienceData = audienceData;
+                  found = true;
+                }
+              });
+              if (found) { enriched++; return; }
+            }
+          } catch { /* fall through to HTML */ }
+        }
+
+        // HTML fallback
+        const htmlAudience = extractAudienceFromHtml($d);
+        if (htmlAudience) {
+          const primaryPlatform = Object.keys(creator.platforms)
+            .find(p => creator.platforms[p].followers);
+          if (primaryPlatform) {
+            creator.platforms[primaryPlatform].audienceData = htmlAudience;
+            enriched++;
+          }
+        }
+      } catch { /* skip failed fetches */ }
+    }));
+  }
+
+  console.log(`[scraper] Enriched ${enriched}/${needsEnrichment.length} creators with audience data`);
+}
+
 module.exports = async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -134,6 +376,36 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // ── Step 2b: Debug mode for detail page inspection ──
+    if (req.query.debug === 'detail' && creatorsFromJson) {
+      const username = req.query.username || (creatorsFromJson[0] && normalizeCreator(creatorsFromJson[0])?.username);
+      if (username) {
+        try {
+          const detailResp = await fetch(`https://july.bio/iamsocial/${username}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36', 'Accept': 'text/html' }
+          });
+          const detailHtml = await detailResp.text();
+          const $d = cheerio.load(detailHtml);
+          const detailNext = $d('script#__NEXT_DATA__').html();
+          if (detailNext) {
+            const dnd = JSON.parse(detailNext);
+            const platformsData = findPlatformsWithAudience(dnd);
+            return res.status(200).json({
+              debug: 'detail', username,
+              hasPlatformsWithAudience: !!platformsData,
+              platformCount: platformsData ? platformsData.length : 0,
+              samplePlatformKeys: platformsData && platformsData[0] ? Object.keys(platformsData[0]) : [],
+              rawSample: platformsData ? platformsData.slice(0, 1) : null,
+              // Also show the full creator object for inspection
+              fullCreator: findSingleCreator(dnd),
+            });
+          }
+        } catch (e) {
+          return res.status(200).json({ debug: 'detail', username, error: e.message });
+        }
+      }
+    }
+
     // ── Step 3: If JSON extraction worked, use that data ──
     if (creatorsFromJson && creatorsFromJson.length > 0) {
       const creators = creatorsFromJson.map(normalizeCreator).filter(Boolean);
@@ -141,6 +413,9 @@ module.exports = async function handler(req, res) {
 
       // Resolve missing handles (TikTok short links, YouTube channel URLs)
       await resolveHandles(creators);
+
+      // Enrich with audience data from detail pages
+      await enrichWithAudienceData(creators);
 
       return res.status(200).json({
         success: true,
@@ -339,6 +614,9 @@ module.exports = async function handler(req, res) {
     // Resolve missing handles (TikTok short links, YouTube channel URLs)
     await resolveHandles(creators);
 
+    // Enrich with audience data from detail pages
+    await enrichWithAudienceData(creators);
+
     console.log('[scraper] Returning', creators.length, 'creators from HTML parsing');
     return res.status(200).json({
       success: true,
@@ -436,12 +714,16 @@ function normalizeCreator(raw) {
       const extracted = extractHandle(url);
       // Only fall back to July's username field for Instagram (it's their IG handle)
       const handle = extracted || (pName === 'instagram' ? (raw.username || '') : '');
-      platforms[finalName] = {
+      const entry = {
         handle,
         url,
         followers: p.size ?? null,
         engagementRate: p.engagementRate ?? p.engagement_rate ?? p.engagement ?? null
       };
+      // Try to extract audience data from roster-level platform objects
+      const audienceData = extractPlatformAudienceData(p);
+      if (audienceData) entry.audienceData = audienceData;
+      platforms[finalName] = entry;
     });
   }
 

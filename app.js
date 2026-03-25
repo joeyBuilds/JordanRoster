@@ -2250,7 +2250,8 @@ function _getCumulativeFollowing(creatorId) {
 }
 
 // Zoom threshold: below this → stack mode, at or above → ring/fan mode
-const RING_ZOOM_THRESHOLD = 9;
+// ~7 = California-level view: stack when zoomed out, ring/fan when zoomed in
+const RING_ZOOM_THRESHOLD = 7;
 
 function _arrangeMarkerRings() {
   // Reset any previous CSS offsets
@@ -5945,85 +5946,30 @@ function renderNearestCreators() {
 // Spawn ambient floating motes during mode transition
 // Uses a single container + documentFragment to minimize reflows, and
 // staggers via CSS animation-delay instead of per-element setTimeout.
-function spawnMotes(toDispatch) {
-  const colors = toDispatch
-    ? _transitionColorCache.dispatch
-    : _transitionColorCache.roster;
-
-  const count = 12; // fewer motes, still lush
-  const frag = document.createDocumentFragment();
-  const container = document.createElement('div');
-  container.className = 'mode-mote-container';
-  container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;';
-
-  for (let i = 0; i < count; i++) {
-    const mote = document.createElement('div');
-    mote.className = 'mode-mote rising';
-    const size = 3 + Math.random() * 5;
-    const dur = 1.2 + Math.random() * 0.8;
-    mote.style.cssText = `width:${size}px;height:${size}px;left:${Math.random() * 100}%;top:${Math.random() * 100}%;background:${colors[Math.floor(Math.random() * colors.length)]};--duration:${dur}s;--dx:${(Math.random() * 60 - 30)}px;--dy:${-(30 + Math.random() * 80)}px;--peak-opacity:${(0.25 + Math.random() * 0.25).toFixed(2)};animation-delay:${(i * 0.05).toFixed(2)}s;`;
-    frag.appendChild(mote);
-  }
-
-  container.appendChild(frag);
-  document.body.appendChild(container);
-  // Single cleanup for the whole container
-  setTimeout(() => container.remove(), 2800);
-}
-
-// Pre-cache transition colors once at startup & on mode change
-// so we never call getComputedStyle during the hot transition path.
-let _transitionColorCache = { dispatch: [], roster: [], dispatchRgb: '', rosterRgb: '' };
-function _cacheTransitionColors() {
-  const s = getComputedStyle(document.documentElement);
-  _transitionColorCache.dispatch = [
-    s.getPropertyValue('--accent').trim() || '#D4A080',
-    s.getPropertyValue('--rose').trim() || '#C9A0A0',
-    s.getPropertyValue('--mocha').trim() || '#A89080'
-  ];
-  _transitionColorCache.roster = [
-    s.getPropertyValue('--sage').trim() || '#8BBF96',
-    s.getPropertyValue('--accent').trim() || '#8BBF96',
-    s.getPropertyValue('--lavender').trim() || '#A8A0CF'
-  ];
-  _transitionColorCache.dispatchRgb = s.getPropertyValue('--accent-rgb').trim() || '139,191,150';
-  _transitionColorCache.rosterRgb = s.getPropertyValue('--sage-rgb').trim() || '139,191,150';
-}
-requestAnimationFrame(_cacheTransitionColors);
-
-// Color wash overlay for the transition
+// ── Lightweight palette crossfade ──
+// Instead of transitioning 30 CSS variables per frame, we:
+// 1. Capture a screenshot-like snapshot of the sidebar (via cloneNode)
+// 2. Swap the palette variables instantly
+// 3. Fade the snapshot out, revealing the new palette underneath
 function triggerModeTransition(toDispatch) {
-  const rgb = toDispatch ? _transitionColorCache.dispatchRgb : _transitionColorCache.rosterRgb;
-
-  // Create wash
-  const wash = document.createElement('div');
-  wash.className = 'mode-wash';
-  wash.style.background = `radial-gradient(ellipse at 30% 40%, rgba(${rgb}, 0.12) 0%, transparent 70%)`;
-  document.body.appendChild(wash);
-
-  // Sidebar glow
+  // Capture current visual state of the sidebar as a frozen overlay
   const sidebar = document.getElementById('sidebar');
-  sidebar.classList.add('mode-glow');
+  const topBar = document.getElementById('topBar');
 
-  // Activate wash — double rAF ensures the element is painted before opacity transitions
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      wash.classList.add('active');
-    });
-  });
+  // Use a simple full-viewport overlay with the old background color
+  // This is much cheaper than cloneNode and covers the whole theme shift
+  const snap = document.createElement('div');
+  snap.className = 'mode-snapshot';
+  // Sample the current background to use as the snapshot fill
+  const cs = getComputedStyle(document.documentElement);
+  const bgPrimary = cs.getPropertyValue('--bg-primary').trim();
+  snap.style.background = bgPrimary;
+  document.body.appendChild(snap);
 
-  // Spawn motes
-  spawnMotes(toDispatch);
-
-  // Fade out wash
-  setTimeout(() => {
-    wash.classList.remove('active');
-    wash.classList.add('fade-out');
-  }, 450);
-
-  // Remove glow and wash
-  setTimeout(() => sidebar.classList.remove('mode-glow'), 1100);
-  setTimeout(() => wash.remove(), 1500);
+  // Clean up after the fade animation
+  snap.addEventListener('animationend', () => snap.remove(), { once: true });
+  // Safety fallback
+  setTimeout(() => { if (snap.parentNode) snap.remove(); }, 500);
 }
 
 // Tab switching — orchestrated transition
@@ -6072,64 +6018,37 @@ document.querySelectorAll('.tab-button').forEach(btn => {
       } else {
         document.body.classList.remove('dispatch-mode');
       }
-      // Re-cache colors for next transition
-      requestAnimationFrame(_cacheTransitionColors);
+      // Palette swap is instant — snapshot overlay handles the visual blend
 
-      // Phase 1: Launch visual transition overlay + motes
+      // Phase 1: Snapshot the old palette, then swap variables instantly
       triggerModeTransition(goingToDispatch);
 
-      // Phase 2: Crossfade content — exit current tab
+      // Phase 2: Simultaneous crossfade — old tab fades out while new fades in
       const currentTab = wasDispatch ? document.getElementById('dispatchTab')
                        : document.getElementById('rosterTab');
       const nextTab = goingToDispatch ? document.getElementById('dispatchTab')
                     : document.getElementById('rosterTab');
 
+      // Show the new tab immediately (behind the fading-out old one)
+      document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
+      document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
+      document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
+
+      // Crossfade: exit old, enter new simultaneously
       currentTab.classList.add('mode-exit');
+      nextTab.classList.add('mode-enter');
 
-      // Phase 3: Listen for exit animation end, then swap content.
-      // This replaces the hardcoded setTimeout — the swap happens exactly
-      // when the browser finishes the exit, so frames never fight a render.
-      const onExitDone = () => {
-        currentTab.removeEventListener('animationend', onExitDone);
-
-        // Hide old, show new
-        currentTab.style.display = 'none';
+      // Clean up after the longer animation (enter at 220ms)
+      const cleanup = () => {
         currentTab.classList.remove('mode-exit');
-
-        document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
-        document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
-        document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
-
-        // Animate new tab in
-        nextTab.classList.add('mode-enter');
-
-        // DEFER heavy re-renders until the enter animation is done —
-        // this is the key fix: renders no longer compete with animation frames.
-        const onEnterDone = () => {
-          nextTab.removeEventListener('animationend', onEnterDone);
-          nextTab.classList.remove('mode-enter');
-          _modeTransitioning = false;
-          _handleTabLogic(tab, wasDispatch);
-        };
-        nextTab.addEventListener('animationend', onEnterDone, { once: true });
-
-        // Safety fallback in case animationend doesn't fire (e.g. display:none race)
-        setTimeout(() => {
-          if (_modeTransitioning) {
-            nextTab.classList.remove('mode-enter');
-            _modeTransitioning = false;
-            _handleTabLogic(tab, wasDispatch);
-          }
-        }, 500);
+        nextTab.classList.remove('mode-enter');
+        _modeTransitioning = false;
+        // Defer heavy re-renders to next idle frame
+        requestAnimationFrame(() => _handleTabLogic(tab, wasDispatch));
       };
-      currentTab.addEventListener('animationend', onExitDone, { once: true });
-
-      // Safety fallback for exit animation
-      setTimeout(() => {
-        if (currentTab.classList.contains('mode-exit')) {
-          onExitDone();
-        }
-      }, 420);
+      nextTab.addEventListener('animationend', cleanup, { once: true });
+      // Safety fallback
+      setTimeout(() => { if (_modeTransitioning) cleanup(); }, 300);
 
     } else {
       // No mode change (e.g. roster→recycle or dispatch→recycle)

@@ -36,12 +36,14 @@ function creatorToRow(c) {
 function rowToCreator(row, platformRows, nicheRows, demoRows) {
   const platforms = {};
   platformRows.forEach(p => {
-    platforms[p.platform] = {
+    const entry = {
       handle: p.handle || '',
       url: p.url || '',
       followers: p.followers,
       engagementRate: p.engagement_rate ?? null
     };
+    if (p.audience_data) entry.audienceData = p.audience_data;
+    platforms[p.platform] = entry;
   });
 
   return {
@@ -75,6 +77,7 @@ function creatorRelatedRows(c) {
         followers: data.followers ?? null
       };
       if (data.engagementRate != null) row.engagement_rate = data.engagementRate;
+      if (data.audienceData) row.audience_data = data.audienceData;
       return row;
     }
   );

@@ -46,17 +46,9 @@
   --text-muted-rgb: 94, 122, 100;
   --border: #2A3E30;
   --border-rgb: 42, 62, 48;
-  /* Smooth palette transition for Roster↔Niche mode shift — synced with tab slider (0.4s) */
-  transition: --bg-primary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-secondary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-card 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-hover 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --bg-input 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --accent 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --text-primary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --text-secondary 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --text-muted 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              --border 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Palette swap is now instant — the visual blend is handled by a
+     lightweight opacity crossfade on a snapshot overlay, not per-property
+     transitions on :root. This avoids 30+ style recalcs per frame. */
   --success: #7CC98A;
   --success-rgb: 124, 201, 138;
   --warning: #D4C47C;
@@ -214,21 +206,18 @@ body.dispatch-mode .sidebar-tabs::after {
    =========================== */
 
 /* Phase 1: Color wash — soft full-screen gradient wipe */
-.mode-wash {
+/* Palette crossfade: a snapshot of the old state fades out over the new state */
+.mode-snapshot {
   position: fixed;
   inset: 0;
   z-index: 9998;
   pointer-events: none;
-  opacity: 0;
   will-change: opacity;
-  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: snapshotFade 0.35s ease-out forwards;
 }
-.mode-wash.active {
-  opacity: 1;
-}
-.mode-wash.fade-out {
-  opacity: 0;
-  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.1s;
+@keyframes snapshotFade {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Phase 2: Content crossfade — outgoing fades down+out, incoming fades up+in */
@@ -241,48 +230,26 @@ body.dispatch-mode .sidebar-tabs::after {
 }
 .tab-content.mode-exit,
 .tab-content.mode-enter {
-  will-change: transform, opacity;
+  will-change: opacity;
 }
 .tab-content.mode-exit {
-  animation: modeExit 0.32s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: modeExit 0.18s ease-out forwards;
 }
 .tab-content.mode-enter {
-  animation: modeEnter 0.38s cubic-bezier(0, 0, 0.2, 1) forwards;
+  animation: modeEnter 0.22s ease-out forwards;
 }
 @keyframes modeExit {
-  0%   { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(6px) scale(0.985); }
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
 }
 @keyframes modeEnter {
-  0%   { opacity: 0; transform: translateY(-4px) scale(0.985); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 /* Phase 3: Map — no filter transitions */
 
-/* Phase 4: Ambient glow particles — subtle floating motes */
-.mode-mote {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0;
-  will-change: transform, opacity;
-}
-.mode-mote.rising {
-  animation: moteRise var(--duration) cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-@keyframes moteRise {
-  0%   { opacity: 0; transform: translate(0, 0) scale(0.5); }
-  20%  { opacity: var(--peak-opacity); }
-  80%  { opacity: var(--peak-opacity); }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
-}
-
-/* Sidebar border glow pulse during transition */
-#sidebar.mode-glow {
-  box-shadow: 1px 0 30px rgba(var(--accent-rgb), 0.08),
-              inset -1px 0 20px rgba(var(--accent-rgb), 0.03);
-}
+/* Motes + sidebar glow removed — kept transition lightweight */
 
 /* (topBar/sidebar transition timing set on main rule blocks below) */
 
@@ -292,7 +259,7 @@ html, body {
   font-family: 'DM Sans', sans-serif;
   background: linear-gradient(160deg, var(--bg-primary) 0%, var(--bg-secondary) 40%, var(--bg-primary) 70%, var(--bg-primary) 100%);
   color: var(--text-primary);
-  transition: background 0.6s ease, color 0.6s ease;
+  transition: none; /* palette swap is instant; snapshot overlay handles the blend */
 }
 
 /* ===========================
@@ -1078,7 +1045,7 @@ body.shift-held #mapContainer .leaflet-container {
   background: rgba(var(--bg-card-rgb), 0.3);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  transition: background 0.6s ease, border-color 0.6s ease;
+  transition: background 0.3s ease, border-color 0.3s ease;
   position: relative;
   z-index: 1;
   padding: 6px 10px;
@@ -1095,7 +1062,7 @@ body.shift-held #mapContainer .leaflet-container {
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
   border-radius: 2px 2px 0 0;
-  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 2;
 }
 
@@ -1110,7 +1077,7 @@ body.shift-held #mapContainer .leaflet-container {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 10px;
-  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
   pointer-events: none;
 }

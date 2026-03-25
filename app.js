@@ -4857,43 +4857,54 @@ function renderAllComparePanels() {
     const panel = document.createElement('div');
     panel.className = 'compare-panel';
 
-    // Header
-    const header = document.createElement('div');
-    header.className = 'compare-panel-header';
-    header.innerHTML = `<span class="compare-panel-name">${getFullName(creator)}</span>`;
+    // ── Header area (matches primary: name → niches → close button) ──
+    const headerArea = document.createElement('div');
+    headerArea.className = 'compare-panel-header-area';
+
+    // Close button (top-right)
     const closeBtn = document.createElement('button');
     closeBtn.className = 'compare-panel-close';
     closeBtn.innerHTML = '&times;';
     closeBtn.onclick = () => removeCompareCreator(i);
-    header.appendChild(closeBtn);
-    panel.appendChild(header);
+    headerArea.appendChild(closeBtn);
 
-    // Niches
+    // Creator name (centered, matching primary)
+    const nameEl = document.createElement('div');
+    nameEl.className = 'demos-creator-name';
+    nameEl.textContent = getFullName(creator);
+    headerArea.appendChild(nameEl);
+
+    // Niches row
     const niches = creator.niches || [];
     if (niches.length > 0) {
       const nichesRow = document.createElement('div');
       nichesRow.className = 'demos-niches-row';
-      nichesRow.style.padding = '4px 6px';
       niches.forEach(n => {
         const pill = document.createElement('span');
         pill.className = 'demos-niche-pill';
         pill.textContent = n;
         nichesRow.appendChild(pill);
       });
-      panel.appendChild(nichesRow);
+      headerArea.appendChild(nichesRow);
     }
 
-    // Body — render same view as primary
+    panel.appendChild(headerArea);
+
+    // ── Body — same layout as primary ──
     const body = document.createElement('div');
     body.className = 'compare-panel-body';
 
+    const section = document.createElement('div');
+    section.className = 'demos-platform-section';
+
     const activeTab = _demosSubTab || 'Instagram';
     if (activeTab === 'partners') {
-      renderPartnersView(creator, body);
+      renderPartnersView(creator, section);
     } else {
-      renderPlatformStats(creator, activeTab, body);
+      renderPlatformStats(creator, activeTab, section);
     }
 
+    body.appendChild(section);
     panel.appendChild(body);
     stack.appendChild(panel);
   });

@@ -1210,11 +1210,13 @@ body.shift-held #mapContainer .leaflet-container {
 .compare-panel {
   width: 280px;
   height: 100%;
-  background: rgba(var(--bg-primary-rgb), 0.94);
-  backdrop-filter: blur(24px) saturate(1.1);
-  border-right: 1px solid var(--glass-border);
-  overflow-y: auto;
-  overflow-x: hidden;
+  background: rgba(var(--bg-primary-rgb), 0.65);
+  backdrop-filter: blur(32px) saturate(1.2);
+  -webkit-backdrop-filter: blur(32px) saturate(1.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.06), 4px 0 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
@@ -1224,30 +1226,39 @@ body.shift-held #mapContainer .leaflet-container {
   from { opacity: 0; transform: translateX(-16px); }
   to { opacity: 1; transform: translateX(0); }
 }
-.compare-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--glass-border);
+.compare-panel-header-area {
   flex-shrink: 0;
+  padding: 6px 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
-.compare-panel-name {
+.compare-panel-header-area .demos-creator-name {
   font-family: 'Playfair Display', serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
+  text-align: center;
+  padding-bottom: 3px;
+}
+.compare-panel-header-area .demos-niches-row {
+  padding: 0 2px 4px;
+  max-height: 32px;
 }
 .compare-panel-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 6px;
   transition: all 0.15s;
   line-height: 1;
+  z-index: 1;
 }
 .compare-panel-close:hover {
   color: var(--text-primary);
@@ -1256,7 +1267,8 @@ body.shift-held #mapContainer .leaflet-container {
 .compare-panel-body {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 8px 6px;
+  overflow-x: hidden;
+  padding: 0;
 }
 
 /* Recycle Bin tab */

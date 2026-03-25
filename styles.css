@@ -390,42 +390,41 @@ body.dispatch-mode .title-niche {
   color: rgba(var(--accent-rgb), 0.7);
 }
 
-/* "Built by EQEX" — nearly invisible, only appears on topbar hover */
-.built-by {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 7px;
-  font-weight: 400;
-  color: rgba(var(--text-primary-rgb), 0.0);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-left: 10px;
-  white-space: nowrap;
-  transition: color 0.4s ease;
+/* EQEX brand group — top-right corner */
+.eqex-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   user-select: none;
-  pointer-events: none;
 }
-#topBar:hover .built-by {
-  color: rgba(var(--text-primary-rgb), 0.12);
+.eqex-brand:hover .eqex-sigil {
+  transform: rotate(90deg);
+  filter: brightness(1.2) saturate(0.8);
+  opacity: 0.7;
+}
+.eqex-brand:hover .built-by {
+  color: rgba(var(--text-primary-rgb), 0.6);
 }
 
-/* Alchemy circle sigil — whisper-quiet next to "Built by EQEX" */
-.eqex-sigil {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-  opacity: 0;
-  margin-left: 4px;
-  vertical-align: middle;
-  filter: brightness(0.6) saturate(0.4);
-  transition: opacity 0.5s ease, filter 0.5s ease, transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
-  user-select: none;
-  transform: rotate(0deg);
+.built-by {
+  font-family: 'Space Grotesk', 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(var(--text-primary-rgb), 0.35);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.3s ease;
 }
-#topBar:hover .eqex-sigil {
-  opacity: 0.14;
-  filter: brightness(0.8) saturate(0.5);
-  transform: rotate(45deg);
+
+.eqex-sigil {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  opacity: 0.45;
+  filter: brightness(1) saturate(0.6);
+  transition: opacity 0.4s ease, filter 0.4s ease, transform 2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: rotate(0deg);
 }
 
 /* Sidebar copyright footer */
@@ -2884,17 +2883,24 @@ a.creator-platform-chip:hover {
   color: var(--tag-platform);
 }
 .dispatch-active-badge.clear-badge {
-  background: rgba(var(--danger-rgb), 0.18);
-  border-color: rgba(var(--danger-rgb), 0.45);
-  color: var(--danger);
+  background: rgba(var(--text-muted-rgb), 0.10);
+  border-color: rgba(var(--text-muted-rgb), 0.25);
+  color: var(--text-muted);
   cursor: pointer;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+  order: 9999;
+  flex-shrink: 0;
 }
 .dispatch-active-badge.clear-badge:hover {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #fff;
+  background: rgba(var(--danger-rgb), 0.2);
+  border-color: rgba(var(--danger-rgb), 0.5);
+  color: var(--danger);
 }
 @keyframes badgePop {
   0% { transform: scale(0.5); opacity: 0; }

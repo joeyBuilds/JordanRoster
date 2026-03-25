@@ -3,16 +3,16 @@
    =========================== */
 
 /* Register key color vars so they interpolate during dispatch transition */
-@property --bg-primary { syntax: '<color>'; inherits: true; initial-value: #1E1A17; }
-@property --bg-secondary { syntax: '<color>'; inherits: true; initial-value: #1E1A17; }
-@property --bg-card { syntax: '<color>'; inherits: true; initial-value: #252120; }
-@property --bg-hover { syntax: '<color>'; inherits: true; initial-value: #2E2926; }
-@property --bg-input { syntax: '<color>'; inherits: true; initial-value: #222020; }
-@property --accent { syntax: '<color>'; inherits: true; initial-value: #D4A08E; }
-@property --text-primary { syntax: '<color>'; inherits: true; initial-value: #F0E4DC; }
-@property --text-secondary { syntax: '<color>'; inherits: true; initial-value: #B8A89E; }
-@property --text-muted { syntax: '<color>'; inherits: true; initial-value: #6E6058; }
-@property --border { syntax: '<color>'; inherits: true; initial-value: #2E2926; }
+@property --bg-primary { syntax: '<color>'; inherits: true; initial-value: #0F1A14; }
+@property --bg-secondary { syntax: '<color>'; inherits: true; initial-value: #121E16; }
+@property --bg-card { syntax: '<color>'; inherits: true; initial-value: #1A2B20; }
+@property --bg-hover { syntax: '<color>'; inherits: true; initial-value: #223028; }
+@property --bg-input { syntax: '<color>'; inherits: true; initial-value: #162218; }
+@property --accent { syntax: '<color>'; inherits: true; initial-value: #8BBF96; }
+@property --text-primary { syntax: '<color>'; inherits: true; initial-value: #E8F0EA; }
+@property --text-secondary { syntax: '<color>'; inherits: true; initial-value: #A4BDAA; }
+@property --text-muted { syntax: '<color>'; inherits: true; initial-value: #5E7A64; }
+@property --border { syntax: '<color>'; inherits: true; initial-value: #2A3E30; }
 
 * {
   margin: 0;
@@ -21,31 +21,32 @@
 }
 
 :root {
-  --bg-primary: #1E1A17;
-  --bg-primary-rgb: 30, 26, 23;
-  --bg-secondary: #1E1A17;
-  --bg-secondary-rgb: 30, 26, 23;
-  --bg-card: #252120;
-  --bg-card-rgb: 37, 33, 32;
-  --bg-hover: #2E2926;
-  --bg-hover-rgb: 46, 41, 38;
-  --bg-input: #222020;
-  --bg-input-rgb: 34, 32, 32;
-  --accent: #D4A08E;
-  --accent-rgb: 212, 160, 142;
-  --accent-light: #E0B8A8;
-  --accent-light-rgb: 224, 184, 168;
-  --accent-dark: #C08A76;
-  --accent-dark-rgb: 192, 138, 118;
-  --text-primary: #F0E4DC;
-  --text-primary-rgb: 240, 228, 220;
-  --text-secondary: #B8A89E;
-  --text-secondary-rgb: 184, 168, 158;
-  --text-muted: #6E6058;
-  --text-muted-rgb: 110, 96, 88;
-  --border: #2E2926;
-  --border-rgb: 46, 41, 38;
-  /* Smooth palette transition for Roster↔Dispatch mode shift */
+  /* ── Sage-Green Glass palette ── */
+  --bg-primary: #0F1A14;
+  --bg-primary-rgb: 15, 26, 20;
+  --bg-secondary: #121E16;
+  --bg-secondary-rgb: 18, 30, 22;
+  --bg-card: #1A2B20;
+  --bg-card-rgb: 26, 43, 32;
+  --bg-hover: #223028;
+  --bg-hover-rgb: 34, 48, 40;
+  --bg-input: #162218;
+  --bg-input-rgb: 22, 34, 24;
+  --accent: #8BBF96;
+  --accent-rgb: 139, 191, 150;
+  --accent-light: #A8D4B0;
+  --accent-light-rgb: 168, 212, 176;
+  --accent-dark: #6EA87A;
+  --accent-dark-rgb: 110, 168, 122;
+  --text-primary: #E8F0EA;
+  --text-primary-rgb: 232, 240, 234;
+  --text-secondary: #A4BDAA;
+  --text-secondary-rgb: 164, 189, 170;
+  --text-muted: #5E7A64;
+  --text-muted-rgb: 94, 122, 100;
+  --border: #2A3E30;
+  --border-rgb: 42, 62, 48;
+  /* Smooth palette transition for Roster↔Niche mode shift */
   transition: --bg-primary 0.7s ease,
               --bg-secondary 0.7s ease,
               --bg-card 0.7s ease,
@@ -56,40 +57,45 @@
               --text-secondary 0.7s ease,
               --text-muted 0.7s ease,
               --border 0.7s ease;
-  --success: #8EAE8B;
-  --success-rgb: 142, 174, 139;
-  --warning: #D4B87C;
-  --warning-rgb: 212, 184, 124;
+  --success: #7CC98A;
+  --success-rgb: 124, 201, 138;
+  --warning: #D4C47C;
+  --warning-rgb: 212, 196, 124;
   --danger: #C97B7B;
   --danger-rgb: 201, 123, 123;
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.35);
   --radius: 16px;
   --radius-sm: 10px;
-  --lavender: #BBA7CF;
-  --lavender-rgb: 187, 167, 207;
-  --sage: #9BB5A0;
-  --sage-rgb: 155, 181, 160;
-  --rose: #D4A0A0;
-  --rose-rgb: 212, 160, 160;
-  --mocha: #C09A8A;
-  --mocha-rgb: 192, 154, 138;
-  --coral: #E47860;
-  --coral-rgb: 228, 120, 96;
-  --pink: #D4829A;
-  --pink-rgb: 212, 130, 154;
-  --gold: #DAB978;
-  --gold-rgb: 218, 185, 120;
+  --lavender: #A8A0CF;
+  --lavender-rgb: 168, 160, 207;
+  --sage: #8BBF96;
+  --sage-rgb: 139, 191, 150;
+  --rose: #C9A0A0;
+  --rose-rgb: 201, 160, 160;
+  --mocha: #A89080;
+  --mocha-rgb: 168, 144, 128;
+  --coral: #D47860;
+  --coral-rgb: 212, 120, 96;
+  --pink: #C882A0;
+  --pink-rgb: 200, 130, 160;
+  --gold: #D4C47C;
+  --gold-rgb: 212, 196, 124;
   --dest-blue: #00D4FF;
   --dest-blue-rgb: 0, 212, 255;
 
+  /* Glass effect tokens */
+  --glass-bg: rgba(15, 26, 20, 0.65);
+  --glass-border: rgba(139, 191, 150, 0.08);
+  --glass-blur: 20px;
+
   /* Tag colors */
-  --tag-platform: #8EAE8B;
-  --tag-platform-rgb: 142, 174, 139;
+  --tag-platform: #7CC98A;
+  --tag-platform-rgb: 124, 201, 138;
   --tag-niche: #C4A85A;
   --tag-niche-rgb: 196, 168, 90;
-  --tag-tier: #BBA7CF;
-  --tag-tier-rgb: 187, 167, 207;
+  --tag-tier: #A8A0CF;
+  --tag-tier-rgb: 168, 160, 207;
   --tag-demographic: #7B96B5;
   --tag-demographic-rgb: 123, 150, 181;
 
@@ -103,44 +109,55 @@
    DISPATCH MODE THEME OVERRIDE
    =========================== */
 body.dispatch-mode {
-  --bg-primary: #261E1E;
-  --bg-primary-rgb: 38, 30, 30;
-  --bg-secondary: #2A2020;
-  --bg-secondary-rgb: 42, 32, 32;
-  --bg-card: #302424;
-  --bg-card-rgb: 48, 36, 36;
-  --bg-hover: #3A2C2C;
-  --bg-hover-rgb: 58, 44, 44;
-  --bg-input: #2C2222;
-  --bg-input-rgb: 44, 34, 34;
-  --accent: #E8A8A0;
-  --accent-rgb: 232, 168, 160;
-  --accent-light: #F0BEB8;
-  --accent-light-rgb: 240, 190, 184;
-  --accent-dark: #D4908E;
-  --accent-dark-rgb: 212, 144, 142;
-  --text-primary: #F5E0DA;
-  --text-primary-rgb: 245, 224, 218;
-  --text-secondary: #D4B8B0;
-  --text-secondary-rgb: 212, 184, 176;
-  --text-muted: #8A6E68;
-  --text-muted-rgb: 138, 110, 104;
-  --border: #3A2C2C;
-  --border-rgb: 58, 44, 44;
+  /* ── Warm Amber-Rose shift for Niche mode ── */
+  --bg-primary: #1A1410;
+  --bg-primary-rgb: 26, 20, 16;
+  --bg-secondary: #1E1814;
+  --bg-secondary-rgb: 30, 24, 20;
+  --bg-card: #2A2018;
+  --bg-card-rgb: 42, 32, 24;
+  --bg-hover: #342820;
+  --bg-hover-rgb: 52, 40, 32;
+  --bg-input: #221A14;
+  --bg-input-rgb: 34, 26, 20;
+  --accent: #D4A080;
+  --accent-rgb: 212, 160, 128;
+  --accent-light: #E8C0A8;
+  --accent-light-rgb: 232, 192, 168;
+  --accent-dark: #C0886A;
+  --accent-dark-rgb: 192, 136, 106;
+  --text-primary: #F0E8E0;
+  --text-primary-rgb: 240, 232, 224;
+  --text-secondary: #C4B0A0;
+  --text-secondary-rgb: 196, 176, 160;
+  --text-muted: #7A6858;
+  --text-muted-rgb: 122, 104, 88;
+  --border: #3A2E24;
+  --border-rgb: 58, 46, 36;
   --success: #A8C8A5;
   --success-rgb: 168, 200, 165;
   --warning: #E0C88C;
   --warning-rgb: 224, 200, 140;
   --danger: #D48A8A;
   --danger-rgb: 212, 138, 138;
-  --shadow: 0 4px 20px rgba(var(--bg-primary-rgb), 0.3);
-  --shadow-lg: 0 12px 40px rgba(var(--bg-primary-rgb), 0.4);
+  --shadow: 0 4px 20px rgba(26, 20, 16, 0.3);
+  --shadow-lg: 0 12px 40px rgba(26, 20, 16, 0.4);
+  --sage: #A0A880;
+  --sage-rgb: 160, 168, 128;
+  --lavender: #C0A8C8;
+  --lavender-rgb: 192, 168, 200;
+  --rose: #D4A0A0;
+  --rose-rgb: 212, 160, 160;
+  --mocha: #C09A80;
+  --mocha-rgb: 192, 154, 128;
+  --glass-bg: rgba(26, 20, 16, 0.65);
+  --glass-border: rgba(212, 160, 128, 0.08);
   --tag-platform: #A8C8A5;
   --tag-platform-rgb: 168, 200, 165;
-  --tag-niche: #C4A85A;
-  --tag-niche-rgb: 196, 168, 90;
-  --tag-tier: #C8B0DA;
-  --tag-tier-rgb: 200, 176, 218;
+  --tag-niche: #D4B468;
+  --tag-niche-rgb: 212, 180, 104;
+  --tag-tier: #C0A8C8;
+  --tag-tier-rgb: 192, 168, 200;
   --tag-demographic: #7B96B5;
   --tag-demographic-rgb: 123, 150, 181;
   --color-instagram: #E1306C;
@@ -160,14 +177,14 @@ body.dispatch-mode {
   background: linear-gradient(160deg, var(--bg-primary) 0%, var(--bg-secondary) 35%, var(--bg-primary) 60%, var(--bg-primary) 100%) !important;
 }
 body.dispatch-mode #topBar {
-  background: rgba(var(--bg-primary-rgb), 0.95) !important;
-  border-bottom-color: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg) !important;
+  border-bottom-color: var(--glass-border);
 }
 body.dispatch-mode #topBar::after {
   background: radial-gradient(circle, rgba(var(--accent-rgb), 0.06) 0%, transparent 70%);
 }
 body.dispatch-mode #sidebar {
-  background: var(--bg-secondary);
+  background: var(--glass-bg);
 }
 body.dispatch-mode #sidebar::after {
   background: linear-gradient(to top, rgba(var(--accent-rgb), 0.04) 0%, transparent 100%);
@@ -176,7 +193,7 @@ body.dispatch-mode .sidebar-tabs {
   background: transparent;
 }
 body.dispatch-mode .leaflet-tile {
-  filter: brightness(0.80) saturate(1.1) contrast(1.12);
+  filter: brightness(0.75) saturate(0.8) contrast(1.1);
 }
 body.dispatch-mode #mapContainer::before {
   background: linear-gradient(to right, rgba(var(--bg-primary-rgb), 0.5) 0%, transparent 100%);
@@ -258,16 +275,16 @@ body {
 
 #topBar {
   height: 64px;
-  background: rgba(var(--bg-primary-rgb), 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   flex-shrink: 0;
-  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   position: relative;
   overflow: hidden;
   transition: background 0.6s ease, border-color 0.6s ease, box-shadow 0.6s ease;
@@ -446,8 +463,10 @@ body.dispatch-mode .title-niche {
 
 #sidebar {
   width: 360px;
-  background: rgba(var(--bg-primary-rgb), 0.98);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -668,7 +687,6 @@ body.shift-held #mapContainer .leaflet-container {
 
 /* Leaflet satellite imagery — slightly dimmed for pin contrast + GPU compositing */
 .leaflet-tile {
-  filter: brightness(0.85) saturate(1.15) contrast(1.1);
   transition: filter 0.8s ease;
   will-change: transform;
   /* Eliminate tile seam "prison bars" */
@@ -952,7 +970,7 @@ body.shift-held #mapContainer .leaflet-container {
    =========================== */
 .sidebar-tabs {
   display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--glass-border);
   background: transparent;
   transition: background 0.6s ease, border-color 0.6s ease;
   position: relative;
@@ -962,51 +980,35 @@ body.shift-held #mapContainer .leaflet-container {
 
 .tab-button {
   flex: 1;
-  padding: 12px 14px 10px;
+  padding: 14px 14px 11px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   border-radius: 0;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  color: rgba(var(--text-primary-rgb), 0.35);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(var(--text-primary-rgb), 0.30);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   font-family: 'DM Sans', sans-serif;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-}
-.tab-button .tab-icon {
-  display: inline-flex;
-  opacity: 0.3;
-  transition: opacity 0.2s ease;
-}
-.tab-button.active .tab-icon {
-  opacity: 0.6;
-}
-.tab-button:hover .tab-icon {
-  opacity: 0.45;
 }
 
 .tab-button.active {
-  border-bottom-color: var(--sage);
+  border-bottom-color: var(--accent);
   color: var(--text-primary);
   background: transparent;
 }
 
-/* Niche tab gets accent color when active */
-.tab-button[data-tab="dispatch"].active {
-  border-bottom-color: var(--accent);
-}
-
 .tab-button:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.02);
+  color: rgba(var(--text-primary-rgb), 0.6);
+  background: rgba(var(--accent-rgb), 0.04);
 }
 
 /* ===========================

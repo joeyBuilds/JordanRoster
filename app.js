@@ -2638,7 +2638,35 @@ function renderRing(creator) {
         el.style.opacity = '0';
         el.style.transform = `translateX(${slideInX}px) scale(0.8)`;
         el.style.transition = 'opacity 0.15s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        el.onclick = (e) => { e.stopPropagation(); openTagModal(tag, tagType); };
+        el.onclick = (e) => {
+          e.stopPropagation();
+          if (tagType === 'niche' || tagType === 'demographic') {
+            // Close ring, switch to Niche/Dispatch tab, apply as a filter
+            closeDetailPanel();
+            // Add to the appropriate dispatch filter if not already present
+            if (tagType === 'niche') {
+              if (!dispatchFilters.niches.includes(tag)) {
+                dispatchFilters.niches.push(tag);
+              }
+            } else {
+              if (!dispatchFilters.demographics.includes(tag)) {
+                dispatchFilters.demographics.push(tag);
+              }
+            }
+            // Switch to dispatch tab
+            const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
+            if (dispatchBtn) dispatchBtn.click();
+            // Ensure the relevant section is expanded
+            if (tagType === 'niche' && !_dispatchSections.niches) toggleDispatchSection('niches');
+            if (tagType === 'demographic' && !_dispatchSections.demos) toggleDispatchSection('demos');
+            // Re-render filters and results
+            renderDispatchFilterPills();
+            renderDispatchTab();
+            updateMapMarkers();
+          } else {
+            openTagModal(tag, tagType);
+          }
+        };
         wrap.appendChild(el);
         overlay.appendChild(wrap);
 

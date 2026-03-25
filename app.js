@@ -2247,6 +2247,24 @@ function renderRing(creator) {
   spotlight.style.top = cy + 'px';
   overlay.appendChild(spotlight);
 
+  // === Dispatch scoring — computed early so platform chips + pills can use it ===
+  const ringHasDispatch = document.body.classList.contains('dispatch-mode') && (
+    dispatchFilters.platformTiers.length > 0 ||
+    dispatchFilters.niches.length > 0 ||
+    dispatchFilters.demographics.length > 0 ||
+    dispatchFilters.ageMin !== null ||
+    dispatchFilters.ageMax !== null
+  );
+  let ringScore = null;
+  let ringScoreLevel = '';
+  if (ringHasDispatch) {
+    ringScore = scoreCreatorFilters(creator);
+    if (ringScore.pct >= 1.0) ringScoreLevel = 'full';
+    else if (ringScore.pct >= 0.66) ringScoreLevel = 'most';
+    else if (ringScore.pct >= 0.34) ringScoreLevel = 'half';
+    else ringScoreLevel = 'low';
+  }
+
   // === Build the entire ring as a single centered column ===
   const ringColumn = document.createElement('div');
   ringColumn.className = 'ring-column';
@@ -2296,6 +2314,14 @@ function renderRing(creator) {
       }
       chip.appendChild(textWrap);
 
+      // Shimmer effect on platform chips that match dispatch filters
+      if (ringHasDispatch && dispatchFilters.platformTiers.length > 0) {
+        const followers = getFollowers(creator, p);
+        const creatorTier = tierFromFollowers(followers);
+        const isMatchedPlatform = dispatchFilters.platformTiers.some(pt => pt.platform === p && pt.tier === creatorTier);
+        if (isMatchedPlatform) chip.classList.add('dispatch-matched-tag');
+      }
+
       chip.style.opacity = '0';
       chip.style.transform = 'translateY(8px)';
       chip.style.transition = 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -2316,24 +2342,6 @@ function renderRing(creator) {
   avatarWrap.className = 'ring-avatar-wrap';
 
   // Close button removed — clicking the map scrim closes the ring
-
-  // Check if dispatch scoring should be shown
-  const ringHasDispatch = document.body.classList.contains('dispatch-mode') && (
-    dispatchFilters.platformTiers.length > 0 ||
-    dispatchFilters.niches.length > 0 ||
-    dispatchFilters.demographics.length > 0 ||
-    dispatchFilters.ageMin !== null ||
-    dispatchFilters.ageMax !== null
-  );
-  let ringScore = null;
-  let ringScoreLevel = '';
-  if (ringHasDispatch) {
-    ringScore = scoreCreatorFilters(creator);
-    if (ringScore.pct >= 1.0) ringScoreLevel = 'full';
-    else if (ringScore.pct >= 0.66) ringScoreLevel = 'most';
-    else if (ringScore.pct >= 0.34) ringScoreLevel = 'half';
-    else ringScoreLevel = 'low';
-  }
 
   const avatar = document.createElement('div');
   avatar.className = 'ring-avatar';
@@ -2676,6 +2684,12 @@ function renderRing(creator) {
         el.style.fontSize = fontSize + 'px';
         el.style.padding = `${pillPadY}px ${pillPadX}px`;
         el.style.lineHeight = '1.2';
+
+        // Shimmer effect on pills that match active dispatch filters
+        if (ringHasDispatch && ringScore && ringScore.matchDetails) {
+          const isMatchedTag = ringScore.matchDetails.some(d => d.type === tagType && d.label === tag);
+          if (isMatchedTag) el.classList.add('dispatch-matched-tag');
+        }
 
         if (isOverlapping) {
           el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)';
@@ -6015,7 +6029,7 @@ function fitMapToCreators() {
   map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 10, duration: 0.8, easeLinearity: 0.15 });
 }
 
-// Zoom-to-fit matched dispatch results
+// Zoom-to-fit matched dispatch results, accounting for the match results panel
 function _fitMapToMatched(matched) {
   if (!matched || matched.length === 0) {
     // No matches — zoom back to show all creators
@@ -6024,12 +6038,51 @@ function _fitMapToMatched(matched) {
   }
   const located = matched.filter(c => c.lat && c.lng);
   if (located.length === 0) return;
+
+  // Calculate left padding to account for the match float panel overlapping the map
+  const matchPanel = document.getElementById('matchFloatPanel');
+  let leftPad = 80;
+  if (matchPanel && matchPanel.classList.contains('visible')) {
+    const mapContainer = document.getElementById('mapContainer');
+    const mapRect = mapContainer ? mapContainer.getBoundingClientRect() : null;
+    const panelRect = matchPanel.getBoundingClientRect();
+    if (mapRect) {
+      // How much of the panel overlaps the map area
+      const overlap = Math.max(0, panelRect.right - mapRect.left);
+      leftPad = overlap + 40; // 40px breathing room beyond panel edge
+    }
+  }
+
   if (located.length === 1) {
-    map.flyTo([located[0].lat, located[0].lng], 8, { duration: 0.7, easeLinearity: 0.2 });
+    // For a single pin, offset the center to the right of the panel
+    const mapContainer = document.getElementById('mapContainer');
+    if (mapContainer) {
+      const mapW = mapContainer.offsetWidth;
+      const visibleCenterX = leftPad + (mapW - leftPad) / 2;
+      const offsetLng = map.containerPointToLatLng([visibleCenterX, mapContainer.offsetHeight / 2]);
+      const target = L.latLng(located[0].lat, located[0].lng);
+      // Fly to the creator but shift so it appears centered in the visible map area
+      map.flyTo(target, 8, { duration: 0.7, easeLinearity: 0.2 });
+      // After fly completes, nudge the view to account for panel
+      map.once('moveend', () => {
+        const px = map.latLngToContainerPoint(target);
+        const desiredX = leftPad + (mapContainer.offsetWidth - leftPad) / 2;
+        const dx = px.x - desiredX;
+        if (Math.abs(dx) > 20) map.panBy([dx, 0], { duration: 0.3 });
+      });
+    } else {
+      map.flyTo([located[0].lat, located[0].lng], 8, { duration: 0.7, easeLinearity: 0.2 });
+    }
     return;
   }
   const bounds = L.latLngBounds(located.map(c => [c.lat, c.lng]));
-  map.flyToBounds(bounds, { padding: [80, 80], maxZoom: 12, duration: 0.7, easeLinearity: 0.2 });
+  map.flyToBounds(bounds, {
+    paddingTopLeft: [leftPad, 60],
+    paddingBottomRight: [60, 60],
+    maxZoom: 12,
+    duration: 0.7,
+    easeLinearity: 0.2
+  });
 }
 
 // ===========================

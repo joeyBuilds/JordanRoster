@@ -3954,6 +3954,71 @@ a.ring-platform-chip:hover {
   filter: brightness(1.1);
 }
 
+/* ── Dispatch-matched shimmer on ring pills ── */
+.ring-pill.dispatch-matched-tag {
+  border-color: rgba(var(--gold-rgb), 0.55);
+  box-shadow:
+    0 0 10px 2px rgba(var(--gold-rgb), 0.25),
+    0 3px 12px rgba(0, 0, 0, 0.15),
+    var(--glass-inset);
+  animation: pillShimmer 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.ring-pill.dispatch-matched-tag::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.18) 45%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.18) 55%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  animation: shimmerSweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes pillShimmer {
+  0%, 100% { box-shadow: 0 0 10px 2px rgba(var(--gold-rgb), 0.20), 0 3px 12px rgba(0,0,0,0.15), var(--glass-inset); }
+  50%      { box-shadow: 0 0 16px 4px rgba(var(--gold-rgb), 0.35), 0 3px 12px rgba(0,0,0,0.15), var(--glass-inset); }
+}
+@keyframes shimmerSweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -50% 0; }
+}
+
+/* Shimmer on platform chips too */
+.ring-platform-chip.dispatch-matched-tag {
+  border-color: rgba(var(--gold-rgb), 0.55) !important;
+  box-shadow:
+    0 0 10px 2px rgba(var(--gold-rgb), 0.25),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: pillShimmer 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.ring-platform-chip.dispatch-matched-tag::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.15) 45%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.15) 55%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  animation: shimmerSweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* Niche category colors — icy tints */
 .ring-pill.cat-entertainment { background: rgba(187, 130, 180, 0.4); border-color: rgba(187,130,180,0.25); }
 .ring-pill.cat-lifestyle     { background: rgba(200, 170, 120, 0.4); border-color: rgba(200,170,120,0.25); }

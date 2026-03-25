@@ -6896,6 +6896,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') _dismissMapCityPicker();
   // Toggle crosshair cursor hint when Shift is held
   if (e.key === 'Shift') document.body.classList.add('shift-held');
+  // X key closes compare panels one at a time (last added first)
+  if ((e.key === 'x' || e.key === 'X') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // Don't trigger if user is typing in an input
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (_compareCreatorIds.length > 0) {
+      removeCompareCreator(_compareCreatorIds.length - 1);
+    }
+  }
 });
 document.addEventListener('keyup', (e) => {
   if (e.key === 'Shift') document.body.classList.remove('shift-held');

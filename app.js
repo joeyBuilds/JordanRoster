@@ -4787,6 +4787,7 @@ function renderDemosPanel(creator) {
       }
       btn.onclick = () => {
         _demosSubTab = t.key;
+        _compareSubTabs = {}; // Reset overrides — compare panels follow primary
         renderDemosPanel(creator);
         renderAllComparePanels();
       };
@@ -4816,6 +4817,7 @@ function renderDemosPanel(creator) {
 // ===========================
 
 let _compareCreatorIds = []; // max 2
+let _compareSubTabs = {};   // per-panel overrides: { creatorId: 'TikTok' }
 
 function addCompareCreator(creatorId) {
   // Don't add if it's the primary or already in compare
@@ -4887,12 +4889,37 @@ function renderAllComparePanels() {
       headerArea.appendChild(nichesRow);
     }
 
-    // Placeholder row matching sub-tab-row height
-    const tabPlaceholder = document.createElement('div');
-    tabPlaceholder.className = 'demos-sub-tab-row';
-    tabPlaceholder.style.visibility = 'hidden';
-    tabPlaceholder.style.minHeight = '26px';
-    headerArea.appendChild(tabPlaceholder);
+    // Platform buttons for this compare creator
+    const comparePlatforms = getCreatorPlatforms(creator);
+    // Determine active tab: follow primary unless overridden, or fall back to creator's first platform
+    let activeTab = _compareSubTabs[cid] || _demosSubTab || 'Instagram';
+    if (activeTab !== 'partners' && !comparePlatforms.includes(activeTab)) {
+      activeTab = comparePlatforms[0] || 'Instagram';
+    }
+
+    const tabRow = document.createElement('div');
+    tabRow.className = 'demos-sub-tab-row';
+    comparePlatforms.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'demos-sub-tab' + (p === activeTab ? ' active' : '');
+      btn.innerHTML = `<span class="demos-sub-tab-icon platform-${p.toLowerCase()}">${PLATFORM_SVGS[p] || ''}</span>`;
+      btn.title = p;
+      btn.onclick = () => {
+        _compareSubTabs[cid] = p;
+        renderAllComparePanels();
+      };
+      tabRow.appendChild(btn);
+    });
+    // Partners button
+    const partnersBtn = document.createElement('button');
+    partnersBtn.className = 'demos-sub-tab' + (activeTab === 'partners' ? ' active' : '');
+    partnersBtn.textContent = 'Partners';
+    partnersBtn.onclick = () => {
+      _compareSubTabs[cid] = 'partners';
+      renderAllComparePanels();
+    };
+    tabRow.appendChild(partnersBtn);
+    headerArea.appendChild(tabRow);
 
     panel.appendChild(headerArea);
 
@@ -4903,7 +4930,6 @@ function renderAllComparePanels() {
     const section = document.createElement('div');
     section.className = 'demos-platform-section';
 
-    const activeTab = _demosSubTab || 'Instagram';
     if (activeTab === 'partners') {
       renderPartnersView(creator, section);
     } else {
@@ -6677,7 +6703,8 @@ function initMap() {
     zoomAnimation: true,
     fadeAnimation: true,
     markerZoomAnimation: true,
-    boxZoom: false  // Disable Shift+drag box zoom — Shift+Click is used for city picker
+    boxZoom: false,  // Disable Shift+drag box zoom — Shift+Click is used for city picker
+    zoomControl: false  // Hide +/- zoom buttons — scroll zoom is sufficient
   });
 
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {

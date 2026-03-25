@@ -848,7 +848,6 @@ body.shift-held #mapContainer .leaflet-container {
   border-bottom: none;
   display: flex;
   flex-direction: column;
-  flex: 1;
 }
 .demos-platform-section:last-child {
   border-bottom: none;
@@ -938,8 +937,6 @@ body.shift-held #mapContainer .leaflet-container {
   flex-direction: column;
   gap: 3px;
   padding: 2px 0;
-  flex: 1;
-  justify-content: flex-end;
 }
 .demos-demo-card {
   background: rgba(var(--bg-card-rgb), 0.4);

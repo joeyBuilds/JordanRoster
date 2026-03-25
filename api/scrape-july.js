@@ -198,23 +198,32 @@ function extractAudienceFromHtml($) {
   return Object.keys(result).length > 0 ? result : null;
 }
 
-// Extract audience data from July's media kit block structure
+// Extract audience data from July's media kit block structure.
+// Instagram uses fields.stats.all[], TikTok/YouTube use fields.stats[] directly.
 function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
   const PLATFORM_MAP = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
   const STAT_MAP = {
     views: 'views', reach: 'reach', likes: 'likes', comments: 'comments',
     shares: 'shares', saves: 'saves', total_interactions: 'totalInteractions',
     average_likes: 'avgPostLikes', average_comments: 'avgPostComments',
-    story_views: 'avgStoryViews',
+    story_views: 'avgStoryViews', engagement_rate: 'engagementRate',
+    followers: 'followers',
+    subscribers: 'followers', total_views: 'views',
+    average_views: 'avgPostViews',
+    average_shorts_views: 'avgShortsViews', average_shorts_likes: 'avgShortsLikes',
+    average_shares: 'avgPostShares',
   };
   let found = false;
   for (const block of blocks) {
     const platform = PLATFORM_MAP[(block.type || '').toLowerCase()];
     if (!platform || !creatorPlatforms[platform]) continue;
-    const allStats = block.fields?.stats?.all;
-    if (!Array.isArray(allStats)) continue;
+    const rawStats = block.fields?.stats;
+    const statList = Array.isArray(rawStats) ? rawStats
+                   : (rawStats && Array.isArray(rawStats.all)) ? rawStats.all
+                   : null;
+    if (!statList) continue;
     const result = { stats: {} };
-    for (const s of allStats) {
+    for (const s of statList) {
       if (!s || typeof s !== 'object' || s.value == null) continue;
       const mapped = STAT_MAP[s.name];
       if (mapped) {

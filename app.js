@@ -4505,7 +4505,7 @@ function formatStatNumber(n) {
   if (n === null || n === undefined) return '—';
   if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  return n.toLocaleString();
+  return Math.round(n).toLocaleString();
 }
 
 function renderDemosPanel(creator) {
@@ -4553,14 +4553,11 @@ function renderDemosPanel(creator) {
     section.appendChild(platformHeader);
 
     // ── Stat cards grid (replicating July's layout) ──
-    const followers = getFollowers(creator, platform);
-    const engRate = getEngagementRate(creator, platform);
     const stats = aud.stats || {};
+    // Use audienceData followers/engRate if available (more up-to-date), else platform-level
+    const followers = stats.followers ?? getFollowers(creator, platform);
+    const engRate = stats.engagementRate ?? getEngagementRate(creator, platform);
 
-    // Row 1: Followers, Engagement Rate, Views
-    // Row 2: Reach, Likes, Comments
-    // Row 3: Shares, Saves, Total Interactions
-    // Row 4: Avg Post Likes, Avg Comments, Avg Story Views
     const statCards = [
       { icon: '👤', label: 'Followers', value: followers, fmt: formatStatNumber },
       { icon: '📊', label: 'Engagement Rate', value: engRate, fmt: v => formatEngagementRate(v) },
@@ -4572,8 +4569,12 @@ function renderDemosPanel(creator) {
       { icon: '🔖', label: 'Saves', value: stats.saves, fmt: formatStatNumber },
       { icon: '⚡', label: 'Total Interactions', value: stats.totalInteractions, fmt: formatStatNumber },
       { icon: '♥', label: 'Avg. Post Likes', value: stats.avgPostLikes, fmt: formatStatNumber },
-      { icon: '💬', label: 'Avg. Post Comments', value: stats.avgPostComments, fmt: formatStatNumber },
+      { icon: '💬', label: 'Avg. Comments', value: stats.avgPostComments, fmt: formatStatNumber },
       { icon: '👁', label: 'Avg. Story Views', value: stats.avgStoryViews, fmt: formatStatNumber },
+      { icon: '👁', label: 'Avg. Views', value: stats.avgPostViews, fmt: formatStatNumber },
+      { icon: '↗', label: 'Avg. Shares', value: stats.avgPostShares, fmt: formatStatNumber },
+      { icon: '🎬', label: 'Avg. Shorts Views', value: stats.avgShortsViews, fmt: formatStatNumber },
+      { icon: '♥', label: 'Avg. Shorts Likes', value: stats.avgShortsLikes, fmt: formatStatNumber },
     ].filter(s => s.value != null);
 
     if (statCards.length > 0) {

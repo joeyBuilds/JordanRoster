@@ -192,15 +192,23 @@ function extractAudienceFromHtml($) {
   return Object.keys(result).length > 0 ? result : null;
 }
 
-// Extract audience data from July's media kit block structure:
-// blocks[].fields.stats.all[] = [{name, value}, ...]
+// Extract audience data from July's media kit block structure.
+// Instagram uses fields.stats.all[], TikTok/YouTube use fields.stats[] directly.
 function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
   const PLATFORM_MAP = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
   const STAT_MAP = {
+    // Common
     views: 'views', reach: 'reach', likes: 'likes', comments: 'comments',
     shares: 'shares', saves: 'saves', total_interactions: 'totalInteractions',
     average_likes: 'avgPostLikes', average_comments: 'avgPostComments',
-    story_views: 'avgStoryViews',
+    story_views: 'avgStoryViews', engagement_rate: 'engagementRate',
+    followers: 'followers',
+    // YouTube variants
+    subscribers: 'followers', total_views: 'views',
+    average_views: 'avgPostViews',
+    average_shorts_views: 'avgShortsViews', average_shorts_likes: 'avgShortsLikes',
+    // TikTok variants
+    average_shares: 'avgPostShares',
   };
   let found = false;
 
@@ -208,21 +216,24 @@ function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
     const platform = PLATFORM_MAP[(block.type || '').toLowerCase()];
     if (!platform || !creatorPlatforms[platform]) continue;
 
-    const allStats = block.fields?.stats?.all;
-    if (!Array.isArray(allStats)) continue;
+    // Handle both formats: {all: [...]} (IG) and [...] (TT/YT)
+    const rawStats = block.fields?.stats;
+    const statList = Array.isArray(rawStats) ? rawStats
+                   : (rawStats && Array.isArray(rawStats.all)) ? rawStats.all
+                   : null;
+    if (!statList) continue;
 
     const result = { stats: {} };
 
-    for (const s of allStats) {
+    for (const s of statList) {
       if (!s || typeof s !== 'object' || s.value == null) continue;
 
-      // Map performance stats
       const mapped = STAT_MAP[s.name];
       if (mapped) {
         result.stats[mapped] = typeof s.value === 'number' ? s.value : parseFloat(s.value);
       }
 
-      // Map demographic breakdowns (gender, age, country, city) — array of {label, value}
+      // Demographic breakdowns (gender, age, country, city)
       if (['gender', 'age', 'country', 'city'].includes(s.name) && Array.isArray(s.value) && s.value.length > 0) {
         result[s.name] = normalizeBreakdown(s.value);
       }

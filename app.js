@@ -2044,6 +2044,27 @@ function updateRosterMarkerFading() {
 }
 
 // ===========================
+// LIGHTWEIGHT DISPATCH → ROSTER CLEANUP
+// ===========================
+// Strips dispatch-specific classes and elements from existing markers
+// without tearing them down and rebuilding — avoids visual "jump".
+function _stripDispatchMarkerState() {
+  Object.keys(markers).forEach(id => {
+    const el = markers[id] && markers[id].getElement();
+    if (!el) return;
+    el.classList.remove('dispatch-match', 'dispatch-faded', 'dispatch-card-hover');
+    // Remove score ring, badge, and gleam ring DOM elements
+    const scoreRing = el.querySelector('.marker-score-ring');
+    const scoreBadge = el.querySelector('.marker-score-badge');
+    const gleamRing = el.querySelector('.marker-gleam-ring');
+    if (scoreRing) scoreRing.remove();
+    if (scoreBadge) scoreBadge.remove();
+    if (gleamRing) gleamRing.remove();
+  });
+  _hideMapLegend();
+}
+
+// ===========================
 // RING FORMATION — Fan overlapping markers into circles
 // ===========================
 let _ringFormations = []; // track offset markers for cleanup
@@ -5582,7 +5603,9 @@ function _handleTabLogic(tab, wasDispatch) {
     renderDispatchFilters();
     renderDispatchFilterPills();
     renderDispatchActiveStrip();
-    updateMapMarkers();
+    // Lightweight marker cleanup — strip dispatch classes instead of full teardown/rebuild
+    // to avoid the visual "jump" from clearLayers() + re-add.
+    _stripDispatchMarkerState();
     renderRosterTab();
     updateRosterMarkerFading();
   }

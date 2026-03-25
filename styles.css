@@ -84,13 +84,13 @@
   --dest-blue: #00D4FF;
   --dest-blue-rgb: 0, 212, 255;
 
-  /* Glass effect tokens */
-  --glass-bg: rgba(15, 26, 20, 0.45);
-  --glass-border: rgba(139, 191, 150, 0.12);
-  --glass-blur: 24px;
-  --glass-highlight: rgba(255, 255, 255, 0.06);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  /* Glass effect tokens — icy transparent */
+  --glass-bg: rgba(15, 26, 20, 0.28);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-blur: 32px;
+  --glass-highlight: rgba(255, 255, 255, 0.10);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.10), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
 
   /* Tag colors */
   --tag-platform: #7CC98A;
@@ -153,11 +153,11 @@ body.dispatch-mode {
   --rose-rgb: 212, 160, 160;
   --mocha: #C09A80;
   --mocha-rgb: 192, 154, 128;
-  --glass-bg: rgba(26, 20, 16, 0.45);
-  --glass-border: rgba(212, 160, 128, 0.12);
-  --glass-highlight: rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(26, 20, 16, 0.28);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
   --tag-platform: #A8C8A5;
   --tag-platform-rgb: 168, 200, 165;
   --tag-niche: #D4B468;
@@ -302,7 +302,7 @@ body {
   justify-content: space-between;
   padding: 0 24px;
   flex-shrink: 0;
-  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 0 1px 16px rgba(0, 0, 0, 0.18), var(--glass-inset);
   position: relative;
   overflow: hidden;
   transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
@@ -328,18 +328,21 @@ body {
 
 /* iamsocial logo */
 .ias-logo {
-  width: 36px;
-  height: 32px;
+  width: 42px;
+  height: 36px;
   flex-shrink: 0;
-  opacity: 0.95;
-  transition: opacity 0.2s ease;
+  opacity: 0.92;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.25));
 }
 .ias-logo:hover {
   opacity: 1;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
 }
-.ias-logo svg {
+.ias-logo img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 #topBar h1 {
@@ -405,6 +408,26 @@ body.dispatch-mode .title-niche {
   color: rgba(var(--text-primary-rgb), 0.12);
 }
 
+/* Alchemy circle sigil — whisper-quiet next to "Built by EQEX" */
+.eqex-sigil {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  opacity: 0;
+  margin-left: 4px;
+  vertical-align: middle;
+  filter: brightness(0.6) saturate(0.4);
+  transition: opacity 0.5s ease, filter 0.5s ease, transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  user-select: none;
+  transform: rotate(0deg);
+}
+#topBar:hover .eqex-sigil {
+  opacity: 0.14;
+  filter: brightness(0.8) saturate(0.5);
+  transform: rotate(45deg);
+}
+
 /* Sidebar copyright footer */
 .sidebar-copyright {
   font-family: 'DM Sans', sans-serif;
@@ -438,12 +461,12 @@ body.dispatch-mode .title-niche {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.7), rgba(var(--accent-dark-rgb), 0.8));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.5), rgba(var(--accent-dark-rgb), 0.6));
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
   color: white;
-  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.25), var(--glass-inset);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.2), var(--glass-inset);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   position: relative;
   overflow: hidden;
 }
@@ -463,8 +486,8 @@ body.dispatch-mode .title-niche {
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.85), rgba(var(--accent-dark-rgb), 0.95));
-  box-shadow: 0 6px 24px rgba(var(--accent-rgb), 0.35), var(--glass-inset);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.65), rgba(var(--accent-dark-rgb), 0.75));
+  box-shadow: 0 6px 24px rgba(var(--accent-rgb), 0.3), var(--glass-inset);
 }
 
 .btn-secondary {
@@ -599,18 +622,15 @@ body.shift-held #mapContainer .leaflet-container {
   margin: 0 auto;
 }
 
-/* Ambient glow ring behind avatar */
+/* Ambient glow ring behind avatar — static, no pulse */
 .marker-glow {
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--accent-rgb),0.5) 0%, rgba(var(--lavender-rgb),0.3) 50%, transparent 70%);
-  animation: markerPulse 3s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(var(--accent-rgb),0.4) 0%, rgba(var(--lavender-rgb),0.2) 50%, transparent 70%);
+  opacity: 0.85;
   z-index: 0;
-}
-@keyframes markerPulse {
-  0%, 100% { transform: scale(1); opacity: 0.7; }
-  50% { transform: scale(1.15); opacity: 1; }
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 /* The avatar circle — white ring via box-shadow so border doesn't shrink the image */
@@ -675,7 +695,6 @@ body.shift-held #mapContainer .leaflet-container {
     0 0 32px 10px rgba(255,255,255,0.25);
 }
 .creator-marker:hover .marker-glow {
-  animation: none;
   transform: scale(1.25);
   opacity: 1;
 }
@@ -810,16 +829,16 @@ body.shift-held #mapContainer .leaflet-container {
   to { opacity: 1; }
 }
 .nuke-dialog {
-  background: rgba(var(--bg-secondary-rgb), 0.6);
-  backdrop-filter: blur(28px) saturate(1.3);
-  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  background: rgba(var(--bg-secondary-rgb), 0.3);
+  backdrop-filter: blur(36px) saturate(1.4);
+  -webkit-backdrop-filter: blur(36px) saturate(1.4);
   border: 2px solid var(--danger);
   border-radius: 16px;
   padding: 28px 24px;
   max-width: 340px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 0 40px rgba(var(--danger-rgb), 0.3), var(--glass-inset);
+  box-shadow: 0 0 40px rgba(var(--danger-rgb), 0.25), var(--glass-inset);
   animation: nukeShake 0.3s ease;
 }
 @keyframes nukeShake {
@@ -1018,8 +1037,8 @@ body.shift-held #mapContainer .leaflet-container {
   bottom: 6px;
   left: var(--tab-indicator-left, 10px);
   width: var(--tab-indicator-width, 33.333%);
-  background: rgba(var(--accent-rgb), 0.08);
-  border: 1px solid rgba(var(--accent-rgb), 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 10px;
   transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 0;
@@ -1070,13 +1089,13 @@ body.shift-held #mapContainer .leaflet-container {
 
 .roster-header {
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(var(--accent-rgb), 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: rgba(var(--bg-card-rgb), 0.4);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(var(--bg-card-rgb), 0.2);
+  backdrop-filter: blur(28px) saturate(1.2);
+  -webkit-backdrop-filter: blur(28px) saturate(1.2);
 }
 
 /* Search + Add button on one row */
@@ -1121,17 +1140,17 @@ body.shift-held #mapContainer .leaflet-container {
 .search-input {
   width: 100%;
   padding: 9px 28px 9px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   color: var(--text-primary);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 0;
-  box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--glass-inset), 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .search-input::placeholder {
@@ -1140,9 +1159,9 @@ body.shift-held #mapContainer .leaflet-container {
 
 .search-input:focus {
   outline: none;
-  border-color: rgba(var(--accent-rgb), 0.3);
+  border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset), 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.06), var(--glass-inset), 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 /* July sync button group */
@@ -1499,11 +1518,11 @@ body.shift-held #mapContainer .leaflet-container {
   width: 370px;
   height: 100%;
   z-index: 1002;
-  background: rgba(var(--bg-card-rgb), 0.4);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.25), var(--glass-inset);
+  background: rgba(var(--bg-card-rgb), 0.22);
+  backdrop-filter: blur(32px) saturate(1.3);
+  -webkit-backdrop-filter: blur(32px) saturate(1.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 8px 0 40px rgba(0, 0, 0, 0.2), var(--glass-inset);
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -1748,10 +1767,10 @@ body.shift-held #mapContainer .leaflet-container {
   display: flex;
   gap: 10px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 3px solid transparent;
   border-radius: 14px;
   cursor: pointer;
@@ -1759,13 +1778,13 @@ body.shift-held #mapContainer .leaflet-container {
   position: relative;
   overflow: visible;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), var(--glass-inset);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), var(--glass-inset);
 }
 .creator-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(var(--accent-rgb), 0.15);
-  border-left-color: rgba(var(--sage-rgb), 0.4);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(var(--accent-rgb), 0.06), var(--glass-inset);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  border-left-color: rgba(var(--sage-rgb), 0.45);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14), var(--glass-inset);
   transform: translateX(2px);
 }
 
@@ -3216,11 +3235,7 @@ a.creator-platform-chip:hover {
   border-color: rgba(var(--accent-rgb), 0.7) !important;
   box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.35), 0 0 8px rgba(var(--accent-rgb), 0.2), inset 0 0 0 1px rgba(var(--accent-rgb), 0.15);
   background: rgba(var(--accent-rgb), 0.22) !important;
-  animation: bestMatchPulse 2.5s ease-in-out infinite;
-}
-@keyframes bestMatchPulse {
-  0%, 100% { box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.35), 0 0 8px rgba(var(--accent-rgb), 0.2); }
-  50% { box-shadow: 0 0 32px rgba(var(--accent-rgb), 0.5), 0 0 14px rgba(var(--accent-rgb), 0.3); }
+  /* Static glow — no pulse */
 }
 .match-float-body .creator-card[data-match-glow="medium"] {
   border-color: rgba(var(--accent-rgb), 0.4) !important;
@@ -3324,12 +3339,12 @@ a.creator-platform-chip:hover {
 /* Floating nearest-creators panel on map */
 .nearest-float {
   width: 100%;
-  background: rgba(var(--bg-hover-rgb), 0.4);
-  backdrop-filter: blur(24px) saturate(1.3);
-  -webkit-backdrop-filter: blur(24px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(var(--bg-hover-rgb), 0.2);
+  backdrop-filter: blur(32px) saturate(1.4);
+  -webkit-backdrop-filter: blur(32px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), var(--glass-inset);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), var(--glass-inset);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -3637,22 +3652,22 @@ a.creator-platform-chip:hover {
   text-decoration: none;
   color: white;
   cursor: default;
-  background: rgba(var(--tag-platform-rgb), 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(var(--tag-platform-rgb), 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    0 4px 20px rgba(0, 0, 0, 0.2),
+    var(--glass-inset);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
   flex: 0 0 auto;
   min-width: 120px;
   box-sizing: border-box;
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.ring-platform-chip.platform-instagram { background: rgba(225, 48, 108, 0.5); border-color: rgba(225, 48, 108, 0.3); }
-.ring-platform-chip.platform-tiktok { background: rgba(0, 242, 234, 0.4); border-color: rgba(0, 242, 234, 0.3); }
-.ring-platform-chip.platform-youtube { background: rgba(255, 0, 0, 0.45); border-color: rgba(255, 0, 0, 0.3); }
+.ring-platform-chip.platform-instagram { background: rgba(225, 48, 108, 0.3); border-color: rgba(225, 48, 108, 0.25); }
+.ring-platform-chip.platform-tiktok { background: rgba(0, 242, 234, 0.25); border-color: rgba(0, 242, 234, 0.25); }
+.ring-platform-chip.platform-youtube { background: rgba(255, 0, 0, 0.3); border-color: rgba(255, 0, 0, 0.25); }
 a.ring-platform-chip {
   cursor: pointer;
   transition: filter 0.15s ease, transform 0.15s ease;
@@ -3801,16 +3816,16 @@ a.ring-platform-chip:hover {
 /* Name + location card (center of info row) — frosted glass */
 .ring-name-card {
   text-align: center;
-  background: rgba(var(--bg-hover-rgb), 0.45);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  background: rgba(var(--bg-hover-rgb), 0.25);
+  backdrop-filter: blur(32px) saturate(1.5);
+  -webkit-backdrop-filter: blur(32px) saturate(1.5);
   border-radius: 16px;
   padding: 14px 24px 12px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -3895,28 +3910,28 @@ a.ring-platform-chip:hover {
   white-space: nowrap;
   color: rgba(255,255,255,0.92);
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  box-shadow: 0 3px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15), var(--glass-inset);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .ring-pill:hover {
   transform: translateY(-2px) scale(1.06);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25), var(--glass-inset);
   filter: brightness(1.1);
 }
 
-/* Niche category colors */
-.ring-pill.cat-entertainment { background: rgba(187, 130, 180, 0.7); border-color: rgba(187,130,180,0.3); }
-.ring-pill.cat-lifestyle     { background: rgba(200, 170, 120, 0.7); border-color: rgba(200,170,120,0.3); }
-.ring-pill.cat-food          { background: rgba(200, 140, 100, 0.7); border-color: rgba(200,140,100,0.3); }
-.ring-pill.cat-travel        { background: rgba(120, 170, 160, 0.7); border-color: rgba(120,170,160,0.3); }
-.ring-pill.cat-people        { background: rgba(210, 160, 160, 0.7); border-color: rgba(210,160,160,0.3); }
-.ring-pill.cat-fitness       { background: rgba(140, 180, 130, 0.7); border-color: rgba(140,180,130,0.3); }
-.ring-pill.cat-home          { background: rgba(180, 160, 130, 0.7); border-color: rgba(180,160,130,0.3); }
-.ring-pill.cat-tech          { background: rgba(130, 160, 190, 0.7); border-color: rgba(130,160,190,0.3); }
-.ring-pill.cat-creative      { background: rgba(170, 150, 200, 0.7); border-color: rgba(170,150,200,0.3); }
+/* Niche category colors — icy tints */
+.ring-pill.cat-entertainment { background: rgba(187, 130, 180, 0.4); border-color: rgba(187,130,180,0.25); }
+.ring-pill.cat-lifestyle     { background: rgba(200, 170, 120, 0.4); border-color: rgba(200,170,120,0.25); }
+.ring-pill.cat-food          { background: rgba(200, 140, 100, 0.4); border-color: rgba(200,140,100,0.25); }
+.ring-pill.cat-travel        { background: rgba(120, 170, 160, 0.4); border-color: rgba(120,170,160,0.25); }
+.ring-pill.cat-people        { background: rgba(210, 160, 160, 0.4); border-color: rgba(210,160,160,0.25); }
+.ring-pill.cat-fitness       { background: rgba(140, 180, 130, 0.4); border-color: rgba(140,180,130,0.25); }
+.ring-pill.cat-home          { background: rgba(180, 160, 130, 0.4); border-color: rgba(180,160,130,0.25); }
+.ring-pill.cat-tech          { background: rgba(130, 160, 190, 0.4); border-color: rgba(130,160,190,0.25); }
+.ring-pill.cat-creative      { background: rgba(170, 150, 200, 0.4); border-color: rgba(170,150,200,0.25); }
 /* Demographic category colors — distinct outlined style to differentiate from niches */
 .ring-pill.demographic.cat-identity       { background: rgba(180, 140, 180, 0.15); border: 1.5px solid rgba(180,140,180,0.7); color: rgba(220,190,220,0.95); }
 .ring-pill.demographic.cat-culture        { background: rgba(140, 165, 180, 0.15); border: 1.5px solid rgba(140,165,180,0.7); color: rgba(185,210,220,0.95); }
@@ -3924,12 +3939,12 @@ a.ring-platform-chip:hover {
 .ring-pill.demographic.cat-representation { background: rgba(155, 175, 155, 0.15); border: 1.5px solid rgba(155,175,155,0.7); color: rgba(195,215,195,0.95); }
 .ring-pill.demographic.cat-other          { background: rgba(160, 155, 150, 0.12); border: 1.5px solid rgba(160,155,150,0.6); color: rgba(200,195,190,0.9); }
 /* Niche pills keep solid filled style */
-.ring-pill.niche.cat-identity       { background: rgba(180, 140, 180, 0.7); border-color: rgba(180,140,180,0.3); }
-.ring-pill.niche.cat-culture        { background: rgba(140, 165, 180, 0.7); border-color: rgba(140,165,180,0.3); }
-.ring-pill.niche.cat-age            { background: rgba(170, 155, 140, 0.7); border-color: rgba(170,155,140,0.3); }
-.ring-pill.niche.cat-representation { background: rgba(155, 175, 155, 0.7); border-color: rgba(155,175,155,0.3); }
+.ring-pill.niche.cat-identity       { background: rgba(180, 140, 180, 0.4); border-color: rgba(180,140,180,0.25); }
+.ring-pill.niche.cat-culture        { background: rgba(140, 165, 180, 0.4); border-color: rgba(140,165,180,0.25); }
+.ring-pill.niche.cat-age            { background: rgba(170, 155, 140, 0.4); border-color: rgba(170,155,140,0.25); }
+.ring-pill.niche.cat-representation { background: rgba(155, 175, 155, 0.4); border-color: rgba(155,175,155,0.25); }
 /* Fallback */
-.ring-pill.cat-other         { background: rgba(160, 155, 150, 0.55); border-color: rgba(160,155,150,0.25); }
+.ring-pill.cat-other         { background: rgba(160, 155, 150, 0.3); border-color: rgba(160,155,150,0.2); }
 
 /* Overflow indicator pill */
 .ring-pill.ring-pill-overflow {
@@ -3974,20 +3989,20 @@ a.ring-platform-chip:hover {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(var(--bg-hover-rgb), 0.4);
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
   color: var(--text-primary);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 4px 20px rgba(0, 0, 0, 0.2),
+    var(--glass-inset);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ring-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25), var(--glass-inset);
   transform: translateY(-1px);
 }
 .ring-action-btn.danger {
@@ -4053,12 +4068,12 @@ a.ring-platform-chip:hover {
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
-  background: rgba(var(--bg-card-rgb), 0.65);
-  backdrop-filter: blur(28px) saturate(1.3);
-  -webkit-backdrop-filter: blur(28px) saturate(1.3);
-  border: 1px solid rgba(var(--accent-rgb), 0.1);
+  background: rgba(var(--bg-card-rgb), 0.35);
+  backdrop-filter: blur(36px) saturate(1.4);
+  -webkit-backdrop-filter: blur(36px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), var(--glass-inset);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
   z-index: 2001;
   overflow: hidden;
   display: flex;
@@ -4147,11 +4162,11 @@ a.ring-platform-chip:hover {
 
 .form-input, .form-textarea {
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   color: var(--text-primary);
@@ -4165,9 +4180,9 @@ a.ring-platform-chip:hover {
 
 .form-input:focus, .form-textarea:focus {
   outline: none;
-  border-color: rgba(var(--accent-rgb), 0.3);
+  border-color: rgba(255, 255, 255, 0.20);
   background: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08), var(--glass-inset);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.06), var(--glass-inset);
 }
 
 .form-textarea {
@@ -5047,12 +5062,12 @@ a.ring-platform-chip:hover {
 .tag-modal-panel {
   width: 340px;
   max-height: 70vh;
-  background: rgba(var(--bg-card-rgb), 0.6);
-  backdrop-filter: blur(28px) saturate(1.3);
-  -webkit-backdrop-filter: blur(28px) saturate(1.3);
-  border: 1px solid rgba(var(--accent-rgb), 0.1);
+  background: rgba(var(--bg-card-rgb), 0.25);
+  backdrop-filter: blur(36px) saturate(1.4);
+  -webkit-backdrop-filter: blur(36px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), var(--glass-inset);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5447,7 +5462,6 @@ a.ring-platform-chip:hover {
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 0 1.5px rgba(var(--accent-rgb),0.5), 0 4px 16px 2px rgba(0,0,0,0.5), 0 0 24px 6px rgba(255,255,255,0.15);
-  animation: markerPulse 3s ease-in-out infinite;
   cursor: pointer;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -5504,12 +5518,12 @@ body.dispatch-mode .marker-cluster-inner {
   max-width: 960px;
   height: 85vh;
   max-height: 750px;
-  background: rgba(var(--bg-primary-rgb), 0.6);
-  backdrop-filter: blur(28px) saturate(1.3);
-  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  background: rgba(var(--bg-primary-rgb), 0.3);
+  backdrop-filter: blur(36px) saturate(1.4);
+  -webkit-backdrop-filter: blur(36px) saturate(1.4);
   border-radius: var(--radius);
-  border: 1px solid rgba(var(--accent-rgb), 0.1);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4), var(--glass-inset);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35), var(--glass-inset);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -5961,33 +5975,33 @@ body.dispatch-mode .marker-cluster-inner {
 .marker-score-ring.visible { opacity: 1; }
 .marker-score-track {
   fill: none;
-  stroke: rgba(var(--text-secondary-rgb),0.15);
-  stroke-width: 2.5;
+  stroke: rgba(0, 0, 0, 0.3);
+  stroke-width: 3;
 }
 .marker-score-fill {
   fill: none;
   stroke: var(--success);
-  stroke-width: 2.5;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 150;
   stroke-dashoffset: 150;
   transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);
-  filter: drop-shadow(0 0 3px rgba(var(--success-rgb),0.4));
+  filter: drop-shadow(0 0 4px rgba(var(--success-rgb),0.5));
 }
 .marker-score-fill.score-full { stroke-dashoffset: 0; }
 .marker-score-fill.score-most { stroke-dashoffset: 38; }
 .marker-score-fill.score-half { stroke-dashoffset: 75; stroke: var(--warning); }
 .marker-score-fill.score-low { stroke-dashoffset: 112; stroke: var(--mocha); }
 
-/* Score badge on map markers */
+/* Score badge on map markers — high-contrast legible */
 .marker-score-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 7px;
+  top: -8px;
+  right: -8px;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 8px;
   color: white;
   z-index: 5;
   opacity: 0;
@@ -5995,15 +6009,19 @@ body.dispatch-mode .marker-cluster-inner {
   transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
   white-space: nowrap;
   line-height: 1.3;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.02em;
 }
 .marker-score-badge.visible {
   opacity: 1;
   transform: scale(1);
 }
-.marker-score-badge.score-full { background: var(--success); }
-.marker-score-badge.score-most { background: var(--success); }
-.marker-score-badge.score-half { background: var(--warning); color: var(--bg-primary); }
-.marker-score-badge.score-low { background: var(--mocha); }
+.marker-score-badge.score-full { background: linear-gradient(135deg, #5aad6a, #3d8a4e); }
+.marker-score-badge.score-most { background: linear-gradient(135deg, #5aad6a, #3d8a4e); }
+.marker-score-badge.score-half { background: linear-gradient(135deg, #c9a84c, #a8883a); color: white; }
+.marker-score-badge.score-low { background: linear-gradient(135deg, #a08060, #7a6048); }
 
 /* ===========================
    DISPATCH MATCH — Breathing halo highlight
@@ -6027,44 +6045,39 @@ body.dispatch-mode .marker-cluster-inner {
 
 /* ── Matched marker — warm golden glow ── */
 
-/* Gleam ring: visible golden halo, slow steady pulse */
+/* Gleam ring: visible golden halo, very gentle breathe */
 .creator-marker.dispatch-match .marker-gleam-ring {
-  animation: warmPulse 4s ease-in-out infinite;
+  animation: warmBreathe 8s ease-in-out infinite;
   animation-delay: calc(-1 * var(--stagger, 0ms));
   border-color: rgba(var(--gold-rgb),0.6);
   border-width: 2px;
 }
-@keyframes warmPulse {
+@keyframes warmBreathe {
   0%, 100% {
-    opacity: 0.5;
+    opacity: 0.75;
     transform: scale(1);
     box-shadow:
-      0 0 6px 2px rgba(var(--gold-rgb),0.2),
+      0 0 8px 3px rgba(var(--gold-rgb),0.2),
       inset 0 0 4px 1px rgba(var(--gold-rgb),0.06);
   }
   50% {
-    opacity: 1;
-    transform: scale(1.1);
+    opacity: 0.95;
+    transform: scale(1.04);
     box-shadow:
-      0 0 16px 6px rgba(var(--gold-rgb),0.35),
-      0 0 28px 10px rgba(var(--gold-rgb),0.1),
-      inset 0 0 8px 3px rgba(var(--gold-rgb),0.1);
+      0 0 12px 4px rgba(var(--gold-rgb),0.28),
+      inset 0 0 6px 2px rgba(var(--gold-rgb),0.08);
   }
 }
 
-/* Glow layer: warm ambient bloom behind the avatar */
+/* Glow layer: warm ambient bloom behind the avatar — static */
 .creator-marker.dispatch-match .marker-glow {
-  animation: warmBloom 4s ease-in-out infinite;
-  animation-delay: calc(-1 * var(--stagger, 0ms));
+  animation: none;
   inset: -8px;
+  opacity: 0.7;
   background: radial-gradient(circle,
-    rgba(var(--gold-rgb),0.22) 0%,
-    rgba(var(--gold-rgb),0.08) 50%,
+    rgba(var(--gold-rgb),0.2) 0%,
+    rgba(var(--gold-rgb),0.07) 50%,
     transparent 72%);
-}
-@keyframes warmBloom {
-  0%, 100% { opacity: 0.35; transform: scale(1); }
-  50%      { opacity: 0.85; transform: scale(1.12); }
 }
 
 /* No sunrays — clean, no pseudo-element clutter */
@@ -6112,7 +6125,6 @@ body.dispatch-mode .marker-cluster-inner {
   transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease;
 }
 .creator-marker.dispatch-card-hover .marker-glow {
-  animation: none;
   transform: scale(1.06);
   opacity: 0.75;
   background: radial-gradient(circle,
@@ -6135,7 +6147,6 @@ body.dispatch-mode .marker-cluster-inner {
   transition: opacity 0.4s ease, filter 0.4s ease;
 }
 .creator-marker.dispatch-faded .marker-glow {
-  animation: none;
   opacity: 0;
 }
 .creator-marker.dispatch-faded .marker-label {
@@ -6149,7 +6160,6 @@ body.dispatch-mode .marker-cluster-inner {
   transition: opacity 0.3s ease, filter 0.3s ease;
 }
 .creator-marker.roster-faded .marker-glow {
-  animation: none;
   opacity: 0;
 }
 .creator-marker.roster-faded .marker-label {

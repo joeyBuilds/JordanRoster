@@ -4855,7 +4855,7 @@ function renderAllComparePanels() {
     if (!creator) return;
 
     const panel = document.createElement('div');
-    panel.className = 'compare-panel';
+    panel.className = 'compare-panel compare-slot-' + i;
 
     // ── Header area (matches primary: name → niches → close button) ──
     const headerArea = document.createElement('div');

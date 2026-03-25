@@ -587,7 +587,7 @@ body.shift-held #mapContainer .leaflet-container {
               opacity 0.3s ease,
               filter 0.3s ease;
 }
-/* Depth cards behind the top: progressive dimming */
+/* Depth cards behind the top: progressive dimming (dispatch-match overrides below) */
 .creator-marker .marker-inner.stack-depth-1 {
   opacity: 0.55;
   filter: brightness(0.85);
@@ -603,6 +603,14 @@ body.shift-held #mapContainer .leaflet-container {
 .creator-marker .marker-inner.stack-depth-4 {
   opacity: 0.14;
   filter: brightness(0.55) grayscale(0.5);
+}
+/* Dispatch-matched pins in a stack stay bright regardless of depth */
+.creator-marker.dispatch-match .marker-inner.stack-depth-1,
+.creator-marker.dispatch-match .marker-inner.stack-depth-2,
+.creator-marker.dispatch-match .marker-inner.stack-depth-3,
+.creator-marker.dispatch-match .marker-inner.stack-depth-4 {
+  opacity: 0.9 !important;
+  filter: none !important;
 }
 /* Fully hidden stack members (beyond visible depth) */
 .creator-marker .marker-inner.stack-hidden {
@@ -798,8 +806,10 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-muted);
   margin-top: 2px;
 }
+
+/* Platform sections */
 .demos-platform-section {
-  padding: 12px 16px 16px;
+  padding: 12px 12px 16px;
   border-bottom: 1px solid var(--glass-border);
 }
 .demos-platform-section:last-child {
@@ -828,96 +838,153 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-primary);
   letter-spacing: 0.5px;
 }
-.demos-platform-meta {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-.demos-platform-stat {
-  font-size: 10px;
-  color: var(--text-secondary);
-  background: rgba(var(--bg-card-rgb), 0.5);
-  padding: 2px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--glass-border);
-}
 
-/* Stats grid */
+/* ── Stat cards grid (July-style) ── */
 .demos-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.demos-stat-cell {
-  background: rgba(var(--bg-card-rgb), 0.4);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  padding: 8px 6px;
-  text-align: center;
-}
-.demos-stat-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0.3px;
-}
-.demos-stat-label {
-  font-size: 9px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-top: 2px;
-}
-
-/* Breakdown bars */
-.demos-breakdown {
+  gap: 5px;
   margin-bottom: 10px;
 }
-.demos-breakdown:last-child {
-  margin-bottom: 0;
+.demos-stat-cell {
+  background: rgba(var(--bg-card-rgb), 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px 7px 7px;
 }
-.demos-breakdown-title {
+.demos-stat-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.demos-stat-icon {
   font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  margin-bottom: 6px;
+  opacity: 0.5;
+  line-height: 1;
 }
+.demos-stat-label {
+  font-size: 8px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.demos-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+
+/* ── Demographic cards (gender donut, bar charts) ── */
+.demos-demo-card {
+  background: rgba(var(--bg-card-rgb), 0.35);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 5px;
+}
+.demos-demo-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+/* Gender donut chart */
+.demos-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+}
+.demos-donut {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+.demos-donut-hole {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+}
+.demos-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.demos-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.demos-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.demos-legend-label {
+  flex: 1;
+}
+.demos-legend-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bar chart rows */
 .demos-bar-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+}
+.demos-bar-row:last-child {
+  margin-bottom: 0;
 }
 .demos-bar-label {
   font-size: 11px;
   color: var(--text-secondary);
-  min-width: 56px;
-  text-align: right;
+  min-width: 50px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .demos-bar-track {
   flex: 1;
-  height: 6px;
-  background: rgba(var(--bg-card-rgb), 0.5);
-  border-radius: 3px;
+  height: 8px;
+  background: rgba(var(--bg-hover-rgb), 0.5);
+  border-radius: 4px;
   overflow: hidden;
 }
 .demos-bar-fill {
   height: 100%;
-  border-radius: 3px;
-  opacity: 0.7;
+  border-radius: 4px;
+  background: var(--accent);
+  opacity: 0.8;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .demos-bar-value {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   min-width: 36px;
   text-align: right;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -6658,6 +6725,18 @@ body.dispatch-mode .marker-cluster-inner {
 }
 
 /* ── Matched marker — warm golden glow ── */
+
+/* Ensure matched pins render at full opacity even when stacked or transitioning */
+.creator-marker.dispatch-match .marker-inner {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Perfect-score pins get extra brightness boost */
+.creator-marker.dispatch-match.score-perfect .marker-inner {
+  opacity: 1 !important;
+  filter: brightness(1.1) !important;
+}
 
 /* Gleam ring: visible golden halo, very gentle breathe */
 .creator-marker.dispatch-match .marker-gleam-ring {

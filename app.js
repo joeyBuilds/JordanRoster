@@ -2468,6 +2468,8 @@ function showDetailPanel(creatorId) {
 
   currentEditingCreator = creatorId;
 
+  // Always track for Demo's panel (persists after ring closes)
+  _demosCreatorId = creatorId;
   // Update Demo's panel if visible
   const demosTab = document.getElementById('demosTab');
   if (demosTab && demosTab.style.display !== 'none') {
@@ -3095,12 +3097,7 @@ function closeDetailPanel() {
   overlay.classList.remove('open');
   scrim.classList.remove('open');
   currentEditingCreator = null;
-
-  // Reset Demo's panel to empty state
-  const demosTab = document.getElementById('demosTab');
-  if (demosTab && demosTab.style.display !== 'none') {
-    renderDemosPanel(null);
-  }
+  // Note: _demosCreatorId is NOT cleared — Demo's panel persists last-viewed creator
 
   // Clean up after animation
   setTimeout(() => { overlay.innerHTML = ''; }, 400);
@@ -4494,6 +4491,9 @@ async function migratePhotos() {
 // DEMO'S PANEL — Audience Data
 // ===========================
 
+// Tracks which creator the Demo's panel should display (persists after ring closes)
+let _demosCreatorId = null;
+
 function getAudienceData(creator, platform) {
   if (creator.platforms && typeof creator.platforms === 'object' && creator.platforms[platform]) {
     return creator.platforms[platform].audienceData || null;
@@ -4513,9 +4513,10 @@ function renderDemosPanel(creator) {
   const emptyState = document.getElementById('demosEmpty');
   if (!content) return;
 
-  // If no creator passed, try to use the currently active ring creator
-  if (!creator && currentEditingCreator) {
-    creator = creators.find(c => c.id === currentEditingCreator);
+  // If no creator passed, try the saved demos context, then the active ring creator
+  if (!creator) {
+    const fallbackId = _demosCreatorId || currentEditingCreator;
+    if (fallbackId) creator = creators.find(c => c.id === fallbackId);
   }
 
   if (!creator) {
@@ -6128,8 +6129,12 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     const goingToDispatch = tab === 'dispatch';
     const modeChanging = goingToDispatch !== wasDispatch;
 
-    // Close ring if open (but keep it open when switching to Demo's tab)
-    if (tab !== 'demos') closeDetailPanel();
+    // Save creator context for Demo's panel before closing ring
+    if (tab === 'demos' && currentEditingCreator) {
+      _demosCreatorId = currentEditingCreator;
+    }
+    // Always close ring on tab switch
+    closeDetailPanel();
 
     // Update active tab immediately
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));

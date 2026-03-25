@@ -200,7 +200,7 @@ function extractAudienceFromHtml($) {
 
 // Extract audience data from July's media kit block structure.
 // Instagram uses fields.stats.all[], TikTok/YouTube use fields.stats[] directly.
-function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
+function extractFromMediaKitBlocks(blocks, creatorPlatforms, creatorObj) {
   const PLATFORM_MAP = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
   const STAT_MAP = {
     views: 'views', reach: 'reach', likes: 'likes', comments: 'comments',
@@ -237,6 +237,17 @@ function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
       if (Object.keys(result.stats).length === 0) delete result.stats;
       creatorPlatforms[platform].audienceData = result;
       found = true;
+    }
+  }
+  // Extract rates and collabs blocks
+  if (creatorObj) {
+    for (const block of blocks) {
+      if (block.type === 'rates' && Array.isArray(block.rates)) {
+        creatorObj.rates = block.rates.map(r => ({ title: r.title || '', price: parseFloat(r.price) || 0, uuid: r.uuid || '', order: r.order ?? 0 }));
+      }
+      if (block.type === 'collabs' && Array.isArray(block.collabs)) {
+        creatorObj.collabs = block.collabs.map(c => ({ title: c.title || '', description: c.description || '', url: c.url || '', logoUrl: c.logoUrl || '', logoUuid: c.logoUuid || '' }));
+      }
     }
   }
   return found;
@@ -291,7 +302,7 @@ async function enrichWithAudienceData(creators) {
             // Strategy 1: July media kit blocks (primary path)
             const mk = nextData?.props?.pageProps?.data?.mediaKit?.json?.data;
             if (mk && Array.isArray(mk.blocks)) {
-              if (extractFromMediaKitBlocks(mk.blocks, creator.platforms)) {
+              if (extractFromMediaKitBlocks(mk.blocks, creator.platforms, creator)) {
                 enriched++;
                 return;
               }

@@ -4493,6 +4493,7 @@ async function migratePhotos() {
 
 // Tracks which creator the Demo's panel should display (persists after ring closes)
 let _demosCreatorId = null;
+let _demosSubTab = null; // 'Instagram' | 'TikTok' | 'YouTube' | 'rates' | 'partners'
 
 function getAudienceData(creator, platform) {
   if (creator.platforms && typeof creator.platforms === 'object' && creator.platforms[platform]) {
@@ -4508,158 +4509,231 @@ function formatStatNumber(n) {
   return Math.round(n).toLocaleString();
 }
 
+// ── Platform stats view (one platform at a time) ──
+function renderPlatformStats(creator, platform, container) {
+  const aud = getAudienceData(creator, platform);
+
+  // Platform header
+  const platformHeader = document.createElement('div');
+  platformHeader.className = 'demos-platform-header';
+  const logoHtml = PLATFORM_SVGS[platform] ? `<span class="demos-platform-logo platform-${platform.toLowerCase()}">${PLATFORM_SVGS[platform]}</span>` : '';
+  platformHeader.innerHTML = `${logoHtml}<span class="demos-platform-name">${platform} Stats</span>`;
+  container.appendChild(platformHeader);
+
+  if (!aud) {
+    const noData = document.createElement('div');
+    noData.className = 'demos-empty-inline';
+    noData.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:24px 0;text-align:center">No stats available — Sync from July to populate</div>`;
+    container.appendChild(noData);
+    return;
+  }
+
+  const stats = aud.stats || {};
+  const followers = stats.followers ?? getFollowers(creator, platform);
+  const engRate = stats.engagementRate ?? getEngagementRate(creator, platform);
+
+  const statCards = [
+    { icon: '👤', label: 'Followers', value: followers, fmt: formatStatNumber },
+    { icon: '📊', label: 'Engagement Rate', value: engRate, fmt: v => formatEngagementRate(v) },
+    { icon: '👁', label: 'Views', value: stats.views, fmt: formatStatNumber },
+    { icon: '📡', label: 'Reach', value: stats.reach, fmt: formatStatNumber },
+    { icon: '♥', label: 'Likes', value: stats.likes, fmt: formatStatNumber },
+    { icon: '💬', label: 'Comments', value: stats.comments, fmt: formatStatNumber },
+    { icon: '↗', label: 'Shares', value: stats.shares, fmt: formatStatNumber },
+    { icon: '🔖', label: 'Saves', value: stats.saves, fmt: formatStatNumber },
+    { icon: '⚡', label: 'Total Interactions', value: stats.totalInteractions, fmt: formatStatNumber },
+    { icon: '♥', label: 'Avg. Post Likes', value: stats.avgPostLikes, fmt: formatStatNumber },
+    { icon: '💬', label: 'Avg. Comments', value: stats.avgPostComments, fmt: formatStatNumber },
+    { icon: '👁', label: 'Avg. Story Views', value: stats.avgStoryViews, fmt: formatStatNumber },
+    { icon: '👁', label: 'Avg. Views', value: stats.avgPostViews, fmt: formatStatNumber },
+    { icon: '↗', label: 'Avg. Shares', value: stats.avgPostShares, fmt: formatStatNumber },
+    { icon: '🎬', label: 'Avg. Shorts Views', value: stats.avgShortsViews, fmt: formatStatNumber },
+    { icon: '♥', label: 'Avg. Shorts Likes', value: stats.avgShortsLikes, fmt: formatStatNumber },
+  ].filter(s => s.value != null);
+
+  if (statCards.length > 0) {
+    const grid = document.createElement('div');
+    grid.className = 'demos-stats-grid';
+    statCards.forEach(({ icon, label, value, fmt }) => {
+      const cell = document.createElement('div');
+      cell.className = 'demos-stat-cell';
+      cell.innerHTML = `<div class="demos-stat-header"><span class="demos-stat-icon">${icon}</span><span class="demos-stat-label">${label}</span></div><div class="demos-stat-value">${fmt(value)}</div>`;
+      grid.appendChild(cell);
+    });
+    container.appendChild(grid);
+  }
+
+  // Gender donut chart
+  if (aud.gender && aud.gender.length > 0) {
+    const genderCard = document.createElement('div');
+    genderCard.className = 'demos-demo-card';
+    genderCard.innerHTML = `<div class="demos-demo-title">Audience Gender</div>`;
+    const donutWrap = document.createElement('div');
+    donutWrap.className = 'demos-donut-wrap';
+    const colors = ['var(--sage)', 'var(--lavender)', 'var(--rose)', 'var(--mocha)', 'var(--gold)'];
+    let gradientParts = [], cumulative = 0;
+    aud.gender.forEach((g, i) => {
+      const start = cumulative;
+      cumulative += g.value;
+      gradientParts.push(`${colors[i % colors.length]} ${start}% ${cumulative}%`);
+    });
+    const donut = document.createElement('div');
+    donut.className = 'demos-donut';
+    donut.style.background = `conic-gradient(${gradientParts.join(', ')})`;
+    const donutHole = document.createElement('div');
+    donutHole.className = 'demos-donut-hole';
+    donut.appendChild(donutHole);
+    donutWrap.appendChild(donut);
+    const legend = document.createElement('div');
+    legend.className = 'demos-donut-legend';
+    aud.gender.forEach((g, i) => {
+      legend.innerHTML += `<div class="demos-legend-item"><span class="demos-legend-dot" style="background:${colors[i % colors.length]}"></span><span class="demos-legend-label">${g.label}</span><span class="demos-legend-value">${g.value.toFixed(0)}%</span></div>`;
+    });
+    donutWrap.appendChild(legend);
+    genderCard.appendChild(donutWrap);
+    container.appendChild(genderCard);
+  }
+
+  // Bar charts for age/country/city
+  function renderDemoBarChart(title, data, maxItems) {
+    if (!data || data.length === 0) return;
+    const card = document.createElement('div');
+    card.className = 'demos-demo-card';
+    card.innerHTML = `<div class="demos-demo-title">${title}</div>`;
+    const items = data.slice(0, maxItems || 6);
+    const maxVal = Math.max(...items.map(d => d.value), 1);
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'demos-bar-row';
+      row.innerHTML = `<span class="demos-bar-label">${item.label}</span><div class="demos-bar-track"><div class="demos-bar-fill" style="width:${(item.value / maxVal) * 100}%"></div></div><span class="demos-bar-value">${item.value.toFixed(1)}%</span>`;
+      card.appendChild(row);
+    });
+    container.appendChild(card);
+  }
+  renderDemoBarChart('Audience Age', aud.age, 6);
+  renderDemoBarChart('Audience Country', aud.country, 5);
+  renderDemoBarChart('Audience City', aud.city, 5);
+}
+
+// ── Rates view ──
+function renderRatesView(creator, container) {
+  const rates = creator.rates || [];
+  if (rates.length === 0) {
+    container.innerHTML = `<div class="demos-empty-inline"><div style="font-size:24px;margin-bottom:8px;opacity:0.4">💰</div><div style="color:var(--text-muted);font-size:12px">No rates available</div><div style="color:var(--text-muted);font-size:10px;margin-top:4px;opacity:0.6">Sync from July to populate</div></div>`;
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'demos-rates-grid';
+  rates.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).forEach(rate => {
+    const card = document.createElement('div');
+    card.className = 'demos-rate-card';
+    const priceStr = '$' + Number(rate.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    card.innerHTML = `<div class="demos-rate-title">${rate.title}</div><div class="demos-rate-price">${priceStr}</div>`;
+    grid.appendChild(card);
+  });
+  container.appendChild(grid);
+}
+
+// ── Partners view ──
+function renderPartnersView(creator, container) {
+  const collabs = creator.collabs || [];
+  if (collabs.length === 0) {
+    container.innerHTML = `<div class="demos-empty-inline"><div style="font-size:24px;margin-bottom:8px;opacity:0.4">🤝</div><div style="color:var(--text-muted);font-size:12px">No partnerships available</div><div style="color:var(--text-muted);font-size:10px;margin-top:4px;opacity:0.6">Sync from July to populate</div></div>`;
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'demos-partners-grid';
+  collabs.forEach(collab => {
+    const card = document.createElement('div');
+    card.className = 'demos-partner-card';
+    const logoHtml = collab.logoUrl
+      ? `<img src="${collab.logoUrl}" alt="${collab.title}" class="demos-partner-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div class="demos-partner-logo-placeholder" style="display:none">${collab.title.charAt(0).toUpperCase()}</div>`
+      : `<div class="demos-partner-logo-placeholder">${collab.title.charAt(0).toUpperCase()}</div>`;
+    card.innerHTML = `${logoHtml}<div class="demos-partner-name">${collab.title}</div>`;
+    if (collab.url) {
+      card.style.cursor = 'pointer';
+      card.onclick = (e) => { e.stopPropagation(); window.open(collab.url, '_blank'); };
+    }
+    grid.appendChild(card);
+  });
+  container.appendChild(grid);
+}
+
+// ── Main Demo's panel dispatcher ──
 function renderDemosPanel(creator) {
   const content = document.getElementById('demosContent');
+  const subTabsEl = document.getElementById('demosSubTabs');
   const emptyState = document.getElementById('demosEmpty');
   if (!content) return;
 
-  // If no creator passed, try the saved demos context, then the active ring creator
+  // Resolve creator
   if (!creator) {
     const fallbackId = _demosCreatorId || currentEditingCreator;
     if (fallbackId) creator = creators.find(c => c.id === fallbackId);
   }
 
   if (!creator) {
+    if (subTabsEl) subTabsEl.style.display = 'none';
     content.innerHTML = '';
     content.appendChild(emptyState);
     emptyState.style.display = 'flex';
     return;
   }
 
+  // Build sub-tab list: platform tabs (dynamic) + $ + Partners (always)
+  const platformList = getCreatorPlatforms(creator);
+  const PLATFORM_SHORT = { Instagram: 'Instagram', TikTok: 'TikTok', YouTube: 'YouTube' };
+  const tabs = [];
+  platformList.forEach(p => {
+    tabs.push({ key: p, label: PLATFORM_SHORT[p] || p, icon: PLATFORM_SVGS[p] || '' });
+  });
+  tabs.push({ key: 'rates', label: 'Rates', icon: '' });
+  tabs.push({ key: 'partners', label: 'Partners', icon: '' });
+
+  // Default sub-tab
+  if (!_demosSubTab || !tabs.some(t => t.key === _demosSubTab)) {
+    _demosSubTab = tabs[0]?.key || 'rates';
+  }
+
+  // Render sub-tab bar
+  if (subTabsEl) {
+    subTabsEl.style.display = tabs.length > 0 ? 'flex' : 'none';
+    subTabsEl.innerHTML = '';
+    tabs.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'demos-sub-tab' + (t.key === _demosSubTab ? ' active' : '');
+      const iconHtml = t.icon ? `<span class="demos-sub-tab-icon platform-${t.key.toLowerCase()}">${t.icon}</span>` : '';
+      btn.innerHTML = iconHtml + t.label;
+      btn.onclick = () => {
+        _demosSubTab = t.key;
+        renderDemosPanel(creator);
+      };
+      subTabsEl.appendChild(btn);
+    });
+  }
+
+  // Render content based on active sub-tab
   content.innerHTML = '';
 
-  // Header with creator name
+  // Header
   const header = document.createElement('div');
   header.className = 'demos-header';
   header.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div><div class="demos-subtitle">Audience Insights</div>`;
   content.appendChild(header);
 
-  const platformList = getCreatorPlatforms(creator);
-  let hasAnyData = false;
+  const section = document.createElement('div');
+  section.className = 'demos-platform-section';
 
-  platformList.forEach(platform => {
-    const aud = getAudienceData(creator, platform);
-    if (!aud) return;
-    hasAnyData = true;
-
-    const section = document.createElement('div');
-    section.className = 'demos-platform-section';
-
-    // Platform header
-    const platformHeader = document.createElement('div');
-    platformHeader.className = 'demos-platform-header';
-    const logoHtml = PLATFORM_SVGS[platform] ? `<span class="demos-platform-logo platform-${platform.toLowerCase()}">${PLATFORM_SVGS[platform]}</span>` : '';
-    platformHeader.innerHTML = `${logoHtml}<span class="demos-platform-name">${platform}</span>`;
-    section.appendChild(platformHeader);
-
-    // ── Stat cards grid (replicating July's layout) ──
-    const stats = aud.stats || {};
-    // Use audienceData followers/engRate if available (more up-to-date), else platform-level
-    const followers = stats.followers ?? getFollowers(creator, platform);
-    const engRate = stats.engagementRate ?? getEngagementRate(creator, platform);
-
-    const statCards = [
-      { icon: '👤', label: 'Followers', value: followers, fmt: formatStatNumber },
-      { icon: '📊', label: 'Engagement Rate', value: engRate, fmt: v => formatEngagementRate(v) },
-      { icon: '👁', label: 'Views', value: stats.views, fmt: formatStatNumber },
-      { icon: '📡', label: 'Reach', value: stats.reach, fmt: formatStatNumber },
-      { icon: '♥', label: 'Likes', value: stats.likes, fmt: formatStatNumber },
-      { icon: '💬', label: 'Comments', value: stats.comments, fmt: formatStatNumber },
-      { icon: '↗', label: 'Shares', value: stats.shares, fmt: formatStatNumber },
-      { icon: '🔖', label: 'Saves', value: stats.saves, fmt: formatStatNumber },
-      { icon: '⚡', label: 'Total Interactions', value: stats.totalInteractions, fmt: formatStatNumber },
-      { icon: '♥', label: 'Avg. Post Likes', value: stats.avgPostLikes, fmt: formatStatNumber },
-      { icon: '💬', label: 'Avg. Comments', value: stats.avgPostComments, fmt: formatStatNumber },
-      { icon: '👁', label: 'Avg. Story Views', value: stats.avgStoryViews, fmt: formatStatNumber },
-      { icon: '👁', label: 'Avg. Views', value: stats.avgPostViews, fmt: formatStatNumber },
-      { icon: '↗', label: 'Avg. Shares', value: stats.avgPostShares, fmt: formatStatNumber },
-      { icon: '🎬', label: 'Avg. Shorts Views', value: stats.avgShortsViews, fmt: formatStatNumber },
-      { icon: '♥', label: 'Avg. Shorts Likes', value: stats.avgShortsLikes, fmt: formatStatNumber },
-    ].filter(s => s.value != null);
-
-    if (statCards.length > 0) {
-      const grid = document.createElement('div');
-      grid.className = 'demos-stats-grid';
-      statCards.forEach(({ icon, label, value, fmt }) => {
-        const cell = document.createElement('div');
-        cell.className = 'demos-stat-cell';
-        cell.innerHTML = `<div class="demos-stat-header"><span class="demos-stat-icon">${icon}</span><span class="demos-stat-label">${label}</span></div><div class="demos-stat-value">${fmt(value)}</div>`;
-        grid.appendChild(cell);
-      });
-      section.appendChild(grid);
-    }
-
-    // ── Audience demographics (gender donut + bar charts) ──
-
-    // Gender donut chart
-    if (aud.gender && aud.gender.length > 0) {
-      const genderCard = document.createElement('div');
-      genderCard.className = 'demos-demo-card';
-      genderCard.innerHTML = `<div class="demos-demo-title">Audience Gender</div>`;
-
-      const donutWrap = document.createElement('div');
-      donutWrap.className = 'demos-donut-wrap';
-
-      // Build conic-gradient segments
-      const colors = ['var(--sage)', 'var(--lavender)', 'var(--rose)', 'var(--mocha)', 'var(--gold)'];
-      let gradientParts = [];
-      let cumulative = 0;
-      aud.gender.forEach((g, i) => {
-        const start = cumulative;
-        cumulative += g.value;
-        gradientParts.push(`${colors[i % colors.length]} ${start}% ${cumulative}%`);
-      });
-      const donut = document.createElement('div');
-      donut.className = 'demos-donut';
-      donut.style.background = `conic-gradient(${gradientParts.join(', ')})`;
-
-      const donutHole = document.createElement('div');
-      donutHole.className = 'demos-donut-hole';
-      donut.appendChild(donutHole);
-      donutWrap.appendChild(donut);
-
-      // Legend
-      const legend = document.createElement('div');
-      legend.className = 'demos-donut-legend';
-      aud.gender.forEach((g, i) => {
-        legend.innerHTML += `<div class="demos-legend-item"><span class="demos-legend-dot" style="background:${colors[i % colors.length]}"></span><span class="demos-legend-label">${g.label}</span><span class="demos-legend-value">${g.value.toFixed(0)}%</span></div>`;
-      });
-      donutWrap.appendChild(legend);
-      genderCard.appendChild(donutWrap);
-      section.appendChild(genderCard);
-    }
-
-    // Bar chart helper for age/country/city
-    function renderDemoBarChart(title, data, maxItems) {
-      if (!data || data.length === 0) return;
-      const card = document.createElement('div');
-      card.className = 'demos-demo-card';
-      card.innerHTML = `<div class="demos-demo-title">${title}</div>`;
-      const items = data.slice(0, maxItems || 6);
-      const maxVal = Math.max(...items.map(d => d.value), 1);
-      items.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'demos-bar-row';
-        row.innerHTML = `<span class="demos-bar-label">${item.label}</span><div class="demos-bar-track"><div class="demos-bar-fill" style="width:${(item.value / maxVal) * 100}%"></div></div><span class="demos-bar-value">${item.value.toFixed(1)}%</span>`;
-        card.appendChild(row);
-      });
-      section.appendChild(card);
-    }
-
-    renderDemoBarChart('Audience Age', aud.age, 6);
-    renderDemoBarChart('Audience Country', aud.country, 5);
-    renderDemoBarChart('Audience City', aud.city, 5);
-
-    content.appendChild(section);
-  });
-
-  if (!hasAnyData) {
-    const noData = document.createElement('div');
-    noData.className = 'demos-empty-state';
-    noData.innerHTML = `<div style="font-size:28px;margin-bottom:8px;opacity:0.4">📊</div><div style="font-size:13px;color:var(--text-muted)">No audience data available for ${getFullName(creator)}</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;opacity:0.7">Sync from July to populate</div>`;
-    noData.style.display = 'flex';
-    content.appendChild(noData);
+  if (_demosSubTab === 'rates') {
+    renderRatesView(creator, section);
+  } else if (_demosSubTab === 'partners') {
+    renderPartnersView(creator, section);
+  } else {
+    // Platform stats view
+    renderPlatformStats(creator, _demosSubTab, section);
   }
+
+  content.appendChild(section);
 }
 
 // ===========================

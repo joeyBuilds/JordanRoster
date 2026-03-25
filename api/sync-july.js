@@ -194,7 +194,7 @@ function extractAudienceFromHtml($) {
 
 // Extract audience data from July's media kit block structure.
 // Instagram uses fields.stats.all[], TikTok/YouTube use fields.stats[] directly.
-function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
+function extractFromMediaKitBlocks(blocks, creatorPlatforms, creatorObj) {
   const PLATFORM_MAP = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube' };
   const STAT_MAP = {
     // Common
@@ -245,6 +245,25 @@ function extractFromMediaKitBlocks(blocks, creatorPlatforms) {
       found = true;
     }
   }
+
+  // Extract rates and collabs blocks (creator-level, not platform-level)
+  if (creatorObj) {
+    for (const block of blocks) {
+      if (block.type === 'rates' && Array.isArray(block.rates)) {
+        creatorObj.rates = block.rates.map(r => ({
+          title: r.title || '', price: parseFloat(r.price) || 0,
+          uuid: r.uuid || '', order: r.order ?? 0
+        }));
+      }
+      if (block.type === 'collabs' && Array.isArray(block.collabs)) {
+        creatorObj.collabs = block.collabs.map(c => ({
+          title: c.title || '', description: c.description || '',
+          url: c.url || '', logoUrl: c.logoUrl || '', logoUuid: c.logoUuid || ''
+        }));
+      }
+    }
+  }
+
   return found;
 }
 
@@ -280,7 +299,7 @@ async function enrichWithAudienceData(creators) {
             // Strategy 1: July media kit blocks (primary path)
             const mk = nextData?.props?.pageProps?.data?.mediaKit?.json?.data;
             if (mk && Array.isArray(mk.blocks)) {
-              if (extractFromMediaKitBlocks(mk.blocks, creator.platforms)) {
+              if (extractFromMediaKitBlocks(mk.blocks, creator.platforms, creator)) {
                 enriched++;
                 return;
               }
@@ -592,6 +611,8 @@ async function syncToSupabase(supabase, julyCreators) {
   const newCreatorRows = [];
   const newPlatformRows = [];
   const newNicheRows = [];
+  const newRateRows = [];
+  const newCollabRows = [];
   const updateCreatorRows = [];
   const updatePlatformDeletes = [];
   const updatePlatformInserts = [];
@@ -636,6 +657,14 @@ async function syncToSupabase(supabase, julyCreators) {
 
       (jc.niches || []).forEach(niche => {
         newNicheRows.push({ creator_id: id, niche });
+      });
+
+      // Rates and collabs (creator-level)
+      (jc.rates || []).forEach((r, i) => {
+        newRateRows.push({ creator_id: id, title: r.title || '', price: r.price ?? null, uuid: r.uuid || '', sort_order: r.order ?? i });
+      });
+      (jc.collabs || []).forEach((c, i) => {
+        newCollabRows.push({ creator_id: id, title: c.title || '', description: c.description || null, url: c.url || null, logo_url: c.logoUrl || null, logo_uuid: c.logoUuid || '', sort_order: i });
       });
 
       added++;
@@ -720,6 +749,12 @@ async function syncToSupabase(supabase, julyCreators) {
   if (newNicheRows.length > 0) {
     await supabase.from('creator_niches').insert(newNicheRows);
   }
+  if (newRateRows.length > 0) {
+    await supabase.from('creator_rates').insert(newRateRows).catch(e => console.warn('[sync] creator_rates insert:', e.message));
+  }
+  if (newCollabRows.length > 0) {
+    await supabase.from('creator_collabs').insert(newCollabRows).catch(e => console.warn('[sync] creator_collabs insert:', e.message));
+  }
 
   // Update existing creators
   for (const row of updateCreatorRows) {
@@ -762,6 +797,29 @@ async function syncToSupabase(supabase, julyCreators) {
   // Insert new niches
   if (updateNicheInserts.length > 0) {
     await supabase.from('creator_niches').insert(updateNicheInserts);
+  }
+
+  // Rebuild rates and collabs for all synced creators (delete + reinsert)
+  const allSyncedIds = julyCreators.map(jc => {
+    const jName = (jc.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const existing = existingByName[jName];
+    return existing ? existing.id : null;
+  }).filter(Boolean);
+  if (allSyncedIds.length > 0) {
+    await supabase.from('creator_rates').delete().in('creator_id', allSyncedIds).catch(() => {});
+    await supabase.from('creator_collabs').delete().in('creator_id', allSyncedIds).catch(() => {});
+    const rateRows = [];
+    const collabRows = [];
+    julyCreators.forEach(jc => {
+      const jName = (jc.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const existing = existingByName[jName];
+      if (!existing) return;
+      const cid = existing.id;
+      (jc.rates || []).forEach((r, i) => rateRows.push({ creator_id: cid, title: r.title || '', price: r.price ?? null, uuid: r.uuid || '', sort_order: r.order ?? i }));
+      (jc.collabs || []).forEach((c, i) => collabRows.push({ creator_id: cid, title: c.title || '', description: c.description || null, url: c.url || null, logo_url: c.logoUrl || null, logo_uuid: c.logoUuid || '', sort_order: i }));
+    });
+    if (rateRows.length > 0) await supabase.from('creator_rates').insert(rateRows).catch(() => {});
+    if (collabRows.length > 0) await supabase.from('creator_collabs').insert(collabRows).catch(() => {});
   }
 
   return { added, updated, unchanged };

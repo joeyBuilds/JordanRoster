@@ -789,22 +789,7 @@ body.shift-held #mapContainer .leaflet-container {
   text-align: center;
 }
 .demos-header {
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid var(--glass-border);
-}
-.demos-creator-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0.3px;
-}
-.demos-subtitle {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  margin-top: 2px;
+  display: none;
 }
 
 /* Platform sections */
@@ -886,29 +871,35 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-demo-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 5px;
+  gap: 6px;
+  padding: 4px 0;
 }
 .demos-demo-card {
-  background: rgba(var(--bg-card-rgb), 0.35);
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  padding: 10px;
+  background: rgba(var(--bg-card-rgb), 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 12px 10px;
 }
 .demos-demo-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
   margin-bottom: 10px;
 }
-/* Color-coded bar fills per chart type */
-.demos-color-age .demos-bar-fill { background: #5B8DEF; opacity: 0.9; }
-.demos-color-country .demos-bar-fill { background: #F4A261; opacity: 0.9; }
-.demos-color-city .demos-bar-fill { background: #A78BFA; opacity: 0.9; }
-/* Tinted titles to match */
+/* Color-coded per chart type */
 .demos-color-gender .demos-demo-title { color: #5B8DEF; }
 .demos-color-age .demos-demo-title { color: #5B8DEF; }
 .demos-color-country .demos-demo-title { color: #F4A261; }
 .demos-color-city .demos-demo-title { color: #A78BFA; }
+.demos-color-age .demos-bar-fill { background: #5B8DEF; opacity: 1; }
+.demos-color-country .demos-bar-fill { background: #F4A261; opacity: 1; }
+.demos-color-city .demos-bar-fill { background: #A78BFA; opacity: 1; }
+/* Subtle left border accent */
+.demos-color-gender { border-left: 2px solid #5B8DEF; }
+.demos-color-age { border-left: 2px solid #5B8DEF; }
+.demos-color-country { border-left: 2px solid #F4A261; }
+.demos-color-city { border-left: 2px solid #A78BFA; }
 
 /* Gender donut chart */
 .demos-donut-wrap {
@@ -965,25 +956,26 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-bar-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
+  gap: 5px;
+  margin-bottom: 6px;
 }
 .demos-bar-row:last-child {
   margin-bottom: 0;
 }
 .demos-bar-label {
   font-size: 9px;
-  color: var(--text-secondary);
-  min-width: 38px;
-  max-width: 60px;
+  color: var(--text-primary);
+  min-width: 36px;
+  max-width: 58px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 500;
 }
 .demos-bar-track {
   flex: 1;
-  height: 8px;
-  background: rgba(var(--bg-hover-rgb), 0.5);
+  height: 7px;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -991,26 +983,37 @@ body.shift-held #mapContainer .leaflet-container {
   height: 100%;
   border-radius: 4px;
   background: var(--accent);
-  opacity: 0.8;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .demos-bar-value {
   font-size: 9px;
-  color: var(--text-muted);
-  min-width: 30px;
+  color: var(--text-secondary);
+  min-width: 28px;
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Sub-tab mode selector (pill bar) ── */
+/* ── Sub-tab mode selector ── */
 .demos-sub-tabs {
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.demos-sub-tabs .demos-creator-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+  text-align: center;
+  padding-bottom: 8px;
+}
+.demos-sub-tab-row {
   display: flex;
   gap: 3px;
-  padding: 8px 10px 6px;
-  border-bottom: 1px solid var(--glass-border);
   overflow-x: auto;
-  flex-shrink: 0;
+  padding-bottom: 8px;
 }
 .demos-sub-tab {
   padding: 5px 10px;
@@ -1027,7 +1030,9 @@ body.shift-held #mapContainer .leaflet-container {
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 0;
+  min-width: 32px;
 }
 .demos-sub-tab:hover:not(.active) {
   color: var(--text-secondary);
@@ -1043,12 +1048,15 @@ body.shift-held #mapContainer .leaflet-container {
   align-items: center;
 }
 .demos-sub-tab-icon svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 .demos-sub-tab-icon.platform-instagram svg { fill: var(--color-instagram); color: var(--color-instagram); }
 .demos-sub-tab-icon.platform-tiktok svg { fill: var(--color-tiktok); color: var(--color-tiktok); }
 .demos-sub-tab-icon.platform-youtube svg { fill: var(--color-youtube); color: var(--color-youtube); }
+.demos-sub-tab.active .demos-sub-tab-icon.platform-instagram svg { fill: var(--color-instagram); color: var(--color-instagram); }
+.demos-sub-tab.active .demos-sub-tab-icon.platform-tiktok svg { fill: var(--color-tiktok); color: var(--color-tiktok); }
+.demos-sub-tab.active .demos-sub-tab-icon.platform-youtube svg { fill: var(--color-youtube); color: var(--color-youtube); }
 
 /* ── Empty inline state (within a sub-tab) ── */
 .demos-empty-inline {

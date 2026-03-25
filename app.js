@@ -4513,13 +4513,6 @@ function formatStatNumber(n) {
 function renderPlatformStats(creator, platform, container) {
   const aud = getAudienceData(creator, platform);
 
-  // Platform header
-  const platformHeader = document.createElement('div');
-  platformHeader.className = 'demos-platform-header';
-  const logoHtml = PLATFORM_SVGS[platform] ? `<span class="demos-platform-logo platform-${platform.toLowerCase()}">${PLATFORM_SVGS[platform]}</span>` : '';
-  platformHeader.innerHTML = `${logoHtml}<span class="demos-platform-name">${platform} Stats</span>`;
-  container.appendChild(platformHeader);
-
   if (!aud) {
     const noData = document.createElement('div');
     noData.className = 'demos-empty-inline';
@@ -4694,46 +4687,46 @@ function renderDemosPanel(creator) {
     return;
   }
 
-  // Build sub-tab list: platform tabs (dynamic) + $ + Partners (always)
+  // Build sub-tab list: platform tabs (icon-only) + Rates + Partners (text)
   const platformList = getCreatorPlatforms(creator);
-  const PLATFORM_SHORT = { Instagram: 'Instagram', TikTok: 'TikTok', YouTube: 'YouTube' };
   const tabs = [];
   platformList.forEach(p => {
-    tabs.push({ key: p, label: PLATFORM_SHORT[p] || p, icon: PLATFORM_SVGS[p] || '' });
+    tabs.push({ key: p, label: '', icon: PLATFORM_SVGS[p] || '', isPlatform: true });
   });
-  tabs.push({ key: 'rates', label: 'Rates', icon: '' });
-  tabs.push({ key: 'partners', label: 'Partners', icon: '' });
+  tabs.push({ key: 'rates', label: 'Rates', icon: '', isPlatform: false });
+  tabs.push({ key: 'partners', label: 'Partners', icon: '', isPlatform: false });
 
   // Default sub-tab
   if (!_demosSubTab || !tabs.some(t => t.key === _demosSubTab)) {
     _demosSubTab = tabs[0]?.key || 'rates';
   }
 
-  // Render sub-tab bar
+  // Render creator name + sub-tab bar
   if (subTabsEl) {
-    subTabsEl.style.display = tabs.length > 0 ? 'flex' : 'none';
-    subTabsEl.innerHTML = '';
+    subTabsEl.style.display = 'block';
+    subTabsEl.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div>`;
+    const tabRow = document.createElement('div');
+    tabRow.className = 'demos-sub-tab-row';
     tabs.forEach(t => {
       const btn = document.createElement('button');
       btn.className = 'demos-sub-tab' + (t.key === _demosSubTab ? ' active' : '');
-      const iconHtml = t.icon ? `<span class="demos-sub-tab-icon platform-${t.key.toLowerCase()}">${t.icon}</span>` : '';
-      btn.innerHTML = iconHtml + t.label;
+      if (t.isPlatform) {
+        btn.innerHTML = `<span class="demos-sub-tab-icon platform-${t.key.toLowerCase()}">${t.icon}</span>`;
+        btn.title = t.key;
+      } else {
+        btn.textContent = t.label;
+      }
       btn.onclick = () => {
         _demosSubTab = t.key;
         renderDemosPanel(creator);
       };
-      subTabsEl.appendChild(btn);
+      tabRow.appendChild(btn);
     });
+    subTabsEl.appendChild(tabRow);
   }
 
   // Render content based on active sub-tab
   content.innerHTML = '';
-
-  // Header
-  const header = document.createElement('div');
-  header.className = 'demos-header';
-  header.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div><div class="demos-subtitle">Audience Insights</div>`;
-  content.appendChild(header);
 
   const section = document.createElement('div');
   section.className = 'demos-platform-section';

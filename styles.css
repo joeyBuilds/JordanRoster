@@ -565,6 +565,14 @@ body.shift-held #mapContainer .leaflet-container {
   height: 100%;
 }
 
+/* Mobile-only elements hidden on desktop */
+.mobile-map-toggle {
+  display: none;
+}
+.mobile-compare-tabs {
+  display: none;
+}
+
 /* Fit All button — top-right of map */
 .fit-all-btn {
   position: absolute;
@@ -2168,17 +2176,7 @@ body.shift-held #mapContainer .leaflet-container {
 .match-float-body .card-divider .divider-line-right {
   background: linear-gradient(to left, transparent, rgba(255, 255, 255, 0.4));
 }
-@media (max-width: 768px) {
-  .match-float-panel {
-    left: 0;
-    width: 100%;
-    top: auto;
-    bottom: 0;
-    height: auto;
-    max-height: 60%;
-    border-radius: 16px 16px 0 0;
-  }
-}
+/* Match float panel mobile rules moved to main responsive block below */
 
 /* Dispatch-mode tint for the match panel */
 .match-float-panel.dispatch-mode {
@@ -6218,25 +6216,720 @@ a.ring-platform-chip:hover {
 }
 
 /* ===========================
-   RESPONSIVE
+   RESPONSIVE — iPhone-First Mobile
    =========================== */
 @media (max-width: 768px) {
+
+  /* ── Phase 1: Foundation ── */
+  html, body {
+    overscroll-behavior: none;
+  }
+
   #mainContainer {
     flex-direction: column;
   }
 
   #sidebar {
     width: 100%;
-    height: 40%;
+    height: 100%;
     border-right: none;
-    border-top: 1px solid var(--border);
+    border-top: none;
+    overscroll-behavior: contain;
   }
 
   #mapContainer {
-    height: 60%;
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    height: 100%;
+  }
+  #mapContainer.mobile-visible {
+    display: block;
   }
 
-  /* Ring overlay adapts automatically */
+  /* Mobile map close button (added by JS) */
+  .mobile-map-close {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1200;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(var(--bg-card-rgb), 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Map toggle FAB */
+  .mobile-map-toggle {
+    display: flex !important;
+    position: fixed;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    z-index: 1050;
+    background: rgba(var(--bg-card-rgb), 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--accent);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(var(--accent-rgb), 0.2);
+    transition: all 0.2s ease;
+  }
+  .mobile-map-toggle:active {
+    transform: scale(0.92);
+    background: rgba(var(--accent-rgb), 0.15);
+  }
+  .mobile-map-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Hide map-only UI on mobile */
+  .fit-all-btn,
+  .dispatch-float-stack,
+  .nearest-float {
+    display: none !important;
+  }
+
+  /* ── Phase 2: Top Bar ── */
+  #topBar {
+    height: calc(48px + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .topBar-actions {
+    display: none;
+  }
+
+  .title-niche {
+    display: none;
+  }
+
+  .title-dot {
+    display: none;
+  }
+
+  .ias-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .topBar-left {
+    gap: 10px;
+  }
+
+  #topBar h1 {
+    font-size: 20px;
+  }
+
+  /* ── Phase 2: Sidebar Tabs ── */
+  .sidebar-tabs {
+    padding: 4px 8px;
+    gap: 1px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(var(--bg-card-rgb), 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .tab-button {
+    padding: 10px 6px;
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    min-height: 44px;
+  }
+
+  /* ── Phase 3: Roster Tab ── */
+  .roster-header {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .roster-search-row {
+    gap: 6px;
+  }
+
+  .search-input {
+    font-size: 16px !important;
+    padding: 10px 32px 10px 12px;
+  }
+
+  .july-btn-group {
+    gap: 4px;
+  }
+  .btn-july-sync .july-sync-label,
+  .btn-july-browse .july-browse-label {
+    display: none;
+  }
+  .btn-july-sync,
+  .btn-july-browse {
+    padding: 0 8px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .roster-meta-row {
+    gap: 6px;
+  }
+
+  .creator-list {
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px;
+  }
+
+  .creator-card {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+  .creator-card:hover {
+    transform: none !important;
+  }
+  .creator-card:active {
+    transform: scale(0.98) !important;
+    transition-duration: 0.1s;
+  }
+
+  .creator-name {
+    font-size: 14px;
+  }
+
+  .creator-meta-line {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .creator-meta-chip {
+    font-size: 10px;
+  }
+
+  .sort-picker {
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .sort-metric-chip {
+    padding: 3px 8px;
+    font-size: 10px;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* ── Phase 4: Dispatch/Niche Tab ── */
+  .dispatch-filters {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .location-filter-input,
+  .nl-search-input {
+    font-size: 16px !important;
+  }
+
+  .nl-search-wrap {
+    padding: 8px 32px 8px 10px;
+  }
+
+  .dispatch-pill {
+    padding: 5px 11px;
+    font-size: 11px;
+    min-height: 30px;
+  }
+  .dispatch-pill:hover {
+    transform: none !important;
+  }
+
+  .dispatch-section-label {
+    min-height: 44px;
+    padding: 8px 0;
+    font-size: 11px;
+  }
+
+  .dispatch-active-strip {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .dispatch-active-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dispatch-pill-grid {
+    gap: 6px;
+  }
+
+  .platform-tier-pill {
+    padding: 5px 10px;
+    font-size: 10px;
+    min-height: 28px;
+  }
+
+  /* ── Phase 5: Ring Overlay → Full-Screen Detail ── */
+  .ring-scrim {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  .ring-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ring-spotlight {
+    display: none !important;
+  }
+
+  .ring-column {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 24px 16px calc(40px + env(safe-area-inset-bottom));
+  }
+
+  .ring-platforms-row {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .ring-platform-chip {
+    min-width: 100px;
+    padding: 8px 12px;
+  }
+
+  .ring-avatar {
+    width: 100px;
+    height: 100px;
+  }
+
+  .ring-avatar-wrap::before {
+    width: 180px;
+    height: 180px;
+  }
+
+  .ring-name-card {
+    white-space: normal;
+    width: 100%;
+    padding: 14px 16px 12px;
+  }
+
+  .ring-info-section {
+    width: 100%;
+  }
+
+  /* Side columns become inline flow on mobile */
+  .ring-side-col {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .ring-side-col-left,
+  .ring-side-col-right {
+    left: auto !important;
+    right: auto !important;
+    align-items: center !important;
+  }
+
+  .ring-side-col-dense {
+    width: 100% !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    justify-content: center !important;
+  }
+
+  .ring-pill {
+    padding: 7px 15px;
+    font-size: 12px;
+  }
+
+  .ring-actions {
+    width: 100%;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .ring-action-btn {
+    padding: 10px 20px;
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  .ring-close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    min-width: 36px;
+  }
+
+  .ring-notes {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* Pip gauge row full width */
+  .ring-pip-gauge {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ── Phase 6: Modal → Full-Screen Sheet ── */
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: translateY(100%) !important;
+  }
+
+  .modal-backdrop.open ~ .modal {
+    transform: translateY(0) !important;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: rgba(var(--bg-card-rgb), 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .modal-header h2 {
+    font-size: 20px;
+  }
+
+  .modal-close {
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    min-width: 36px;
+  }
+
+  .modal-body {
+    padding: 12px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-footer {
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    position: sticky;
+    bottom: 0;
+    background: rgba(var(--bg-card-rgb), 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Platform columns stack vertically on mobile */
+  .platform-columns {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .platform-col {
+    flex: none;
+    width: 100%;
+  }
+
+  .platform-col-header {
+    min-height: 44px;
+  }
+
+  /* Prevent iOS zoom on ALL form inputs */
+  .form-input,
+  .form-textarea,
+  .modal-body input,
+  .modal-body textarea,
+  .modal-body select {
+    font-size: 16px !important;
+  }
+
+  /* Identity row stacks on mobile */
+  .modal-identity-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Phase 7: Match Float Panel ── */
+  .match-float-panel {
+    left: 0;
+    width: 100%;
+    top: auto;
+    bottom: 0;
+    height: auto;
+    max-height: 75%;
+    border-radius: 16px 16px 0 0;
+    z-index: 1200;
+  }
+  .match-float-panel::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    margin: 8px auto 4px;
+    flex-shrink: 0;
+  }
+  .match-float-header {
+    padding: 8px 16px 10px;
+  }
+  .match-float-body {
+    -webkit-overflow-scrolling: touch;
+  }
+  .match-float-close {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    font-size: 20px;
+  }
+
+  /* ── Phase 8: Compare Panels ── */
+  .compare-panel-stack {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    flex-direction: column;
+    z-index: 1100;
+    pointer-events: auto;
+  }
+
+  .compare-panel {
+    width: 100% !important;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 0;
+    border-right: none;
+    border-left: none;
+    animation: none;
+  }
+
+  .compare-panel.mobile-hidden {
+    display: none !important;
+  }
+
+  .compare-panel-close {
+    top: calc(12px + env(safe-area-inset-top));
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    z-index: 10;
+  }
+
+  /* Mobile compare tab switcher */
+  .mobile-compare-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    padding-top: calc(8px + env(safe-area-inset-top));
+    background: rgba(var(--bg-card-rgb), 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1150;
+  }
+  .mobile-compare-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mobile-compare-tab.active {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: rgba(var(--accent-rgb), 0.4);
+    color: var(--accent);
+  }
+
+  /* Push compare panel content below tabs */
+  .compare-panel .demos-sub-tabs {
+    padding-top: calc(60px + env(safe-area-inset-top));
+  }
+
+  /* ── Phase 9: Other Overlays ── */
+  .tag-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  .tag-panel-search {
+    font-size: 16px !important;
+  }
+
+  .tag-panel-header {
+    padding: 12px 16px 10px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+
+  .tag-panel-close {
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    min-width: 36px;
+  }
+
+  .tag-modal-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  .tag-modal-header {
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+
+  /* July overlay full-screen */
+  .july-overlay .july-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  .july-panel-header {
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+
+  .july-search {
+    font-size: 16px !important;
+  }
+
+  .july-panel-footer {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  /* Nuke modal bottom sheet */
+  .nuke-modal {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    bottom: 0;
+    top: auto;
+  }
+
+  /* ── Phase 10: Touch Polish ── */
+
+  /* Hide custom scrollbars on mobile */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  * {
+    scrollbar-width: none;
+  }
+
+  /* Momentum scrolling on scroll containers */
+  .creator-list,
+  .match-float-body,
+  .modal-body,
+  .tag-panel-body,
+  .tag-modal-body,
+  .july-panel-body,
+  .demos-content,
+  #dispatchTab {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Disable hover transforms that feel wrong on touch */
+  .dispatch-pill:hover,
+  .ring-pill:hover,
+  .tab-button:hover:not(.active),
+  .btn:hover,
+  .sort-metric-chip:hover,
+  .sort-platform-btn:hover {
+    transform: none !important;
+  }
+
+  /* Touch feedback — subtle press */
+  .dispatch-pill:active,
+  .sort-metric-chip:active {
+    transform: scale(0.95) !important;
+    transition-duration: 0.1s;
+  }
+
+  /* ── Utilities ── */
+
+  /* Hide map toggle by default on desktop (shown via !important on mobile) */
+  .mobile-map-toggle {
+    display: flex !important;
+  }
+
+  /* Compare tabs hidden on desktop */
+  .mobile-compare-tabs {
+    display: flex;
+  }
 }
 
 /* ===========================

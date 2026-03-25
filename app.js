@@ -1,4 +1,11 @@
 // ===========================
+// MOBILE DETECTION
+// ===========================
+function isMobile() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
+// ===========================
 // PERFORMANCE UTILITIES
 // ===========================
 function debounce(fn, delay) {
@@ -960,6 +967,9 @@ function renderCreatorCard(creator) {
 
 // Attach a fixed-position hover popover to a tag count pill
 function attachTagHoverPopover(anchor, tags, label, pillClass) {
+  // Skip hover popovers on mobile — touch devices don't hover
+  if (isMobile()) return;
+
   let popover = null;
   let hideTimeout = null;
 
@@ -2547,14 +2557,19 @@ function showDetailPanel(creatorId) {
   }
   renderDemosPanel(creator);
 
-  // Pan map to center the creator so ring elements don't get clipped
-  if (creator.lat && creator.lng) {
-    const marker = markers[creator.id];
-    const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-    map.once('moveend', () => renderRing(creator, wasDispatchMode));
-    map.panTo(latLng, { animate: true, duration: 0.3 });
-  } else {
+  // On mobile, skip map pan — ring renders as full-screen detail sheet
+  if (isMobile()) {
     renderRing(creator, wasDispatchMode);
+  } else {
+    // Pan map to center the creator so ring elements don't get clipped
+    if (creator.lat && creator.lng) {
+      const marker = markers[creator.id];
+      const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
+      map.once('moveend', () => renderRing(creator, wasDispatchMode));
+      map.panTo(latLng, { animate: true, duration: 0.3 });
+    } else {
+      renderRing(creator, wasDispatchMode);
+    }
   }
 }
 
@@ -2565,38 +2580,54 @@ function renderRing(creator, forceDispatch) {
 
   // Get marker pixel position on map
   const mapContainer = document.getElementById('mapContainer');
-  const mapRect = mapContainer.getBoundingClientRect();
   let cx, cy;
 
-  if (creator.lat && creator.lng) {
-    // Use the marker's current position (may be offset in a ring formation)
-    const marker = markers[creator.id];
-    const markerLatLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-    const point = map.latLngToContainerPoint(markerLatLng);
-    cx = point.x;
-    cy = point.y;
+  if (isMobile()) {
+    // Mobile: full-screen detail sheet — CSS handles positioning
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    scrim.style.left = '0';
+    scrim.style.top = '0';
+    scrim.style.width = '100%';
+    scrim.style.height = '100%';
+    cx = 0;
+    cy = 0;
   } else {
-    cx = mapRect.width / 2;
-    cy = mapRect.height / 2;
+    const mapRect = mapContainer.getBoundingClientRect();
+    if (creator.lat && creator.lng) {
+      // Use the marker's current position (may be offset in a ring formation)
+      const marker = markers[creator.id];
+      const markerLatLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
+      const point = map.latLngToContainerPoint(markerLatLng);
+      cx = point.x;
+      cy = point.y;
+    } else {
+      cx = mapRect.width / 2;
+      cy = mapRect.height / 2;
+    }
+
+    // Position overlay and scrim over the map container
+    overlay.style.left = mapRect.left + 'px';
+    overlay.style.top = mapRect.top + 'px';
+    overlay.style.width = mapRect.width + 'px';
+    overlay.style.height = mapRect.height + 'px';
+
+    // Scrim covers only the map area — sidebar and toolbar stay clear
+    scrim.style.left = mapRect.left + 'px';
+    scrim.style.top = mapRect.top + 'px';
+    scrim.style.width = mapRect.width + 'px';
+    scrim.style.height = mapRect.height + 'px';
   }
-
-  // Position overlay and scrim over the map container
-  overlay.style.left = mapRect.left + 'px';
-  overlay.style.top = mapRect.top + 'px';
-  overlay.style.width = mapRect.width + 'px';
-  overlay.style.height = mapRect.height + 'px';
-
-  // Scrim covers only the map area — sidebar and toolbar stay clear
-  scrim.style.left = mapRect.left + 'px';
-  scrim.style.top = mapRect.top + 'px';
-  scrim.style.width = mapRect.width + 'px';
-  scrim.style.height = mapRect.height + 'px';
 
   // === Radial spotlight glow behind the ring ===
   const spotlight = document.createElement('div');
   spotlight.className = 'ring-spotlight';
-  spotlight.style.left = cx + 'px';
-  spotlight.style.top = cy + 'px';
+  if (!isMobile()) {
+    spotlight.style.left = cx + 'px';
+    spotlight.style.top = cy + 'px';
+  }
   overlay.appendChild(spotlight);
 
   // === Dispatch scoring — computed early so platform chips + pills can use it ===
@@ -2612,8 +2643,10 @@ function renderRing(creator, forceDispatch) {
   // === Build the entire ring as a single centered column ===
   const ringColumn = document.createElement('div');
   ringColumn.className = 'ring-column';
-  ringColumn.style.left = cx + 'px';
-  ringColumn.style.top = cy + 'px';
+  if (!isMobile()) {
+    ringColumn.style.left = cx + 'px';
+    ringColumn.style.top = cy + 'px';
+  }
 
   // --- Row 1: Platform chips ---
   const ringPlatforms = getCreatorPlatforms(creator);
@@ -4869,12 +4902,36 @@ function renderAllComparePanels() {
   const demosTab = document.getElementById('demosTab');
   if (!demosTab || demosTab.style.display === 'none') return;
 
+  // Mobile: add tab switcher if multiple compare panels
+  const _mobileCompareActive = window._mobileCompareActiveIdx || 0;
+  if (isMobile() && _compareCreatorIds.length > 1) {
+    const tabBar = document.createElement('div');
+    tabBar.className = 'mobile-compare-tabs';
+    _compareCreatorIds.forEach((cid, i) => {
+      const c = creators.find(cr => cr.id === cid);
+      const tab = document.createElement('button');
+      tab.className = 'mobile-compare-tab' + (i === _mobileCompareActive ? ' active' : '');
+      tab.textContent = c ? getFullName(c) : 'Creator ' + (i + 1);
+      tab.onclick = () => {
+        window._mobileCompareActiveIdx = i;
+        renderAllComparePanels();
+      };
+      tabBar.appendChild(tab);
+    });
+    stack.appendChild(tabBar);
+  }
+
   _compareCreatorIds.forEach((cid, i) => {
     const creator = creators.find(c => c.id === cid);
     if (!creator) return;
 
     const panel = document.createElement('div');
     panel.className = 'compare-panel compare-slot-' + i;
+
+    // Mobile: hide non-active panels
+    if (isMobile() && _compareCreatorIds.length > 1 && i !== _mobileCompareActive) {
+      panel.classList.add('mobile-hidden');
+    }
 
     // ── Pinned header — uses exact same classes as primary's demosSubTabs ──
     const headerArea = document.createElement('div');
@@ -7479,6 +7536,44 @@ const julyImport = (() => {
 })();
 
 // ===========================
+// MOBILE HELPERS
+// ===========================
+function initMobileMapToggle() {
+  const toggle = document.getElementById('mobileMapToggle');
+  if (!toggle) return;
+
+  toggle.addEventListener('click', () => {
+    const mc = document.getElementById('mapContainer');
+    const isVisible = mc.classList.contains('mobile-visible');
+
+    if (isVisible) {
+      // Close map
+      mc.classList.remove('mobile-visible');
+      // Remove close button if present
+      const closeBtn = mc.querySelector('.mobile-map-close');
+      if (closeBtn) closeBtn.remove();
+    } else {
+      // Open map fullscreen
+      mc.classList.add('mobile-visible');
+      if (typeof map !== 'undefined') {
+        setTimeout(() => map.invalidateSize(), 50);
+      }
+      // Add close button to map
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'mobile-map-close';
+      closeBtn.innerHTML = '&times;';
+      closeBtn.setAttribute('aria-label', 'Close map');
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        mc.classList.remove('mobile-visible');
+        closeBtn.remove();
+      });
+      mc.appendChild(closeBtn);
+    }
+  });
+}
+
+// ===========================
 // INITIALIZATION
 // ===========================
 async function init() {
@@ -7530,6 +7625,10 @@ async function init() {
     updateRecycleBinBadge();
     updateStorageIndicator();
     migratePhotos(); // compress any oversized legacy photos in the background
+
+    // Mobile map toggle
+    initMobileMapToggle();
+
     console.log('[init] Done!');
 
     // Auto-geocode any creators with locations but no coordinates

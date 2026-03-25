@@ -2525,6 +2525,9 @@ function showDetailPanel(creatorId) {
   _demosCreatorId = creatorId;
   _demosSubTab = 'Instagram'; // Default to IG on new creator click
 
+  // Snapshot dispatch state BEFORE tab switch removes the class
+  const wasDispatchMode = document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters();
+
   // Auto-switch to Demo's tab
   const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
   const currentTab = document.querySelector('.tab-button.active');
@@ -2547,14 +2550,14 @@ function showDetailPanel(creatorId) {
   if (creator.lat && creator.lng) {
     const marker = markers[creator.id];
     const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-    map.once('moveend', () => renderRing(creator));
+    map.once('moveend', () => renderRing(creator, wasDispatchMode));
     map.panTo(latLng, { animate: true, duration: 0.3 });
   } else {
-    renderRing(creator);
+    renderRing(creator, wasDispatchMode);
   }
 }
 
-function renderRing(creator) {
+function renderRing(creator, forceDispatch) {
   const overlay = document.getElementById('ringOverlay');
   const scrim = document.getElementById('ringScrim');
   overlay.innerHTML = '';
@@ -2596,7 +2599,8 @@ function renderRing(creator) {
   overlay.appendChild(spotlight);
 
   // === Dispatch scoring — computed early so platform chips + pills can use it ===
-  const ringHasDispatch = document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters();
+  // forceDispatch preserves dispatch state when tab auto-switches to Demo's
+  const ringHasDispatch = forceDispatch || (document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters());
   let ringScore = null;
   let ringScoreLevel = '';
   if (ringHasDispatch) {

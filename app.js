@@ -4563,56 +4563,70 @@ function renderPlatformStats(creator, platform, container) {
     container.appendChild(grid);
   }
 
-  // Gender donut chart
-  if (aud.gender && aud.gender.length > 0) {
-    const genderCard = document.createElement('div');
-    genderCard.className = 'demos-demo-card';
-    genderCard.innerHTML = `<div class="demos-demo-title">Audience Gender</div>`;
-    const donutWrap = document.createElement('div');
-    donutWrap.className = 'demos-donut-wrap';
-    const colors = ['var(--sage)', 'var(--lavender)', 'var(--rose)', 'var(--mocha)', 'var(--gold)'];
-    let gradientParts = [], cumulative = 0;
-    aud.gender.forEach((g, i) => {
-      const start = cumulative;
-      cumulative += g.value;
-      gradientParts.push(`${colors[i % colors.length]} ${start}% ${cumulative}%`);
-    });
-    const donut = document.createElement('div');
-    donut.className = 'demos-donut';
-    donut.style.background = `conic-gradient(${gradientParts.join(', ')})`;
-    const donutHole = document.createElement('div');
-    donutHole.className = 'demos-donut-hole';
-    donut.appendChild(donutHole);
-    donutWrap.appendChild(donut);
-    const legend = document.createElement('div');
-    legend.className = 'demos-donut-legend';
-    aud.gender.forEach((g, i) => {
-      legend.innerHTML += `<div class="demos-legend-item"><span class="demos-legend-dot" style="background:${colors[i % colors.length]}"></span><span class="demos-legend-label">${g.label}</span><span class="demos-legend-value">${g.value.toFixed(0)}%</span></div>`;
-    });
-    donutWrap.appendChild(legend);
-    genderCard.appendChild(donutWrap);
-    container.appendChild(genderCard);
-  }
+  // ── Demographics 2x2 grid ──
+  const hasGender = aud.gender && aud.gender.length > 0;
+  const hasAge = aud.age && aud.age.length > 0;
+  const hasCountry = aud.country && aud.country.length > 0;
+  const hasCity = aud.city && aud.city.length > 0;
 
-  // Bar charts for age/country/city
-  function renderDemoBarChart(title, data, maxItems) {
-    if (!data || data.length === 0) return;
-    const card = document.createElement('div');
-    card.className = 'demos-demo-card';
-    card.innerHTML = `<div class="demos-demo-title">${title}</div>`;
-    const items = data.slice(0, maxItems || 6);
-    const maxVal = Math.max(...items.map(d => d.value), 1);
-    items.forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'demos-bar-row';
-      row.innerHTML = `<span class="demos-bar-label">${item.label}</span><div class="demos-bar-track"><div class="demos-bar-fill" style="width:${(item.value / maxVal) * 100}%"></div></div><span class="demos-bar-value">${item.value.toFixed(1)}%</span>`;
-      card.appendChild(row);
-    });
-    container.appendChild(card);
+  if (hasGender || hasAge || hasCountry || hasCity) {
+    const demoGrid = document.createElement('div');
+    demoGrid.className = 'demos-demo-grid';
+
+    // Gender donut
+    if (hasGender) {
+      const genderCard = document.createElement('div');
+      genderCard.className = 'demos-demo-card demos-color-gender';
+      genderCard.innerHTML = `<div class="demos-demo-title">Audience Gender</div>`;
+      const donutWrap = document.createElement('div');
+      donutWrap.className = 'demos-donut-wrap';
+      const colors = ['#5B8DEF', '#F4A261', 'var(--rose)', 'var(--mocha)', 'var(--gold)'];
+      let gradientParts = [], cumulative = 0;
+      aud.gender.forEach((g, i) => {
+        const start = cumulative;
+        cumulative += g.value;
+        gradientParts.push(`${colors[i % colors.length]} ${start}% ${cumulative}%`);
+      });
+      const donut = document.createElement('div');
+      donut.className = 'demos-donut';
+      donut.style.background = `conic-gradient(${gradientParts.join(', ')})`;
+      const donutHole = document.createElement('div');
+      donutHole.className = 'demos-donut-hole';
+      donut.appendChild(donutHole);
+      donutWrap.appendChild(donut);
+      const legend = document.createElement('div');
+      legend.className = 'demos-donut-legend';
+      aud.gender.forEach((g, i) => {
+        legend.innerHTML += `<div class="demos-legend-item"><span class="demos-legend-dot" style="background:${colors[i % colors.length]}"></span><span class="demos-legend-label">${g.label}</span><span class="demos-legend-value">${g.value.toFixed(0)}%</span></div>`;
+      });
+      donutWrap.appendChild(legend);
+      genderCard.appendChild(donutWrap);
+      demoGrid.appendChild(genderCard);
+    }
+
+    // Bar chart helper with color class
+    function renderDemoBarChart(title, data, maxItems, colorClass) {
+      if (!data || data.length === 0) return;
+      const card = document.createElement('div');
+      card.className = 'demos-demo-card ' + colorClass;
+      card.innerHTML = `<div class="demos-demo-title">${title}</div>`;
+      const items = data.slice(0, maxItems || 6);
+      const maxVal = Math.max(...items.map(d => d.value), 1);
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'demos-bar-row';
+        row.innerHTML = `<span class="demos-bar-label">${item.label}</span><div class="demos-bar-track"><div class="demos-bar-fill" style="width:${(item.value / maxVal) * 100}%"></div></div><span class="demos-bar-value">${item.value.toFixed(1)}%</span>`;
+        card.appendChild(row);
+      });
+      demoGrid.appendChild(card);
+    }
+
+    renderDemoBarChart('Audience Age', aud.age, 6, 'demos-color-age');
+    renderDemoBarChart('Audience Country', aud.country, 5, 'demos-color-country');
+    renderDemoBarChart('Audience City', aud.city, 5, 'demos-color-city');
+
+    container.appendChild(demoGrid);
   }
-  renderDemoBarChart('Audience Age', aud.age, 6);
-  renderDemoBarChart('Audience Country', aud.country, 5);
-  renderDemoBarChart('Audience City', aud.city, 5);
 }
 
 // ── Rates view ──

@@ -882,12 +882,17 @@ body.shift-held #mapContainer .leaflet-container {
 }
 
 /* ── Demographic cards (gender donut, bar charts) ── */
+/* ── Demographics 2x2 grid ── */
+.demos-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+}
 .demos-demo-card {
   background: rgba(var(--bg-card-rgb), 0.35);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   padding: 10px;
-  margin-bottom: 5px;
 }
 .demos-demo-title {
   font-size: 11px;
@@ -895,6 +900,15 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-secondary);
   margin-bottom: 10px;
 }
+/* Color-coded bar fills per chart type */
+.demos-color-age .demos-bar-fill { background: #5B8DEF; opacity: 0.9; }
+.demos-color-country .demos-bar-fill { background: #F4A261; opacity: 0.9; }
+.demos-color-city .demos-bar-fill { background: #A78BFA; opacity: 0.9; }
+/* Tinted titles to match */
+.demos-color-gender .demos-demo-title { color: #5B8DEF; }
+.demos-color-age .demos-demo-title { color: #5B8DEF; }
+.demos-color-country .demos-demo-title { color: #F4A261; }
+.demos-color-city .demos-demo-title { color: #A78BFA; }
 
 /* Gender donut chart */
 .demos-donut-wrap {
@@ -958,9 +972,10 @@ body.shift-held #mapContainer .leaflet-container {
   margin-bottom: 0;
 }
 .demos-bar-label {
-  font-size: 11px;
+  font-size: 9px;
   color: var(--text-secondary);
-  min-width: 50px;
+  min-width: 38px;
+  max-width: 60px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -980,9 +995,9 @@ body.shift-held #mapContainer .leaflet-container {
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .demos-bar-value {
-  font-size: 11px;
+  font-size: 9px;
   color: var(--text-muted);
-  min-width: 36px;
+  min-width: 30px;
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;

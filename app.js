@@ -1503,6 +1503,7 @@ function renderDispatchActiveStrip() {
 
   // Remove stale badges
   [...strip.children].forEach(el => {
+    if (el.dataset.key === '_clear') return; // handled below
     if (!neededKeys.has(el.dataset.key)) {
       el.style.animation = 'none';
       el.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
@@ -1511,6 +1512,33 @@ function renderDispatchActiveStrip() {
       setTimeout(() => el.remove(), 200);
     }
   });
+
+  // "Clear" pill — appears at the end when any filters are active
+  const hasFilters = neededKeys.size > 0;
+  let clearPill = strip.querySelector('[data-key="_clear"]');
+  if (hasFilters && !clearPill) {
+    clearPill = document.createElement('span');
+    clearPill.className = 'dispatch-active-badge clear-badge';
+    clearPill.dataset.key = '_clear';
+    clearPill.textContent = 'Clear';
+    clearPill.addEventListener('click', () => {
+      dispatchFilters.niches = [];
+      dispatchFilters.demographics = [];
+      dispatchFilters.platformTiers = [];
+      dispatchFilters.ageMin = null;
+      dispatchFilters.ageMax = null;
+      nlRegionFilter = null;
+      renderDispatchFilterPills();
+      renderDispatchTab();
+      updateMapMarkers();
+    });
+    strip.appendChild(clearPill);
+  } else if (!hasFilters && clearPill) {
+    clearPill.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+    clearPill.style.transform = 'scale(0.5)';
+    clearPill.style.opacity = '0';
+    setTimeout(() => clearPill.remove(), 200);
+  }
 }
 
 
@@ -5012,24 +5040,21 @@ function getRankColors() {
   ];
 }
 
-// Bloom-petal palette resolved from CSS custom properties.
+// Mode-transition mote palette resolved from CSS custom properties.
+// (Also used by spawnMotes in the mode transition orchestrator.)
 function getBloomPetalColors(isDispatch) {
   const s = getComputedStyle(document.documentElement);
   if (isDispatch) {
     return [
-      s.getPropertyValue('--accent').trim() || '#E8A8A0',
-      s.getPropertyValue('--accent-dark').trim() || '#D4908E',
-      s.getPropertyValue('--accent-light').trim() || '#F0C8C0',
-      s.getPropertyValue('--lavender').trim() || '#BBA7CF',
-      s.getPropertyValue('--rose').trim() || '#F5DDD5'
+      s.getPropertyValue('--accent').trim() || '#D4A080',
+      s.getPropertyValue('--rose').trim() || '#C9A0A0',
+      s.getPropertyValue('--mocha').trim() || '#A89080'
     ];
   }
   return [
-    s.getPropertyValue('--sage').trim() || '#9BB5A0',
-    s.getPropertyValue('--text-muted').trim() || '#8A7A70',
-    s.getPropertyValue('--mocha').trim() || '#C09A8A',
-    s.getPropertyValue('--lavender').trim() || '#BBA7CF',
-    s.getPropertyValue('--bg-hover').trim() || '#4A3E38'
+    s.getPropertyValue('--sage').trim() || '#8BBF96',
+    s.getPropertyValue('--accent').trim() || '#8BBF96',
+    s.getPropertyValue('--lavender').trim() || '#A8A0CF'
   ];
 }
 
@@ -5368,135 +5393,192 @@ function renderNearestCreators() {
   requestAnimationFrame(() => container.classList.add('open'));
 }
 
-// Bloom transition effect
-function triggerBloom(toDispatch) {
-  const overlay = document.createElement('div');
-  overlay.className = 'bloom-overlay';
-  document.body.appendChild(overlay);
+// ===========================
+// MODE TRANSITION ORCHESTRATOR
+// ===========================
 
-  // Main color bloom circle — originates from the tab area
-  const circle = document.createElement('div');
-  circle.className = 'bloom-circle';
-  const size = Math.max(window.innerWidth, window.innerHeight) * 2.5;
-  circle.style.width = size + 'px';
-  circle.style.height = size + 'px';
-  circle.style.left = '180px';
-  circle.style.top = '70px';
-  circle.style.transform = 'translate(-50%, -50%) scale(0)';
-  circle.style.background = toDispatch
-    ? 'radial-gradient(circle, rgba(122, 86, 84, 0.5) 0%, rgba(92, 61, 61, 0.25) 40%, transparent 70%)'
-    : 'radial-gradient(circle, rgba(44, 35, 32, 0.5) 0%, rgba(52, 42, 38, 0.25) 40%, transparent 70%)';
-  overlay.appendChild(circle);
+// Spawn ambient floating motes during mode transition
+function spawnMotes(toDispatch) {
+  const s = getComputedStyle(document.documentElement);
+  const colors = toDispatch
+    ? [s.getPropertyValue('--accent').trim(), s.getPropertyValue('--rose').trim(), s.getPropertyValue('--mocha').trim()]
+    : [s.getPropertyValue('--sage').trim(), s.getPropertyValue('--accent').trim(), s.getPropertyValue('--lavender').trim()];
 
-  requestAnimationFrame(() => circle.classList.add('expanding'));
-
-  // Scatter petals
-  const petalColors = getBloomPetalColors(toDispatch);
-
-  for (let i = 0; i < 12; i++) {
-    const petal = document.createElement('div');
-    petal.className = 'bloom-petal';
-    petal.style.left = (140 + Math.random() * 80) + 'px';
-    petal.style.top = (50 + Math.random() * 40) + 'px';
-    petal.style.background = petalColors[Math.floor(Math.random() * petalColors.length)];
-    petal.style.setProperty('--dx', (Math.random() * 200 - 100) + 'px');
-    petal.style.setProperty('--dy', (Math.random() * 200 + 50) + 'px');
-    petal.style.setProperty('--rot', (Math.random() * 360) + 'deg');
-    petal.style.transform = `rotate(${Math.random() * 360}deg)`;
-    overlay.appendChild(petal);
-
-    setTimeout(() => petal.classList.add('falling'), 50 + Math.random() * 200);
+  const count = 18;
+  const motes = [];
+  for (let i = 0; i < count; i++) {
+    const mote = document.createElement('div');
+    mote.className = 'mode-mote';
+    const size = 3 + Math.random() * 5;
+    mote.style.width = size + 'px';
+    mote.style.height = size + 'px';
+    mote.style.left = Math.random() * window.innerWidth + 'px';
+    mote.style.top = Math.random() * window.innerHeight + 'px';
+    mote.style.background = colors[Math.floor(Math.random() * colors.length)];
+    const dur = 1.2 + Math.random() * 1.0;
+    mote.style.setProperty('--duration', dur + 's');
+    mote.style.setProperty('--dx', (Math.random() * 60 - 30) + 'px');
+    mote.style.setProperty('--dy', -(30 + Math.random() * 80) + 'px');
+    mote.style.setProperty('--peak-opacity', (0.25 + Math.random() * 0.25).toFixed(2));
+    document.body.appendChild(mote);
+    motes.push(mote);
+    // Stagger start
+    setTimeout(() => mote.classList.add('rising'), i * 40);
   }
-
   // Cleanup
-  setTimeout(() => overlay.remove(), 1400);
+  setTimeout(() => motes.forEach(m => m.remove()), 3000);
 }
 
-// Tab switching
+// Color wash overlay for the transition
+function triggerModeTransition(toDispatch) {
+  const s = getComputedStyle(document.documentElement);
+  // Create wash
+  const wash = document.createElement('div');
+  wash.className = 'mode-wash';
+  wash.style.background = toDispatch
+    ? `radial-gradient(ellipse at 30% 40%, rgba(${s.getPropertyValue('--accent-rgb').trim()}, 0.12) 0%, transparent 70%)`
+    : `radial-gradient(ellipse at 30% 40%, rgba(${s.getPropertyValue('--sage-rgb').trim()}, 0.12) 0%, transparent 70%)`;
+  document.body.appendChild(wash);
+
+  // Sidebar glow
+  document.getElementById('sidebar').classList.add('mode-glow');
+
+  // Activate wash
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      wash.classList.add('active');
+    });
+  });
+
+  // Spawn motes
+  spawnMotes(toDispatch);
+
+  // Fade out wash
+  setTimeout(() => {
+    wash.classList.remove('active');
+    wash.classList.add('fade-out');
+  }, 500);
+
+  // Remove glow and wash
+  setTimeout(() => {
+    document.getElementById('sidebar').classList.remove('mode-glow');
+  }, 1200);
+  setTimeout(() => wash.remove(), 1600);
+}
+
+// Tab switching — orchestrated transition
+let _modeTransitioning = false;
+
 document.querySelectorAll('.tab-button').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (_modeTransitioning) return; // debounce during transition
     const tab = btn.dataset.tab;
     const wasDispatch = document.body.classList.contains('dispatch-mode');
     const goingToDispatch = tab === 'dispatch';
+    const modeChanging = goingToDispatch !== wasDispatch;
 
     // Close ring if open
     closeDetailPanel();
 
-    // Only animate if actually changing modes
-    if (goingToDispatch !== wasDispatch) {
-      triggerBloom(goingToDispatch);
-    }
-
+    // Update active tab immediately
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    // Toggle dispatch mode theme
-    if (goingToDispatch) {
-      document.body.classList.add('dispatch-mode');
+    if (modeChanging) {
+      _modeTransitioning = true;
+
+      // Phase 1: Launch visual transition overlay + motes
+      triggerModeTransition(goingToDispatch);
+
+      // Phase 2: Crossfade content — exit current tab
+      const currentTab = wasDispatch ? document.getElementById('dispatchTab')
+                       : document.getElementById('rosterTab');
+      const nextTab = goingToDispatch ? document.getElementById('dispatchTab')
+                    : document.getElementById('rosterTab');
+
+      currentTab.classList.add('mode-exit');
+
+      // Phase 3: At midpoint, toggle palette + swap content
+      setTimeout(() => {
+        // Toggle palette class
+        if (goingToDispatch) {
+          document.body.classList.add('dispatch-mode');
+        } else {
+          document.body.classList.remove('dispatch-mode');
+        }
+
+        // Hide old, show new
+        currentTab.style.display = 'none';
+        currentTab.classList.remove('mode-exit');
+
+        // Show all relevant tab content
+        document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
+        document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
+        document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
+
+        // Animate new tab in
+        nextTab.classList.add('mode-enter');
+        setTimeout(() => {
+          nextTab.classList.remove('mode-enter');
+          _modeTransitioning = false;
+        }, 500);
+
+        // Run tab-specific logic
+        _handleTabLogic(tab, wasDispatch);
+
+      }, 350); // midpoint of the 0.7s wash
+
     } else {
-      document.body.classList.remove('dispatch-mode');
-    }
-
-    document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
-    document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
-    document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
-
-    // Hide match float panel when leaving to recycle tab
-    if (tab === 'recycle') {
-      document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');
-    }
-    // When switching to roster, remove dispatch-mode, clear all dispatch filters, and re-render
-    if (tab === 'roster') {
-      document.getElementById('matchFloatPanel').classList.remove('dispatch-mode');
-
-      // Reset all dispatch filters
-      dispatchFilters.platformTiers = [];
-      dispatchFilters.niches = [];
-      dispatchFilters.demographics = [];
-      dispatchFilters.ageMin = null;
-      dispatchFilters.ageMax = null;
-      _vibeSearchTerm = '';
-
-      // Clear NL search
-      nlRegionFilter = null;
-      const nlInput = document.getElementById('nlSearchInput');
-      if (nlInput) nlInput.value = '';
-      const nlHint = document.getElementById('nlSearchHint');
-      if (nlHint) nlHint.style.display = 'none';
-      const nlClear = document.getElementById('nlSearchClear');
-      if (nlClear) nlClear.style.display = 'none';
-
-      // Clear dispatch location
-      document.getElementById('locationFilterInput').value = '';
-      clearDispatchDestination();
-
-      // Re-render dispatch internals so they're clean if user switches back
-      renderDispatchFilters();
-      renderDispatchFilterPills();
-      renderDispatchActiveStrip();
-      updateMapMarkers();
-
-      renderRosterTab();
-      updateRosterMarkerFading();
-    }
-
-    if (tab === 'dispatch') {
-      // Clear roster search fading when entering dispatch
-      Object.keys(markers).forEach(id => {
-        const el = markers[id] && markers[id].getElement();
-        if (el) el.classList.remove('roster-faded');
-      });
-      // Hide roster's match results, dispatch will repopulate
-      document.getElementById('matchFloatPanel').classList.remove('visible');
-      renderDispatchFilters();
-      renderDispatchFilterPills();
-      renderDispatchTab();
-    }
-    if (tab === 'recycle') {
-      renderRecycleBinTab();
+      // No mode change (e.g. roster→recycle or dispatch→recycle)
+      document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
+      document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
+      document.getElementById('recycleTab').style.display = tab === 'recycle' ? 'flex' : 'none';
+      _handleTabLogic(tab, wasDispatch);
     }
   });
 });
+
+// Shared tab logic (data cleanup, re-renders)
+function _handleTabLogic(tab, wasDispatch) {
+  if (tab === 'recycle') {
+    document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');
+    renderRecycleBinTab();
+  }
+  if (tab === 'roster') {
+    document.getElementById('matchFloatPanel').classList.remove('dispatch-mode');
+    dispatchFilters.platformTiers = [];
+    dispatchFilters.niches = [];
+    dispatchFilters.demographics = [];
+    dispatchFilters.ageMin = null;
+    dispatchFilters.ageMax = null;
+    _vibeSearchTerm = '';
+    nlRegionFilter = null;
+    const nlInput = document.getElementById('nlSearchInput');
+    if (nlInput) nlInput.value = '';
+    const nlHint = document.getElementById('nlSearchHint');
+    if (nlHint) nlHint.style.display = 'none';
+    const nlClear = document.getElementById('nlSearchClear');
+    if (nlClear) nlClear.style.display = 'none';
+    document.getElementById('locationFilterInput').value = '';
+    clearDispatchDestination();
+    renderDispatchFilters();
+    renderDispatchFilterPills();
+    renderDispatchActiveStrip();
+    updateMapMarkers();
+    renderRosterTab();
+    updateRosterMarkerFading();
+  }
+  if (tab === 'dispatch') {
+    Object.keys(markers).forEach(id => {
+      const el = markers[id] && markers[id].getElement();
+      if (el) el.classList.remove('roster-faded');
+    });
+    document.getElementById('matchFloatPanel').classList.remove('visible');
+    renderDispatchFilters();
+    renderDispatchFilterPills();
+    renderDispatchTab();
+  }
+}
 
 // Match float panel close (dispatch only)
 document.getElementById('matchFloatClose').addEventListener('click', () => {

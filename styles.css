@@ -47,16 +47,16 @@
   --border: #2A3E30;
   --border-rgb: 42, 62, 48;
   /* Smooth palette transition for Roster↔Niche mode shift */
-  transition: --bg-primary 0.7s ease,
-              --bg-secondary 0.7s ease,
-              --bg-card 0.7s ease,
-              --bg-hover 0.7s ease,
-              --bg-input 0.7s ease,
-              --accent 0.7s ease,
-              --text-primary 0.7s ease,
-              --text-secondary 0.7s ease,
-              --text-muted 0.7s ease,
-              --border 0.7s ease;
+  transition: --bg-primary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-secondary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-card 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-hover 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --bg-input 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --accent 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --text-primary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --text-secondary 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --text-muted 1.0s cubic-bezier(0.4, 0, 0.2, 1),
+              --border 1.0s cubic-bezier(0.4, 0, 0.2, 1);
   --success: #7CC98A;
   --success-rgb: 124, 201, 138;
   --warning: #D4C47C;
@@ -199,62 +199,82 @@ body.dispatch-mode #mapContainer::before {
   background: linear-gradient(to right, rgba(var(--bg-primary-rgb), 0.5) 0%, transparent 100%);
 }
 
-/* Bloom transition overlay */
-.bloom-overlay {
+/* ===========================
+   MODE TRANSITION SYSTEM
+   Orchestrated crossfade between Roster ↔ Niche
+   =========================== */
+
+/* Phase 1: Color wash — soft full-screen gradient wipe */
+.mode-wash {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  z-index: 9998;
   pointer-events: none;
-  z-index: 9999;
-  overflow: hidden;
-}
-.bloom-circle {
-  position: absolute;
-  border-radius: 50%;
-  transform: scale(0);
   opacity: 0;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.bloom-circle.expanding {
-  animation: bloomExpand 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+.mode-wash.active {
+  opacity: 1;
 }
-@keyframes bloomExpand {
-  0% {
-    transform: scale(0);
-    opacity: 0.5;
-  }
-  60% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0;
-  }
+.mode-wash.fade-out {
+  opacity: 0;
+  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.15s;
 }
 
-/* Petal particles */
-.bloom-petal {
-  position: absolute;
-  width: 8px;
-  height: 12px;
-  border-radius: 50% 50% 50% 0;
-  opacity: 0;
+/* Phase 2: Content crossfade — outgoing fades down+out, incoming fades up+in */
+.tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.tab-content.mode-exit {
+  animation: modeExit 0.45s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.tab-content.mode-enter {
+  animation: modeEnter 0.5s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+@keyframes modeExit {
+  0%   { opacity: 1; transform: translateY(0); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+}
+@keyframes modeEnter {
+  0%   { opacity: 0; transform: translateY(-6px); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* Phase 3: Map atmosphere shift — smooth filter crossfade via transition */
+.leaflet-tile {
+  transition: filter 1.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Phase 4: Ambient glow particles — subtle floating motes */
+.mode-mote {
+  position: fixed;
+  border-radius: 50%;
   pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  filter: blur(1px);
 }
-.bloom-petal.falling {
-  animation: petalDrift 1.2s ease-out forwards;
+.mode-mote.rising {
+  animation: moteRise var(--duration) cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
-@keyframes petalDrift {
-  0% {
-    opacity: 0.7;
-    transform: translate(0, 0) rotate(0deg) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.3);
-  }
+@keyframes moteRise {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.5); }
+  20%  { opacity: var(--peak-opacity); }
+  80%  { opacity: var(--peak-opacity); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
 }
+
+/* Sidebar border glow pulse during transition */
+#sidebar.mode-glow {
+  box-shadow: 1px 0 30px rgba(var(--accent-rgb), 0.08),
+              inset -1px 0 20px rgba(var(--accent-rgb), 0.03);
+}
+
+/* (topBar/sidebar transition timing set on main rule blocks below) */
 
 html, body {
   width: 100%;
@@ -287,7 +307,9 @@ body {
   box-shadow: 0 1px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   position: relative;
   overflow: hidden;
-  transition: background 0.6s ease, border-color 0.6s ease, box-shadow 0.6s ease;
+  transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 #topBar::after {
   content: '';
@@ -472,7 +494,9 @@ body.dispatch-mode .title-niche {
   overflow: hidden;
   position: relative;
   z-index: 1001;
-  transition: background 0.6s ease, border-color 0.6s ease;
+  transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 #sidebar::after {
   content: '';
@@ -713,14 +737,6 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .leaflet-marker-icon.destination-marker {
   overflow: visible !important;
-}
-
-.tab-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
 }
 
 /* Recycle Bin tab */
@@ -2796,6 +2812,19 @@ a.creator-platform-chip:hover {
   background: rgba(var(--tag-platform-rgb), 0.15);
   border-color: rgba(var(--tag-platform-rgb), 0.4);
   color: var(--tag-platform);
+}
+.dispatch-active-badge.clear-badge {
+  background: rgba(var(--danger-rgb), 0.18);
+  border-color: rgba(var(--danger-rgb), 0.45);
+  color: var(--danger);
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.dispatch-active-badge.clear-badge:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
 }
 @keyframes badgePop {
   0% { transform: scale(0.5); opacity: 0; }

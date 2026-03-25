@@ -1072,13 +1072,16 @@ body.shift-held #mapContainer .leaflet-container {
   text-align: center;
   padding-bottom: 3px;
 }
-/* Niches row */
+/* Niches row — fixed height for uniform alignment across panels */
 .demos-niches-row {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
   justify-content: center;
   padding: 0 4px 4px;
+  height: 52px;
+  overflow: hidden;
+  align-content: flex-start;
 }
 .demos-niches-row:hover {
   opacity: 0.8;
@@ -1214,9 +1217,8 @@ body.shift-held #mapContainer .leaflet-container {
 .compare-panel-stack {
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
+  bottom: 0;
+  left: 360px; /* anchored to right edge of sidebar */
   display: flex;
   gap: 0;
   z-index: 900;
@@ -1224,9 +1226,7 @@ body.shift-held #mapContainer .leaflet-container {
 }
 .compare-panel {
   width: 360px;
-  max-width: 50%;
-  flex-shrink: 1;
-  min-width: 0;
+  flex-shrink: 0;
   height: 100%;
   background: rgba(var(--bg-primary-rgb), 0.65);
   backdrop-filter: blur(32px) saturate(1.2);
@@ -1247,7 +1247,7 @@ body.shift-held #mapContainer .leaflet-container {
 /* Compare panels reuse .demos-sub-tabs and .demos-content classes directly */
 .compare-panel-close {
   position: absolute;
-  top: 4px;
+  top: 50px;
   right: 4px;
   background: none;
   border: none;

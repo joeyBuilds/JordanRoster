@@ -162,6 +162,49 @@ body.dispatch-mode {
   --color-tiktok: #00F2EA;
   --color-youtube: #FF0000;
 }
+/* ── Demo's mode — light cyan/blue palette ── */
+body.demos-mode {
+  --bg-primary: #0E1620;
+  --bg-primary-rgb: 14, 22, 32;
+  --bg-secondary: #111A24;
+  --bg-secondary-rgb: 17, 26, 36;
+  --bg-card: #162230;
+  --bg-card-rgb: 22, 34, 48;
+  --bg-hover: #1C2A3A;
+  --bg-hover-rgb: 28, 42, 58;
+  --bg-input: #132030;
+  --bg-input-rgb: 19, 32, 48;
+  --accent: #5BBCE0;
+  --accent-rgb: 91, 188, 224;
+  --accent-light: #7ED4F0;
+  --accent-light-rgb: 126, 212, 240;
+  --accent-dark: #3A9AC0;
+  --accent-dark-rgb: 58, 154, 192;
+  --text-primary: #E4EEF4;
+  --text-primary-rgb: 228, 238, 244;
+  --text-secondary: #9AB4C8;
+  --text-secondary-rgb: 154, 180, 200;
+  --text-muted: #5A7A90;
+  --text-muted-rgb: 90, 122, 144;
+  --border: #243444;
+  --border-rgb: 36, 52, 68;
+  --glass-bg: rgba(14, 22, 32, 0.28);
+  --glass-border: rgba(91, 188, 224, 0.10);
+  --glass-highlight: rgba(91, 188, 224, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --glass-inset: inset 0 1px 0 rgba(91, 188, 224, 0.08), inset 0 0 0 0.5px rgba(91, 188, 224, 0.04);
+}
+body.demos-mode .sidebar-tabs::before {
+  background: linear-gradient(90deg, transparent, #5BBCE0, #7ED4F0, #5BBCE0, transparent);
+}
+body.demos-mode .sidebar-tabs::after {
+  background: rgba(91, 188, 224, 0.08);
+  border: 1px solid rgba(91, 188, 224, 0.20);
+}
+body.demos-mode #sidebar::after {
+  background: linear-gradient(to top, rgba(91, 188, 224, 0.04) 0%, transparent 100%);
+}
+
 /* Hide number input spinners */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
@@ -889,18 +932,18 @@ body.shift-held #mapContainer .leaflet-container {
   letter-spacing: 0.8px;
   margin-bottom: 6px;
 }
-/* Color-coded per chart type */
-.demos-color-gender .demos-demo-title { color: #5B8DEF; }
-.demos-color-age .demos-demo-title { color: #5B8DEF; }
-.demos-color-country .demos-demo-title { color: #F4A261; }
+/* Color-coded per chart type — teal-blue for age, warm amber for country, soft purple for city */
+.demos-color-gender .demos-demo-title { color: #E8729A; }
+.demos-color-age .demos-demo-title { color: #4AA8C7; }
+.demos-color-country .demos-demo-title { color: #E8A855; }
 .demos-color-city .demos-demo-title { color: #A78BFA; }
-.demos-color-age .demos-bar-fill { background: #5B8DEF; opacity: 1; }
-.demos-color-country .demos-bar-fill { background: #F4A261; opacity: 1; }
+.demos-color-age .demos-bar-fill { background: #4AA8C7; opacity: 1; }
+.demos-color-country .demos-bar-fill { background: #E8A855; opacity: 1; }
 .demos-color-city .demos-bar-fill { background: #A78BFA; opacity: 1; }
 /* Subtle left border accent */
-.demos-color-gender { border-left: 2px solid #5B8DEF; }
-.demos-color-age { border-left: 2px solid #5B8DEF; }
-.demos-color-country { border-left: 2px solid #F4A261; }
+.demos-color-gender { border-left: 2px solid #E8729A; }
+.demos-color-age { border-left: 2px solid #4AA8C7; }
+.demos-color-country { border-left: 2px solid #E8A855; }
 .demos-color-city { border-left: 2px solid #A78BFA; }
 
 /* Gender donut chart */
@@ -1011,6 +1054,30 @@ body.shift-held #mapContainer .leaflet-container {
   text-align: center;
   padding-bottom: 6px;
 }
+/* Niches row */
+.demos-niches-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  justify-content: center;
+  padding: 0 4px 8px;
+  overflow: hidden;
+}
+.demos-niche-pill {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .demos-sub-tab-row {
   display: flex;
   gap: 3px;
@@ -1110,12 +1177,14 @@ body.shift-held #mapContainer .leaflet-container {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 10px 6px;
   background: rgba(var(--bg-card-rgb), 0.35);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   transition: background 0.15s;
+  aspect-ratio: 1;
 }
 .demos-partner-card:hover {
   background: rgba(var(--bg-hover-rgb), 0.6);

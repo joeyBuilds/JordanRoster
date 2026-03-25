@@ -2470,11 +2470,25 @@ function showDetailPanel(creatorId) {
 
   // Always track for Demo's panel (persists after ring closes)
   _demosCreatorId = creatorId;
-  // Update Demo's panel if visible
-  const demosTab = document.getElementById('demosTab');
-  if (demosTab && demosTab.style.display !== 'none') {
-    renderDemosPanel(creator);
+  _demosSubTab = 'Instagram'; // Default to IG on new creator click
+
+  // Auto-switch to Demo's tab
+  const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
+  const currentTab = document.querySelector('.tab-button.active');
+  if (demosBtn && currentTab && currentTab.dataset.tab !== 'demos') {
+    // Switch tabs without closing the ring
+    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+    demosBtn.classList.add('active');
+    updateTabIndicator(demosBtn);
+    document.getElementById('rosterTab').style.display = 'none';
+    document.getElementById('dispatchTab').style.display = 'none';
+    document.getElementById('demosTab').style.display = 'flex';
+    document.getElementById('recycleTab').style.display = 'none';
+    // Apply demos color palette
+    document.body.classList.remove('dispatch-mode');
+    document.body.classList.add('demos-mode');
   }
+  renderDemosPanel(creator);
 
   // Pan map to center the creator so ring elements don't get clipped
   if (creator.lat && creator.lng) {
@@ -4573,7 +4587,9 @@ function renderPlatformStats(creator, platform, container) {
       genderCard.innerHTML = `<div class="demos-demo-title">Audience Gender</div>`;
       const donutWrap = document.createElement('div');
       donutWrap.className = 'demos-donut-wrap';
-      const colors = ['#5B8DEF', '#F4A261', 'var(--rose)', 'var(--mocha)', 'var(--gold)'];
+      // Female=pink, Male=blue, Other=muted
+      const GENDER_COLORS = { Female: '#E8729A', Male: '#5B8DEF', default: '#A0A8B8' };
+      const colors = aud.gender.map(g => GENDER_COLORS[g.label] || GENDER_COLORS.default);
       let gradientParts = [], cumulative = 0;
       aud.gender.forEach((g, i) => {
         const start = cumulative;
@@ -4696,18 +4712,21 @@ function renderDemosPanel(creator) {
   platformList.forEach(p => {
     tabs.push({ key: p, label: '', icon: PLATFORM_SVGS[p] || '', isPlatform: true });
   });
-  tabs.push({ key: 'rates', label: 'Rates', icon: '', isPlatform: false });
   tabs.push({ key: 'partners', label: 'Partners', icon: '', isPlatform: false });
 
   // Default sub-tab
   if (!_demosSubTab || !tabs.some(t => t.key === _demosSubTab)) {
-    _demosSubTab = tabs[0]?.key || 'rates';
+    _demosSubTab = tabs[0]?.key || 'partners';
   }
 
   // Render creator name + sub-tab bar
   if (subTabsEl) {
     subTabsEl.style.display = 'block';
-    subTabsEl.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div>`;
+    const niches = (creator.niches || []);
+    const nichesHtml = niches.length > 0
+      ? `<div class="demos-niches-row">${niches.map(n => `<span class="demos-niche-pill">${n}</span>`).join('')}</div>`
+      : '';
+    subTabsEl.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div>${nichesHtml}`;
     const tabRow = document.createElement('div');
     tabRow.className = 'demos-sub-tab-row';
     tabs.forEach(t => {
@@ -4734,9 +4753,7 @@ function renderDemosPanel(creator) {
   const section = document.createElement('div');
   section.className = 'demos-platform-section';
 
-  if (_demosSubTab === 'rates') {
-    renderRatesView(creator, section);
-  } else if (_demosSubTab === 'partners') {
+  if (_demosSubTab === 'partners') {
     renderPartnersView(creator, section);
   } else {
     // Platform stats view
@@ -6218,12 +6235,10 @@ function renderNearestCreators() {
 // ── Lightweight palette crossfade ──
 // Mode transition: instant palette swap + gentle content fade-in
 // No overlay needed — dark palettes are close enough visually
-function triggerModeTransition(toDispatch) {
-  if (toDispatch) {
-    document.body.classList.add('dispatch-mode');
-  } else {
-    document.body.classList.remove('dispatch-mode');
-  }
+function triggerModeTransition(tab) {
+  document.body.classList.remove('dispatch-mode', 'demos-mode');
+  if (tab === 'dispatch') document.body.classList.add('dispatch-mode');
+  else if (tab === 'demos') document.body.classList.add('demos-mode');
 }
 
 // Tab switching — orchestrated transition
@@ -6251,15 +6266,19 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     if (_modeTransitioning) return; // debounce during transition
     const tab = btn.dataset.tab;
     const wasDispatch = document.body.classList.contains('dispatch-mode');
+    const wasDemos = document.body.classList.contains('demos-mode');
     const goingToDispatch = tab === 'dispatch';
-    const modeChanging = goingToDispatch !== wasDispatch;
+    const goingToDemos = tab === 'demos';
+    const currentMode = wasDispatch ? 'dispatch' : wasDemos ? 'demos' : 'roster';
+    const nextMode = goingToDispatch ? 'dispatch' : goingToDemos ? 'demos' : 'roster';
+    const modeChanging = currentMode !== nextMode;
 
     // Save creator context for Demo's panel before closing ring
     if (tab === 'demos' && currentEditingCreator) {
       _demosCreatorId = currentEditingCreator;
     }
-    // Always close ring on tab switch
-    closeDetailPanel();
+    // Keep ring open when switching between Roster/Niche/Demos, close for Bin
+    if (tab === 'recycle') closeDetailPanel();
 
     // Update active tab immediately
     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
@@ -6270,11 +6289,10 @@ document.querySelectorAll('.tab-button').forEach(btn => {
       _modeTransitioning = true;
 
       // Instant palette swap
-      triggerModeTransition(goingToDispatch);
+      triggerModeTransition(tab);
 
       // Swap tab content
-      const nextTab = goingToDispatch ? document.getElementById('dispatchTab')
-                    : document.getElementById('rosterTab');
+      const nextTab = document.getElementById(tab === 'dispatch' ? 'dispatchTab' : tab === 'demos' ? 'demosTab' : 'rosterTab');
       document.getElementById('rosterTab').style.display = tab === 'roster' ? 'flex' : 'none';
       document.getElementById('dispatchTab').style.display = tab === 'dispatch' ? 'flex' : 'none';
       document.getElementById('demosTab').style.display = tab === 'demos' ? 'flex' : 'none';

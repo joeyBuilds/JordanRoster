@@ -548,9 +548,8 @@ body.dispatch-mode .title-niche {
 
 #mapContainer {
   flex: 1;
-  overflow: visible;
+  overflow: hidden;
   position: relative;
-  clip-path: none;
 }
 /* Crosshair cursor when Shift is held — hints at Shift+Click to set destination */
 body.shift-held #mapContainer .leaflet-container {
@@ -1216,15 +1215,18 @@ body.shift-held #mapContainer .leaflet-container {
   position: absolute;
   top: 0;
   left: 0;
+  right: 0;
   height: 100%;
   display: flex;
   gap: 0;
   z-index: 900;
   pointer-events: none;
-  overflow: visible;
 }
 .compare-panel {
   width: 360px;
+  max-width: 50%;
+  flex-shrink: 1;
+  min-width: 0;
   height: 100%;
   background: rgba(var(--bg-primary-rgb), 0.65);
   backdrop-filter: blur(32px) saturate(1.2);

@@ -2138,8 +2138,13 @@ function updateMapMarkers() {
       });
 
       // Click marker → open profile directly (no popup)
-      marker.on('click', () => {
-        showDetailPanel(creator.id);
+      // Ctrl/Cmd+Click → add to compare view
+      marker.on('click', (e) => {
+        if (e.originalEvent && (e.originalEvent.ctrlKey || e.originalEvent.metaKey)) {
+          addCompareCreator(creator.id);
+        } else {
+          showDetailPanel(creator.id);
+        }
       });
 
       // Stagger score badge visibility after markers render
@@ -4735,6 +4740,7 @@ function renderDemosPanel(creator) {
       btn.onclick = () => {
         _demosSubTab = t.key;
         renderDemosPanel(creator);
+        renderAllComparePanels();
       };
       tabRow.appendChild(btn);
     });
@@ -4755,6 +4761,94 @@ function renderDemosPanel(creator) {
   }
 
   content.appendChild(section);
+}
+
+// ===========================
+// COMPARE VIEW
+// ===========================
+
+let _compareCreatorIds = []; // max 2
+
+function addCompareCreator(creatorId) {
+  // Don't add if it's the primary or already in compare
+  if (creatorId === _demosCreatorId) return;
+  if (_compareCreatorIds.includes(creatorId)) return;
+
+  // Max 2 — replace oldest
+  if (_compareCreatorIds.length >= 2) _compareCreatorIds.shift();
+  _compareCreatorIds.push(creatorId);
+
+  // Auto-switch to Demo's tab if not there
+  const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
+  const currentTab = document.querySelector('.tab-button.active');
+  if (demosBtn && currentTab && currentTab.dataset.tab !== 'demos') {
+    demosBtn.click();
+  }
+
+  renderAllComparePanels();
+}
+
+function removeCompareCreator(index) {
+  _compareCreatorIds.splice(index, 1);
+  renderAllComparePanels();
+}
+
+function renderAllComparePanels() {
+  const stack = document.getElementById('comparePanelStack');
+  if (!stack) return;
+  stack.innerHTML = '';
+
+  // Only show compare panels when Demo's tab is active
+  const demosTab = document.getElementById('demosTab');
+  if (!demosTab || demosTab.style.display === 'none') return;
+
+  _compareCreatorIds.forEach((cid, i) => {
+    const creator = creators.find(c => c.id === cid);
+    if (!creator) return;
+
+    const panel = document.createElement('div');
+    panel.className = 'compare-panel';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'compare-panel-header';
+    header.innerHTML = `<span class="compare-panel-name">${getFullName(creator)}</span>`;
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'compare-panel-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = () => removeCompareCreator(i);
+    header.appendChild(closeBtn);
+    panel.appendChild(header);
+
+    // Niches
+    const niches = creator.niches || [];
+    if (niches.length > 0) {
+      const nichesRow = document.createElement('div');
+      nichesRow.className = 'demos-niches-row';
+      nichesRow.style.padding = '4px 6px';
+      niches.forEach(n => {
+        const pill = document.createElement('span');
+        pill.className = 'demos-niche-pill';
+        pill.textContent = n;
+        nichesRow.appendChild(pill);
+      });
+      panel.appendChild(nichesRow);
+    }
+
+    // Body — render same view as primary
+    const body = document.createElement('div');
+    body.className = 'compare-panel-body';
+
+    const activeTab = _demosSubTab || 'Instagram';
+    if (activeTab === 'partners') {
+      renderPartnersView(creator, body);
+    } else {
+      renderPlatformStats(creator, activeTab, body);
+    }
+
+    panel.appendChild(body);
+    stack.appendChild(panel);
+  });
 }
 
 // ===========================
@@ -6318,6 +6412,11 @@ function _handleTabLogic(tab, wasDispatch) {
   if (tab === 'demos') {
     document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');
     renderDemosPanel();
+    renderAllComparePanels();
+  } else {
+    // Hide compare panels when not on Demo's tab
+    const stack = document.getElementById('comparePanelStack');
+    if (stack) stack.innerHTML = '';
   }
   if (tab === 'recycle') {
     document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');

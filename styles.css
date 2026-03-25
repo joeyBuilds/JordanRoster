@@ -6739,6 +6739,9 @@ a.ring-platform-chip:hover {
     width: 100% !important;
     flex-direction: column;
     z-index: 1100;
+    pointer-events: none;
+  }
+  .compare-panel-stack:not(:empty) {
     pointer-events: auto;
   }
 

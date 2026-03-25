@@ -876,28 +876,28 @@ body.shift-held #mapContainer .leaflet-container {
 .demos-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
-  margin-bottom: 4px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 .demos-stat-cell {
   background: rgba(var(--bg-card-rgb), 0.35);
   border: 1px solid var(--glass-border);
   border-radius: 6px;
-  padding: 4px 5px 3px;
+  padding: 8px 8px 7px;
 }
 .demos-stat-header {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-bottom: 1px;
+  gap: 3px;
+  margin-bottom: 3px;
 }
 .demos-stat-icon {
-  font-size: 8px;
+  font-size: 10px;
   opacity: 0.5;
   line-height: 1;
 }
 .demos-stat-label {
-  font-size: 7px;
+  font-size: 8.5px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -907,11 +907,11 @@ body.shift-held #mapContainer .leaflet-container {
   text-overflow: ellipsis;
 }
 .demos-stat-value {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.3px;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 /* ── Demographic cards (gender donut, bar charts) ── */

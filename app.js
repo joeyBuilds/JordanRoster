@@ -5556,10 +5556,20 @@ async function renderDemosPanel(creator) {
       const nicheCategories = loadTagCategories('niche');
       // Build reverse lookup: niche → category name
       const nicheToCat = {};
+      const catOrder = Object.keys(nicheCategories);
       Object.entries(nicheCategories).forEach(([cat, tags]) => {
         tags.forEach(t => { nicheToCat[t] = cat; });
       });
-      niches.forEach(n => {
+      // Sort niches by category order, then alphabetically within category
+      const sortedNiches = [...niches].sort((a, b) => {
+        const catA = catOrder.indexOf(nicheToCat[a] || '');
+        const catB = catOrder.indexOf(nicheToCat[b] || '');
+        const orderA = catA === -1 ? 999 : catA;
+        const orderB = catB === -1 ? 999 : catB;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.localeCompare(b);
+      });
+      sortedNiches.forEach(n => {
         const pill = document.createElement('span');
         const colorClass = getCategoryColorClass(nicheToCat[n] || null);
         pill.className = `demos-niche-pill dispatch-pill cat-${colorClass}`;
@@ -5817,10 +5827,19 @@ function renderAllComparePanels() {
       nichesRow.className = 'demos-niches-row';
       const nicheCategories = loadTagCategories('niche');
       const nicheToCat = {};
+      const catOrder2 = Object.keys(nicheCategories);
       Object.entries(nicheCategories).forEach(([cat, tags]) => {
         tags.forEach(t => { nicheToCat[t] = cat; });
       });
-      niches.forEach(n => {
+      const sortedNiches2 = [...niches].sort((a, b) => {
+        const catA = catOrder2.indexOf(nicheToCat[a] || '');
+        const catB = catOrder2.indexOf(nicheToCat[b] || '');
+        const orderA = catA === -1 ? 999 : catA;
+        const orderB = catB === -1 ? 999 : catB;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.localeCompare(b);
+      });
+      sortedNiches2.forEach(n => {
         const pill = document.createElement('span');
         const colorClass = getCategoryColorClass(nicheToCat[n] || null);
         pill.className = `demos-niche-pill dispatch-pill cat-${colorClass}`;

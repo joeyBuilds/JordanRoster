@@ -431,17 +431,20 @@ function deduplicateCreators(list) {
 }
 
 function migratePlatforms(creator) {
+  let changed = false;
   if (Array.isArray(creator.platforms)) {
     const migrated = {};
     creator.platforms.forEach(p => {
       migrated[p] = { handle: '', followers: null };
     });
     creator.platforms = migrated;
+    changed = true;
   }
   if (!creator.platforms || typeof creator.platforms !== 'object') {
     creator.platforms = {};
+    changed = true;
   }
-  return creator;
+  return changed;
 }
 
 function getCreatorPlatforms(creator) {
@@ -621,7 +624,8 @@ const COUNTRY_ABBR = {
 
 // Migrate a stored location string to short "City, ST, CC" format
 function migrateLocation(creator) {
-  if (!creator.location) return;
+  if (!creator.location) return false;
+  const original = creator.location;
   const skip = /\b(county|district|region|borough|parish|arrondissement|prefecture|middle)\b/i;
   let parts = creator.location.split(',').map(s => s.trim()).filter(s => s && !skip.test(s));
   // Abbreviate state names
@@ -632,6 +636,7 @@ function migrateLocation(creator) {
   parts = parts.filter((p, i) => i === 0 || p !== parts[i - 1]);
   // Keep max 3
   creator.location = parts.slice(0, 3).join(', ');
+  return creator.location !== original;
 }
 
 // Nominatim search returning multiple suggestions
@@ -5637,8 +5642,9 @@ function exportData() {
 function migrateDemographics(creator) {
   if (!creator.demographics) {
     creator.demographics = [];
+    return true;
   }
-  return creator;
+  return false;
 }
 
 function importData(file) {
@@ -8238,18 +8244,25 @@ async function init() {
     creators = await db.load();
     console.log('[init] Loaded', creators.length, 'creators');
 
-    creators.forEach(migratePlatforms);
-    creators.forEach(migrateDemographics);
-    creators.forEach(migrateLocation);
+    let dataChanged = false;
+    creators.forEach(c => { if (migratePlatforms(c)) dataChanged = true; });
+    creators.forEach(c => { if (migrateDemographics(c)) dataChanged = true; });
+    creators.forEach(c => { if (migrateLocation(c)) dataChanged = true; });
 
     // Deduplicate on load in case duplicates crept in from concurrent imports
     const beforeCount = creators.length;
     creators = deduplicateCreators(creators);
     if (creators.length < beforeCount) {
       console.log(`[init] Cleaned up ${beforeCount - creators.length} duplicate(s)`);
+      dataChanged = true;
     }
 
-    db.persist(creators);
+    if (dataChanged) {
+      console.log('[init] Migrations changed data — persisting...');
+      db.persist(creators);
+    } else {
+      console.log('[init] No migration changes — skipping persist');
+    }
 
     // Prune any orphaned tags left from previously deleted creators
     pruneOrphanedTags('niche');
@@ -8292,26 +8305,31 @@ async function geocodeMissing() {
   console.log(`[geocode] ${missing.length} creators missing coordinates — geocoding...`);
   showToast(`📍 Geocoding ${missing.length} locations…`, 'success');
 
+  const BATCH_SIZE = 3;
   let geocoded = 0;
-  for (let i = 0; i < missing.length; i++) {
-    const creator = missing[i];
-    try {
-      const results = await searchLocations(creator.location);
-      if (results.length > 0) {
-        creator.lat = parseFloat(results[0].lat);
-        creator.lng = parseFloat(results[0].lon);
-        geocoded++;
-        // Update map every 3 geocodes or on last one
-        if (geocoded % 3 === 0 || i === missing.length - 1) {
-          db.persist(creators);
-          updateMapMarkers();
+  for (let i = 0; i < missing.length; i += BATCH_SIZE) {
+    const batch = missing.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (creator) => {
+        try {
+          const res = await searchLocations(creator.location);
+          if (res.length > 0) {
+            creator.lat = parseFloat(res[0].lat);
+            creator.lng = parseFloat(res[0].lon);
+            return true;
+          }
+        } catch (e) {
+          console.warn(`[geocode] Failed for "${creator.location}":`, e.message);
         }
-      }
-    } catch (e) {
-      console.warn(`[geocode] Failed for "${creator.location}":`, e.message);
-    }
-    // Nominatim: 1 req/sec
-    if (i < missing.length - 1) {
+        return false;
+      })
+    );
+    geocoded += results.filter(r => r.status === 'fulfilled' && r.value).length;
+    // Update map after each batch
+    db.persist(creators);
+    updateMapMarkers();
+    // Nominatim rate limit: 1100ms per batch (not per request)
+    if (i + BATCH_SIZE < missing.length) {
       await new Promise(r => setTimeout(r, 1100));
     }
   }

@@ -2172,6 +2172,29 @@ body.theme-light .demos-platform-logo.platform-tiktok svg { fill: #010101 !impor
   min-width: 0;
 }
 
+/* Total reach pill */
+.slide-total-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 0 2px;
+}
+.slide-total-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+.slide-total-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 /* Demographics section */
 .slide-panel-demographics {
   padding: 4px 0;
@@ -3385,6 +3408,14 @@ body.theme-light .ring-platform-chip .ring-chip-engagement {
   gap: 10px;
   align-items: center;
   margin-top: 1px;
+}
+.creator-total-followers {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
 }
 .creator-meta-chip {
   display: inline-flex;
@@ -6031,6 +6062,32 @@ body.theme-light .ring-pill.demographic { background: rgba(80, 50, 120, 0.82); b
 .ring-side-col-dense .ring-pill {
   padding: 3px 9px;
   font-size: 10px;
+}
+
+/* Total reach pill */
+.ring-total-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  margin: 4px auto 2px;
+}
+.ring-total-pill-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.03em;
+}
+.ring-total-pill-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* Action buttons */
@@ -9284,21 +9341,37 @@ body.dispatch-mode .marker-cluster-inner {
   opacity: 0;
 }
 
-/* ── Secondary matches (matched but not top-N) — still visible on map ── */
+/* ── Secondary matches (matched but not in top-N visible cards) — slightly subdued ── */
+.creator-marker.dispatch-secondary .marker-gleam-ring {
+  animation: none;
+  opacity: 0;
+}
 .creator-marker.dispatch-secondary .marker-inner {
-  opacity: 1 !important;
+  opacity: 0.55 !important;
+  filter: grayscale(0.15);
   pointer-events: auto;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+.creator-marker.dispatch-secondary .marker-glow {
+  opacity: 0.2;
 }
 .creator-marker.dispatch-secondary .marker-label {
+  opacity: 0.6 !important;
+}
+.creator-marker.dispatch-secondary:hover .marker-inner {
+  opacity: 1 !important;
+  filter: none;
+}
+.creator-marker.dispatch-secondary:hover .marker-label {
   opacity: 1 !important;
 }
 
-/* ── Non-matching markers — hidden from map when top-N is active ── */
+/* ── Non-matching markers — hidden from map when dispatch is active ── */
 .creator-marker.dispatch-faded .marker-inner {
-  opacity: 0;
+  opacity: 0.08;
+  filter: grayscale(0.8) brightness(0.5);
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, filter 0.3s ease;
 }
 .creator-marker.dispatch-faded .marker-glow {
   opacity: 0;

@@ -418,6 +418,15 @@ function hasActiveDispatchFilters() {
          dispatchFilters.regions.length > 0;
 }
 
+function hasOnlyRegionFilters() {
+  return dispatchFilters.regions.length > 0 &&
+         dispatchFilters.platformTiers.length === 0 &&
+         dispatchFilters.platforms.length === 0 &&
+         dispatchFilters.tiers.length === 0 &&
+         dispatchFilters.niches.length === 0 &&
+         dispatchFilters.demographics.length === 0;
+}
+
 // ── Cached niche/demo lookups (invalidated on creator changes) ──
 let _cachedAllNiches = null;
 let _cachedAllDemos = null;
@@ -1008,6 +1017,15 @@ function renderCreatorCard(creator) {
       metaLine.appendChild(chip);
     });
     body.appendChild(metaLine);
+
+    // Total follower count across all platforms
+    const totalFollowers = platforms.reduce((sum, p) => sum + (getFollowers(creator, p) || 0), 0);
+    if (totalFollowers > 0) {
+      const totalLine = document.createElement('div');
+      totalLine.className = 'creator-total-followers';
+      totalLine.textContent = formatFollowers(totalFollowers) + ' total followers';
+      body.appendChild(totalLine);
+    }
   }
 
   card.appendChild(avatarCol);
@@ -1253,6 +1271,9 @@ function renderDispatchTab() {
   matchBody.innerHTML = '';
   matchCount.textContent = filtered.length;
 
+  // Capture previous top IDs before recalculating (for change detection)
+  const prevTopIds = new Set(_dispatchTopIds);
+
   if (filtered.length === 0) {
     const noBloom = document.createElement('div');
     noBloom.className = 'no-blooms-divider';
@@ -1292,13 +1313,15 @@ function renderDispatchTab() {
       return secondaryCmp(a, b);
     });
 
-    // Track top-N IDs for map pin prominence, and single #1 for sunray
-    _dispatchTopIds = new Set(scored.slice(0, DISPATCH_TOP_N).map(e => e.creator.id));
-    _dispatchRank1Id = scored.length > 0 ? scored[0].creator.id : null;
-
     // Determine if we're showing expanded or collapsed view
     const isExpanded = matchBody.dataset.expanded === 'true';
     const visibleCount = isExpanded ? scored.length : Math.min(DISPATCH_TOP_N, scored.length);
+
+    // Track top-N IDs for map pin prominence — when expanded, all visible results are "top"
+    _dispatchTopIds = isExpanded
+      ? new Set(scored.map(e => e.creator.id))
+      : new Set(scored.slice(0, DISPATCH_TOP_N).map(e => e.creator.id));
+    _dispatchRank1Id = scored.length > 0 ? scored[0].creator.id : null;
     const hasMore = scored.length > DISPATCH_TOP_N;
 
     let prevMatchCount = null;
@@ -1406,15 +1429,18 @@ function renderDispatchTab() {
   // Track matched IDs so updateMapMarkers can highlight them
   const newMatchedIds = new Set(filtered.map(c => c.id));
 
-  // Only rebuild map markers if the matched set actually changed (not just sort order)
+  // Only rebuild map markers if the matched set or visible top set changed
   const matchedChanged = newMatchedIds.size !== _dispatchMatchedIds.size ||
     [...newMatchedIds].some(id => !_dispatchMatchedIds.has(id));
+  const topChanged = _dispatchTopIds.size !== prevTopIds.size ||
+    [..._dispatchTopIds].some(id => !prevTopIds.has(id));
   _dispatchMatchedIds = newMatchedIds;
 
-  if (matchedChanged) {
+  if (matchedChanged || topChanged) {
     updateMapMarkers();
-    // Zoom map to fit all matched creators
-    _fitMapToMatched(filtered);
+    // Zoom map to fit visible results (top-N or all when expanded)
+    const visibleCreators = filtered.filter(c => _dispatchTopIds.has(c.id));
+    _fitMapToMatched(visibleCreators.length > 0 ? visibleCreators : filtered);
   }
   if (dispatchDestination) renderNearestCreators();
 }
@@ -2458,7 +2484,7 @@ function updateMapMarkers() {
       `;
 
       const shouldFade = isDispatch && hasDispatchFilters && !isMatch;
-      const isSecondary = isMatch && !isTopResult && _dispatchTopIds.size > 0;
+      const isSecondary = isMatch && !isTopResult && _dispatchTopIds.size > 0 && !hasOnlyRegionFilters();
       const markerClassName = 'creator-marker'
         + (shouldFade ? ' dispatch-faded' : '')
         + (isMatch ? ' dispatch-match' : '')
@@ -3111,6 +3137,15 @@ function renderCreatorSlidePanel(creator, forceDispatch) {
     });
 
     content.appendChild(platformRow);
+
+    // Total follower count pill
+    const slideTotalFollowers = ringPlatforms.reduce((sum, p) => sum + (getFollowers(creator, p) || 0), 0);
+    if (slideTotalFollowers > 0) {
+      const totalPill = document.createElement('div');
+      totalPill.className = 'slide-total-pill';
+      totalPill.innerHTML = `<span class="slide-total-value">${formatFollowers(slideTotalFollowers)}</span><span class="slide-total-label">total reach</span>`;
+      content.appendChild(totalPill);
+    }
   }
 
   // --- Demographics — flat pills, no category headers ---
@@ -3579,26 +3614,6 @@ function renderRing(creator, forceDispatch) {
     });
 
     ringColumn.appendChild(platformRow);
-
-    // --- Total follower count badge (between platform chips and avatar) ---
-    const totalFollowers = ringPlatforms.reduce((sum, p) => {
-      const f = getFollowers(creator, p);
-      return sum + (f || 0);
-    }, 0);
-    if (totalFollowers > 0) {
-      const totalBadge = document.createElement('div');
-      totalBadge.className = 'ring-total-followers';
-      totalBadge.innerHTML = `<span class="ring-total-icon">👥</span><span class="ring-total-value">${formatFollowers(totalFollowers)}</span><span class="ring-total-label">total reach</span>`;
-      totalBadge.style.opacity = '0';
-      totalBadge.style.transform = 'translateY(6px)';
-      totalBadge.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-      ringColumn.appendChild(totalBadge);
-      setTimeout(() => {
-        totalBadge.style.opacity = '1';
-        totalBadge.style.transform = 'translateY(0)';
-        setTimeout(() => { totalBadge.style.opacity = ''; totalBadge.style.transform = ''; totalBadge.style.transition = ''; }, 300);
-      }, 60 + ringPlatforms.length * 40 + 30);
-    }
   }
 
 
@@ -3758,6 +3773,16 @@ function renderRing(creator, forceDispatch) {
   infoSection.appendChild(contactCard);
 
   bodyCenter.appendChild(infoSection);
+
+  // --- Total follower count pill (between platform pills and action buttons) ---
+  const ringPlatformsForTotal = getCreatorPlatforms(creator);
+  const ringTotalFollowers = ringPlatformsForTotal.reduce((sum, p) => sum + (getFollowers(creator, p) || 0), 0);
+  if (ringTotalFollowers > 0) {
+    const totalPill = document.createElement('div');
+    totalPill.className = 'ring-total-pill';
+    totalPill.innerHTML = `<span class="ring-total-pill-value">${formatFollowers(ringTotalFollowers)}</span><span class="ring-total-pill-label">total reach</span>`;
+    bodyCenter.appendChild(totalPill);
+  }
 
   // --- Action buttons (inside center column) ---
   const actions = document.createElement('div');

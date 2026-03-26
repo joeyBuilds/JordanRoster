@@ -336,6 +336,7 @@ let map = null;
 let markers = {};
 let _dispatchMatchedIds = new Set(); // IDs of creators matching current dispatch filters
 let _dispatchTopIds = new Set();     // IDs of the top-N dispatch results (shown prominently on map)
+let _dispatchRank1Id = null;         // ID of the single #1 ranked creator (gets sunray)
 const DISPATCH_TOP_N = 5;           // Number of top results to feature
 let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
 let dispatchFilters = {
@@ -1179,6 +1180,7 @@ function renderDispatchTab() {
     if (_dispatchMatchedIds.size > 0) {
       _dispatchMatchedIds = new Set();
       _dispatchTopIds = new Set();
+      _dispatchRank1Id = null;
       updateMapMarkers();
     }
     if (dispatchDestination) renderNearestCreators();
@@ -1228,8 +1230,9 @@ function renderDispatchTab() {
       return secondaryCmp(a, b);
     });
 
-    // Track top-N IDs for map pin prominence
+    // Track top-N IDs for map pin prominence, and single #1 for sunray
     _dispatchTopIds = new Set(scored.slice(0, DISPATCH_TOP_N).map(e => e.creator.id));
+    _dispatchRank1Id = scored.length > 0 ? scored[0].creator.id : null;
 
     // Determine if we're showing expanded or collapsed view
     const isExpanded = matchBody.dataset.expanded === 'true';
@@ -2159,8 +2162,8 @@ function updateMapMarkers() {
       // Build gleam ring HTML for dispatch-matched creators
       const isMatch = isDispatch && hasDispatchFilters && _dispatchMatchedIds.has(creator.id);
       const isTopResult = isDispatch && hasDispatchFilters && _dispatchTopIds.has(creator.id);
-      // Sunrays only for perfect-score creators when multiple filters are active
-      const isPerfect = isMatch && scorePct >= 1.0 && score && score.totalFilters > 1;
+      // Sunrays only for the single #1 ranked creator (avoids clutter when multiple tie)
+      const isPerfect = isMatch && scorePct >= 1.0 && score && score.totalFilters > 1 && creator.id === _dispatchRank1Id;
       // Derive a pseudo-random stagger from creator id hash so each pin breathes at its own pace
       const staggerMs = isMatch ? (Math.abs([...creator.id].reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0), 0)) % 2500) : 0;
       const gleamHtml = isMatch ? `<div class="marker-gleam-ring" style="animation-delay: -${staggerMs}ms"></div>` : '';

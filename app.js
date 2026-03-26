@@ -971,10 +971,11 @@ function renderCreatorCard(creator) {
       const el = markers[id] && markers[id].getElement();
       if (!el) return;
       if (id === creator.id) {
-        el.classList.add('roster-card-hover');
-        el.classList.remove('roster-faded');
+        el.classList.add('roster-card-hover', 'marker-highlighted');
+        el.classList.remove('marker-dimmed');
+        _addMarkerParticles(el);
       } else {
-        el.classList.add('roster-faded');
+        el.classList.add('marker-dimmed');
       }
     });
   });
@@ -982,7 +983,9 @@ function renderCreatorCard(creator) {
     Object.keys(markers).forEach(id => {
       const el = markers[id] && markers[id].getElement();
       if (!el) return;
-      el.classList.remove('roster-card-hover', 'roster-faded');
+      el.classList.remove('roster-card-hover', 'marker-highlighted', 'marker-dimmed');
+      const particles = el.querySelector('.marker-particles');
+      if (particles) particles.remove();
     });
   });
 
@@ -1318,14 +1321,28 @@ function renderDispatchTab() {
         setTimeout(() => fraction.classList.add('visible'), 250 + i * 40);
       }
 
-      // ── Card hover → highlight corresponding map pin ──
+      // ── Card hover → highlight corresponding map pin with particles ──
       card.addEventListener('mouseenter', () => {
-        const markerEl = markers[creator.id] && markers[creator.id].getElement();
-        if (markerEl) markerEl.classList.add('dispatch-card-hover');
+        Object.keys(markers).forEach(id => {
+          const el = markers[id] && markers[id].getElement();
+          if (!el) return;
+          if (id === creator.id) {
+            el.classList.add('dispatch-card-hover', 'marker-highlighted');
+            el.classList.remove('marker-dimmed');
+            _addMarkerParticles(el);
+          } else {
+            el.classList.add('marker-dimmed');
+          }
+        });
       });
       card.addEventListener('mouseleave', () => {
-        const markerEl = markers[creator.id] && markers[creator.id].getElement();
-        if (markerEl) markerEl.classList.remove('dispatch-card-hover');
+        Object.keys(markers).forEach(id => {
+          const el = markers[id] && markers[id].getElement();
+          if (!el) return;
+          el.classList.remove('dispatch-card-hover', 'marker-highlighted', 'marker-dimmed');
+          const particles = el.querySelector('.marker-particles');
+          if (particles) particles.remove();
+        });
       });
 
       matchBody.appendChild(card);
@@ -2353,30 +2370,32 @@ function highlightCreatorMarker(creatorId) {
   });
 }
 
-function _addMarkerParticles(markerEl) {
+function _addMarkerParticles(markerEl, color) {
+  const c = color || 'var(--sage)';
   const container = document.createElement('div');
   container.className = 'marker-particles';
-  const count = 8;
+  const count = 12;
   for (let i = 0; i < count; i++) {
     const p = document.createElement('div');
     p.className = 'marker-particle';
-    const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.5);
-    const radius0 = 4 + Math.random() * 6;
-    const radius1 = 12 + Math.random() * 10;
-    const radius2 = 18 + Math.random() * 14;
-    const size = 2 + Math.random() * 2.5;
-    const dur = 2 + Math.random() * 1.5;
+    const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.6);
+    const radius0 = 5 + Math.random() * 8;
+    const radius1 = 14 + Math.random() * 14;
+    const radius2 = 22 + Math.random() * 18;
+    const size = 2.5 + Math.random() * 3;
+    const dur = 1.8 + Math.random() * 1.4;
     const delay = Math.random() * 2;
     p.style.cssText = `
       --p-x0: ${Math.cos(angle) * radius0}px;
       --p-y0: ${Math.sin(angle) * radius0}px;
       --p-x1: ${Math.cos(angle) * radius1}px;
-      --p-y1: ${Math.sin(angle) * radius1 - 8}px;
+      --p-y1: ${Math.sin(angle) * radius1 - 10}px;
       --p-x2: ${Math.cos(angle) * radius2}px;
-      --p-y2: ${Math.sin(angle) * radius2 - 16}px;
+      --p-y2: ${Math.sin(angle) * radius2 - 20}px;
       --p-size: ${size}px;
       --p-dur: ${dur}s;
       --p-delay: ${delay}s;
+      --p-color: ${c};
       left: 50%; top: 50%;
     `;
     container.appendChild(p);
@@ -2385,13 +2404,26 @@ function _addMarkerParticles(markerEl) {
 }
 
 function highlightCompareMarkers(creatorIds) {
-  const idSet = new Set(creatorIds);
+  // Colors: primary = sage green, compare1 = magenta, compare2 = gold
+  const COMPARE_COLORS = ['#E05098', '#E8A030'];
+  const primaryId = _demosCreatorId;
+
   Object.keys(markers).forEach(id => {
     const el = markers[id] && markers[id].getElement();
     if (!el) return;
-    if (idSet.has(id)) {
+    // Clean up existing particles
+    const oldP = el.querySelector('.marker-particles');
+    if (oldP) oldP.remove();
+
+    if (id === primaryId) {
       el.classList.add('marker-highlighted');
       el.classList.remove('marker-dimmed');
+      _addMarkerParticles(el, '#8BBF96'); // sage green for primary
+    } else if (_compareCreatorIds.includes(id)) {
+      const slotIdx = _compareCreatorIds.indexOf(id);
+      el.classList.add('marker-highlighted');
+      el.classList.remove('marker-dimmed');
+      _addMarkerParticles(el, COMPARE_COLORS[slotIdx] || COMPARE_COLORS[0]);
     } else {
       el.classList.add('marker-dimmed');
       el.classList.remove('marker-highlighted');
@@ -2905,6 +2937,14 @@ function renderCreatorSlidePanel(creator, forceDispatch) {
   }
 
   panel.appendChild(content);
+
+  // Position: slide out from match panel if it's visible, otherwise from sidebar
+  const matchPanel = document.getElementById('matchFloatPanel');
+  if (matchPanel && matchPanel.classList.contains('visible')) {
+    panel.style.left = (360 + matchPanel.offsetWidth) + 'px';
+  } else {
+    panel.style.left = '360px';
+  }
 
   // Show the panel
   panel.classList.add('open');
@@ -3889,22 +3929,6 @@ function renderModalBody() {
   nameRow.appendChild(lastNameGroup);
   idFields.appendChild(nameRow);
 
-  // Birthday row
-  const bdayGroup = document.createElement('div');
-  bdayGroup.className = 'form-group';
-  const bdayLabel = document.createElement('label');
-  bdayLabel.className = 'form-label';
-  bdayLabel.textContent = 'Birthday';
-  const bdayInput = document.createElement('input');
-  bdayInput.type = 'date';
-  bdayInput.className = 'form-input';
-  bdayInput.id = 'birthdayInput';
-  bdayInput.value = creator?.birthday || '';
-  bdayInput.style.colorScheme = 'dark';
-  bdayGroup.appendChild(bdayLabel);
-  bdayGroup.appendChild(bdayInput);
-  idFields.appendChild(bdayGroup);
-
   identityRow.appendChild(idFields);
   body.appendChild(identityRow);
 
@@ -4048,9 +4072,19 @@ function renderModalBody() {
 
     function renderSelected() {
       selectedRow.innerHTML = '';
+      const categories = loadTagCategories(type);
+      const tagToCat = {};
+      Object.entries(categories).forEach(([cat, tags]) => {
+        tags.forEach(t => { tagToCat[t] = cat; });
+      });
       body[bodyKey].forEach((tag, i) => {
         const pill = document.createElement('span');
-        pill.className = `tag-picker-pill ${type}`;
+        if (type === 'niche') {
+          const colorClass = getCategoryColorClass(tagToCat[tag] || null);
+          pill.className = `tag-picker-pill ${type} cat-${colorClass}`;
+        } else {
+          pill.className = `tag-picker-pill ${type}`;
+        }
         pill.innerHTML = `${tag}<span class="pill-x">&times;</span>`;
         pill.querySelector('.pill-x').onclick = (e) => {
           e.stopPropagation();
@@ -5139,6 +5173,8 @@ function renderDemosPanel(creator) {
         pill.textContent = n;
         pill.addEventListener('click', (e) => {
           e.stopPropagation();
+          // Prevent auto-injection from overriding our single-niche filter
+          _nicheInjectedForCreator = creator.id;
           // Clean slate dispatch with this niche
           if (window._nlClearPills) window._nlClearPills(true);
           dispatchFilters.niches = [n];
@@ -5355,6 +5391,7 @@ function renderAllComparePanels() {
         pill.textContent = n;
         pill.addEventListener('click', (e) => {
           e.stopPropagation();
+          _nicheInjectedForCreator = creator.id;
           if (window._nlClearPills) window._nlClearPills(true);
           dispatchFilters.niches = [n];
           dispatchFilters.demographics = [];

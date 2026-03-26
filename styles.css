@@ -242,6 +242,10 @@ body.theme-light {
   --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.80), inset 0 0 0 0.5px rgba(110, 168, 122, 0.08);
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.10);
+  /* Platform colors — readable on light backgrounds */
+  --color-tiktok: #010101;
+  --color-instagram: #E1306C;
+  --color-youtube: #FF0000;
 }
 body.theme-light #topBar {
   background: rgba(255, 255, 255, 0.82);
@@ -711,7 +715,7 @@ body.theme-light .dispatch-clear-btn {
 
 /* ── Light theme: match panel header ── */
 body.theme-light .match-float-header-left {
-  color: var(--accent);
+  color: var(--text-primary);
 }
 body.theme-light .match-float-header {
   border-bottom-color: rgba(0, 0, 0, 0.08);
@@ -939,13 +943,17 @@ body {
 .title-niche {
   font-family: 'DM Sans', sans-serif;
   font-size: 10px;
-  font-weight: 500;
-  opacity: 0.4;
-  color: rgba(var(--sage-rgb), 0.7);
+  font-weight: 600;
+  opacity: 0.6;
+  color: rgba(var(--sage-rgb), 0.85);
   margin-left: 12px;
   text-transform: uppercase;
   letter-spacing: 2px;
   transition: opacity 0.28s ease, color 0.28s ease;
+}
+body.theme-light .title-niche {
+  opacity: 0.8;
+  color: var(--text-secondary);
 }
 
 /* Dispatch/Niche mode: shift the dot color and tagline */
@@ -1007,10 +1015,14 @@ body.dispatch-mode .title-niche {
   width: 28px;
   height: 28px;
   object-fit: contain;
-  opacity: 0.45;
-  filter: brightness(1) saturate(0.6);
+  opacity: 0.65;
+  filter: brightness(1) saturate(0.8);
   transition: opacity 0.4s ease, filter 0.4s ease, transform 2s cubic-bezier(0.4, 0, 0.2, 1);
   transform: rotate(0deg);
+}
+body.theme-light .eqex-sigil {
+  opacity: 0.85;
+  filter: brightness(0.9) saturate(1);
 }
 
 /* Sidebar copyright footer */
@@ -2155,12 +2167,15 @@ body.shift-held #mapContainer .leaflet-container {
   content: '📍 ';
 }
 
-/* Platform chips */
+/* Platform chips — equal width */
 .slide-panel-platforms {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
+}
+.slide-panel-platforms .ring-platform-chip {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Demographics section */
@@ -2189,6 +2204,10 @@ body.shift-held #mapContainer .leaflet-container {
 .slide-panel-bio {
   position: relative;
 }
+.slide-panel-content .ring-notes {
+  align-self: center;
+  width: 90%;
+}
 
 /* Light theme overrides */
 body.theme-light .creator-slide-panel {
@@ -2205,6 +2224,26 @@ body.theme-light .slide-panel-close-btn {
 body.theme-light .slide-panel-close-btn:hover {
   background: rgba(0, 0, 0, 0.08);
   color: var(--text-primary);
+}
+
+/* Platform chips — authentic brand colors on light theme */
+body.theme-light .ring-platform-chip {
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+body.theme-light .ring-platform-chip.platform-instagram {
+  background: #E1306C;
+}
+body.theme-light .ring-platform-chip.platform-tiktok {
+  background: #010101;
+}
+body.theme-light .ring-platform-chip.platform-youtube {
+  background: #FF0000;
+}
+body.theme-light .ring-platform-chip .ring-chip-followers,
+body.theme-light .ring-platform-chip .ring-chip-engagement {
+  color: rgba(255, 255, 255, 0.95);
 }
 
 /* Recycle Bin tab */
@@ -3388,6 +3427,11 @@ body.theme-light .slide-panel-close-btn:hover {
 .creator-meta-chip.ig { color: var(--color-instagram); }
 .creator-meta-chip.tt { color: var(--color-tiktok); }
 .creator-meta-chip.yt { color: var(--color-youtube); }
+/* Light theme: darken TikTok cyan for readability, keep others authentic */
+body.theme-light .creator-meta-chip.tt { color: #008C86; }
+body.theme-light .meta-dot.tt { background: #008C86; }
+body.theme-light .creator-meta-chip.ig { color: #C4175A; }
+body.theme-light .creator-meta-chip.yt { color: #CC0000; }
 
 .creator-meta-links {
   display: flex;
@@ -5223,13 +5267,15 @@ a.creator-platform-chip:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 8px 14px;
   border-radius: 14px;
   text-decoration: none;
   color: white;
   cursor: default;
   background: rgba(var(--tag-platform-rgb), 0.35);
   border: 1px solid rgba(255, 255, 255, 0.18);
+  min-width: 100px;
+  justify-content: center;
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.2),
     var(--glass-inset);
@@ -5629,11 +5675,9 @@ a.ring-platform-chip:hover {
 .ring-pill.cat-tech          { background: rgba(130, 160, 190, 0.4); border-color: rgba(130,160,190,0.25); }
 .ring-pill.cat-creative      { background: rgba(170, 150, 200, 0.4); border-color: rgba(170,150,200,0.25); }
 /* Demographic category colors — distinct outlined style to differentiate from niches */
-.ring-pill.demographic.cat-identity       { background: rgba(180, 140, 180, 0.15); border: 1.5px solid rgba(180,140,180,0.7); color: rgba(220,190,220,0.95); }
-.ring-pill.demographic.cat-culture        { background: rgba(140, 165, 180, 0.15); border: 1.5px solid rgba(140,165,180,0.7); color: rgba(185,210,220,0.95); }
-.ring-pill.demographic.cat-age            { background: rgba(170, 155, 140, 0.15); border: 1.5px solid rgba(170,155,140,0.7); color: rgba(210,200,185,0.95); }
-.ring-pill.demographic.cat-representation { background: rgba(155, 175, 155, 0.15); border: 1.5px solid rgba(155,175,155,0.7); color: rgba(195,215,195,0.95); }
-.ring-pill.demographic.cat-other          { background: rgba(160, 155, 150, 0.12); border: 1.5px solid rgba(160,155,150,0.6); color: rgba(200,195,190,0.9); }
+/* All demographic pills — deep purple with white text */
+.ring-pill.demographic { background: rgba(80, 50, 120, 0.85); border: 1.5px solid rgba(100, 70, 150, 0.6); color: rgba(255,255,255,0.95); }
+body.theme-light .ring-pill.demographic { background: rgba(80, 50, 120, 0.82); border-color: rgba(80, 50, 120, 0.4); color: #FFFFFF; }
 /* Niche pills keep solid filled style */
 .ring-pill.niche.cat-identity       { background: rgba(180, 140, 180, 0.4); border-color: rgba(180,140,180,0.25); }
 .ring-pill.niche.cat-culture        { background: rgba(140, 165, 180, 0.4); border-color: rgba(140,165,180,0.25); }
@@ -6306,15 +6350,47 @@ a.ring-platform-chip:hover {
   font-weight: 600;
   cursor: default;
 }
+/* Niche pills — category-colored, matching dispatch pill style */
 .tag-picker-pill.niche {
   background: rgba(var(--tag-niche-rgb), 0.15);
   border: 1px solid rgba(var(--tag-niche-rgb), 0.35);
   color: var(--tag-niche);
 }
+.tag-picker-pill.niche.cat-entertainment { background: rgba(187,130,180,0.25); border-color: rgba(187,130,180,0.45); color: rgb(187,130,180); }
+.tag-picker-pill.niche.cat-lifestyle     { background: rgba(200,170,120,0.25); border-color: rgba(200,170,120,0.45); color: rgb(200,170,120); }
+.tag-picker-pill.niche.cat-food          { background: rgba(200,140,100,0.25); border-color: rgba(200,140,100,0.45); color: rgb(200,140,100); }
+.tag-picker-pill.niche.cat-travel        { background: rgba(120,170,160,0.25); border-color: rgba(120,170,160,0.45); color: rgb(120,170,160); }
+.tag-picker-pill.niche.cat-people        { background: rgba(210,160,160,0.25); border-color: rgba(210,160,160,0.45); color: rgb(210,160,160); }
+.tag-picker-pill.niche.cat-fitness       { background: rgba(140,180,130,0.25); border-color: rgba(140,180,130,0.45); color: rgb(140,180,130); }
+.tag-picker-pill.niche.cat-home          { background: rgba(180,160,130,0.25); border-color: rgba(180,160,130,0.45); color: rgb(180,160,130); }
+.tag-picker-pill.niche.cat-tech          { background: rgba(130,160,190,0.25); border-color: rgba(130,160,190,0.45); color: rgb(130,160,190); }
+.tag-picker-pill.niche.cat-creative      { background: rgba(170,150,200,0.25); border-color: rgba(170,150,200,0.45); color: rgb(170,150,200); }
+.tag-picker-pill.niche.cat-identity      { background: rgba(180,140,180,0.25); border-color: rgba(180,140,180,0.45); color: rgb(180,140,180); }
+.tag-picker-pill.niche.cat-culture       { background: rgba(140,165,180,0.25); border-color: rgba(140,165,180,0.45); color: rgb(140,165,180); }
+.tag-picker-pill.niche.cat-other         { background: rgba(160,155,150,0.20); border-color: rgba(160,155,150,0.40); color: rgb(160,155,150); }
+/* Light theme niche pills in modal */
+body.theme-light .tag-picker-pill.niche.cat-entertainment { background: rgba(187,130,180,0.15); color: #6A2860; }
+body.theme-light .tag-picker-pill.niche.cat-lifestyle     { background: rgba(200,170,120,0.15); color: #6A5010; }
+body.theme-light .tag-picker-pill.niche.cat-food          { background: rgba(200,140,100,0.15); color: #7A4010; }
+body.theme-light .tag-picker-pill.niche.cat-travel        { background: rgba(120,170,160,0.15); color: #1A5A4A; }
+body.theme-light .tag-picker-pill.niche.cat-people        { background: rgba(210,160,160,0.15); color: #7A2828; }
+body.theme-light .tag-picker-pill.niche.cat-fitness       { background: rgba(140,180,130,0.15); color: #2A5A20; }
+body.theme-light .tag-picker-pill.niche.cat-home          { background: rgba(180,160,130,0.15); color: #5A4A28; }
+body.theme-light .tag-picker-pill.niche.cat-tech          { background: rgba(130,160,190,0.15); color: #1A4A6A; }
+body.theme-light .tag-picker-pill.niche.cat-creative      { background: rgba(170,150,200,0.15); color: #4A2A7A; }
+body.theme-light .tag-picker-pill.niche.cat-identity      { background: rgba(180,140,180,0.15); color: #5A2A5A; }
+body.theme-light .tag-picker-pill.niche.cat-culture       { background: rgba(140,165,180,0.15); color: #2A4A5A; }
+body.theme-light .tag-picker-pill.niche.cat-other         { background: rgba(160,155,150,0.12); color: #3A3530; }
+/* Demographic pills — deep purple with white text */
 .tag-picker-pill.demographic {
-  background: rgba(var(--tag-demographic-rgb), 0.15);
-  border: 1px solid rgba(var(--tag-demographic-rgb), 0.35);
-  color: var(--tag-demographic);
+  background: rgba(80, 50, 120, 0.85);
+  border: 1px solid rgba(100, 70, 150, 0.5);
+  color: #FFFFFF;
+}
+body.theme-light .tag-picker-pill.demographic {
+  background: rgba(80, 50, 120, 0.82);
+  border-color: rgba(80, 50, 120, 0.4);
+  color: #FFFFFF;
 }
 .tag-picker-pill .pill-x {
   font-size: 14px;
@@ -6574,9 +6650,9 @@ a.ring-platform-chip:hover {
   font-weight: 600;
 }
 .tag-panel-pill.active.demographic {
-  background: rgba(var(--tag-demographic-rgb), 0.2);
-  border-color: rgba(var(--tag-demographic-rgb), 0.5);
-  color: var(--tag-demographic);
+  background: rgba(80, 50, 120, 0.85);
+  border-color: rgba(100, 70, 150, 0.5);
+  color: #FFFFFF;
   font-weight: 600;
 }
 /* Delete mode — all pills become deletable */
@@ -9156,9 +9232,10 @@ body.dispatch-mode .marker-cluster-inner {
   width: var(--p-size, 3px);
   height: var(--p-size, 3px);
   border-radius: 50%;
-  background: var(--sage);
+  background: var(--p-color, var(--sage));
   opacity: 0;
   animation: markerParticleFloat var(--p-dur, 2.5s) ease-in-out var(--p-delay, 0s) infinite;
+  box-shadow: 0 0 4px 1px var(--p-color, var(--sage));
 }
 @keyframes markerParticleFloat {
   0% {
@@ -9166,14 +9243,14 @@ body.dispatch-mode .marker-cluster-inner {
     transform: translate(var(--p-x0, 0px), var(--p-y0, 0px)) scale(0.4);
   }
   15% {
-    opacity: 0.7;
+    opacity: 0.9;
   }
   50% {
-    opacity: 0.5;
-    transform: translate(var(--p-x1, 0px), var(--p-y1, -20px)) scale(0.8);
+    opacity: 0.65;
+    transform: translate(var(--p-x1, 0px), var(--p-y1, -20px)) scale(1);
   }
   85% {
-    opacity: 0.2;
+    opacity: 0.3;
   }
   100% {
     opacity: 0;

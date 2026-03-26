@@ -344,9 +344,7 @@ let dispatchFilters = {
   platforms: [],      // ['Instagram', ...] — independent platform filter (any tier)
   tiers: [],          // ['Micro (10K-100K)', ...] — independent tier filter (any platform)
   niches: [],
-  demographics: [],
-  ageMin: null,
-  ageMax: null
+  demographics: []
 };
 
 // NL search region filter — set by natural language parser, used by getFilteredCreators
@@ -359,8 +357,6 @@ function hasActiveDispatchFilters() {
          dispatchFilters.tiers.length > 0 ||
          dispatchFilters.niches.length > 0 ||
          dispatchFilters.demographics.length > 0 ||
-         dispatchFilters.ageMin !== null ||
-         dispatchFilters.ageMax !== null ||
          nlRegionFilter !== null;
 }
 
@@ -809,16 +805,6 @@ function getFilteredCreators(searchTerm = '', sortBy = 'a-z', applyDispatchFilte
       );
     }
     // Age range filter
-    if (dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) {
-      filtered = filtered.filter(c => {
-        const age = getCreatorAge(c);
-        if (age === null) return false;
-        if (dispatchFilters.ageMin !== null && age < dispatchFilters.ageMin) return false;
-        if (dispatchFilters.ageMax !== null && age > dispatchFilters.ageMax) return false;
-        return true;
-      });
-    }
-
     // Region bounding box filter (from NL search)
     if (nlRegionFilter && nlRegionFilter.bounds) {
       const [latMin, latMax, lngMin, lngMax] = nlRegionFilter.bounds;
@@ -1083,8 +1069,7 @@ function scoreCreatorFilters(creator) {
                        (dispatchFilters.platforms.length > 0 ? 1 : 0) +
                        (dispatchFilters.tiers.length > 0 ? 1 : 0) +
                        dispatchFilters.niches.length +
-                       dispatchFilters.demographics.length +
-                       ((dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) ? 1 : 0);
+                       dispatchFilters.demographics.length;
   let matchCount = 0;
   const matchDetails = [];
   const missedDetails = [];
@@ -1153,16 +1138,6 @@ function scoreCreatorFilters(creator) {
       }
     });
   }
-  if (dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) {
-    const age = getCreatorAge(creator);
-    if (age !== null) {
-      matchCount++;
-      matchDetails.push({ type: 'age', label: `Age ${age}` });
-    } else {
-      missedDetails.push({ type: 'age', label: 'Age' });
-    }
-  }
-
   const pct = totalFilters > 0 ? matchCount / totalFilters : 0;
   return { matchCount, totalFilters, pct, matchDetails, missedDetails };
 }
@@ -1491,7 +1466,7 @@ function clearVibesFilters() {
 }
 
 // ── Collapsible Niche / Demographic sections ──
-const _dispatchSections = { niches: false, demos: false, platformTier: false, age: false }; // collapsed by default
+const _dispatchSections = { niches: false, demos: false, platformTier: false }; // collapsed by default
 
 function toggleDispatchSection(section) {
   _dispatchSections[section] = !_dispatchSections[section];
@@ -1506,7 +1481,6 @@ function toggleDispatchSection(section) {
 function renderDispatchFilterPills() {
   const nicheContainer = document.getElementById('dispatchNichePills');
   const demoContainer = document.getElementById('dispatchDemoPills');
-  const ageContainer = document.getElementById('dispatchAgeRow');
   if (!nicheContainer || !demoContainer) return;
 
   const nicheCategories = loadTagCategories('niche');
@@ -1621,22 +1595,6 @@ function renderDispatchFilterPills() {
     nicheContainer.innerHTML = `<div class="dispatch-no-results">No niches or demographics matching "${_vibeSearchTerm}"</div>`;
   }
 
-  // ── Age range ──
-  if (ageContainer) {
-    ageContainer.innerHTML = `<input type="number" id="dispatchAgeMin" placeholder="Min" min="0" max="120" value="${dispatchFilters.ageMin ?? ''}"><span class="age-sep">–</span><input type="number" id="dispatchAgeMax" placeholder="Max" min="0" max="120" value="${dispatchFilters.ageMax ?? ''}">`;
-    ageContainer.querySelectorAll('input').forEach(inp => {
-      inp.addEventListener('input', () => {
-        dispatchFilters.ageMin = document.getElementById('dispatchAgeMin').value ? parseInt(document.getElementById('dispatchAgeMin').value) : null;
-        dispatchFilters.ageMax = document.getElementById('dispatchAgeMax').value ? parseInt(document.getElementById('dispatchAgeMax').value) : null;
-        renderDispatchActiveStrip();
-        renderDispatchTab();
-        const activeId = inp.id;
-        setTimeout(() => { const el = document.getElementById(activeId); if (el) { el.focus(); el.selectionStart = el.selectionEnd = el.value.length; } }, 0);
-      });
-      inp.addEventListener('mousedown', (e) => e.stopPropagation());
-    });
-  }
-
   // ── Active count badges ──
   const nichesCount = document.getElementById('nichesActiveCount');
   const demosCount = document.getElementById('demosActiveCount');
@@ -1710,17 +1668,6 @@ function renderDispatchActiveStrip() {
     });
   });
 
-  // Age
-  if (dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) {
-    const ageLabel = `Age ${dispatchFilters.ageMin ?? '?'}–${dispatchFilters.ageMax ?? '?'}`;
-    addBadge('age', ageLabel, 'age', () => {
-      dispatchFilters.ageMin = null;
-      dispatchFilters.ageMax = null;
-      renderDispatchFilterPills();
-      renderDispatchTab();
-    });
-  }
-
   // Region — skip if already an inline pill
   if (nlRegionFilter && !inlinePillValues.has(nlRegionFilter.label)) {
     addBadge('region', '🗺\ufe0f ' + nlRegionFilter.label, 'location', () => {
@@ -1757,8 +1704,6 @@ function renderDispatchActiveStrip() {
       dispatchFilters.platformTiers = [];
       dispatchFilters.platforms = [];
       dispatchFilters.tiers = [];
-      dispatchFilters.ageMin = null;
-      dispatchFilters.ageMax = null;
       nlRegionFilter = null;
       renderDispatchFilterPills();
       renderDispatchTab();
@@ -2411,9 +2356,10 @@ function highlightCompareMarkers(creatorIds) {
   Object.keys(markers).forEach(id => {
     const el = markers[id] && markers[id].getElement();
     if (!el) return;
-    // Clean up existing particles
+    // Clean up existing particles and slot classes
     const oldP = el.querySelector('.marker-particles');
     if (oldP) oldP.remove();
+    el.classList.remove('marker-compare-0', 'marker-compare-1');
 
     if (id === primaryId) {
       el.classList.add('marker-highlighted');
@@ -2421,7 +2367,7 @@ function highlightCompareMarkers(creatorIds) {
       _addMarkerParticles(el, '#8BBF96'); // sage green for primary
     } else if (_compareCreatorIds.includes(id)) {
       const slotIdx = _compareCreatorIds.indexOf(id);
-      el.classList.add('marker-highlighted');
+      el.classList.add('marker-highlighted', 'marker-compare-' + slotIdx);
       el.classList.remove('marker-dimmed');
       _addMarkerParticles(el, COMPARE_COLORS[slotIdx] || COMPARE_COLORS[0]);
     } else {
@@ -2435,7 +2381,7 @@ function restoreAllMarkers() {
   Object.keys(markers).forEach(id => {
     const el = markers[id] && markers[id].getElement();
     if (!el) return;
-    el.classList.remove('marker-highlighted', 'marker-dimmed');
+    el.classList.remove('marker-highlighted', 'marker-dimmed', 'marker-compare-0', 'marker-compare-1');
     const particles = el.querySelector('.marker-particles');
     if (particles) particles.remove();
   });
@@ -2759,7 +2705,7 @@ function renderCreatorSlidePanel(creator, forceDispatch) {
 
   const nameEl = document.createElement('div');
   nameEl.className = 'slide-panel-name';
-  nameEl.innerHTML = getFullName(creator) + (getCreatorAge(creator) !== null ? ` <span style="font-size:11px;opacity:0.6;font-weight:400">(${getCreatorAge(creator)})</span>` : '');
+  nameEl.textContent = getFullName(creator);
   hero.appendChild(nameEl);
 
   if (creator.location) {
@@ -2946,14 +2892,31 @@ function renderCreatorSlidePanel(creator, forceDispatch) {
     panel.style.left = '360px';
   }
 
-  // Show the panel
-  panel.classList.add('open');
-  panel.classList.remove('retracted');
+  // Show the panel — but keep it hidden if compare mode is active
+  if (_compareCreatorIds.length > 0) {
+    panel.classList.add('retracted');
+    panel.classList.remove('open');
+  } else {
+    panel.classList.add('open');
+    panel.classList.remove('retracted');
+  }
 }
 
 function showDetailPanel(creatorId) {
   const creator = creators.find(c => c.id === creatorId);
   if (!creator) return;
+
+  // Close compare mode if active
+  if (_compareCreatorIds.length > 0) {
+    _compareCreatorIds = [];
+    _compareSubTabs = {};
+    renderAllComparePanels();
+    restoreAllMarkers();
+    const slidePanel = document.getElementById('creatorSlidePanel');
+    if (slidePanel && slidePanel.classList.contains('retracted')) {
+      slidePanel.classList.remove('retracted');
+    }
+  }
 
   // If ring is already open for a different creator, close it first (no map restore)
   const overlay = document.getElementById('ringOverlay');
@@ -4857,7 +4820,6 @@ async function saveCreator() {
     const existingEng = existingCreator?.platforms?.[p]?.engagementRate || null;
     platforms[p] = { handle, url, followers, engagementRate: existingEng };
   });
-  const birthday = document.getElementById('birthdayInput').value || null;
   const niches = document.getElementById('modalBody').modalNiches || [];
   const demographics = document.getElementById('modalBody').modalDemographics || [];
   const location = document.getElementById('locationInput').value.trim();
@@ -4868,7 +4830,6 @@ async function saveCreator() {
   creator.firstName = firstName;
   creator.lastName = lastName;
   creator.photo = photo || null;
-  creator.birthday = birthday;
   creator.platforms = platforms;
   creator.niches = niches;
   creator.demographics = demographics;
@@ -5156,6 +5117,32 @@ function renderDemosPanel(creator) {
       : `<div class="demos-primary-avatar">${(creator.firstName || creator.name || '?')[0].toUpperCase()}</div>`;
     subTabsEl.innerHTML = `<div class="demos-primary-hero">${avatarHtml}<div class="demos-creator-name">${getFullName(creator)}</div></div>`;
 
+    // Click creator name → load all their niches into Niche tab filters
+    const nameEl = subTabsEl.querySelector('.demos-creator-name');
+    if (nameEl && niches.length > 0) {
+      nameEl.style.cursor = 'pointer';
+      nameEl.title = 'Filter by all niches';
+      nameEl.addEventListener('mouseenter', () => { nameEl.style.textDecoration = 'underline'; });
+      nameEl.addEventListener('mouseleave', () => { nameEl.style.textDecoration = 'none'; });
+      nameEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _nicheInjectedForCreator = creator.id;
+        if (window._nlClearPills) window._nlClearPills(true);
+        dispatchFilters.niches = [...niches];
+        dispatchFilters.demographics = [];
+        dispatchFilters.platformTiers = [];
+        dispatchFilters.platforms = [];
+        dispatchFilters.tiers = [];
+        const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
+        if (dispatchBtn) dispatchBtn.click();
+        if (!_dispatchSections.niches) toggleDispatchSection('niches');
+        niches.forEach(n => { if (window._nlAddPill) window._nlAddPill(n, 'niche'); });
+        renderDispatchFilterPills();
+        renderDispatchTab();
+        updateMapMarkers();
+      });
+    }
+
     // Niche pills — category-colored, clickable → dispatch filter
     if (niches.length > 0) {
       const nichesRow = document.createElement('div');
@@ -5268,25 +5255,19 @@ function addCompareCreator(creatorId) {
 
 function removeCompareCreator(index) {
   _compareCreatorIds.splice(index, 1);
+
+  // Closing any panel exits compare mode entirely
+  _compareCreatorIds = [];
+  _compareSubTabs = {};
   renderAllComparePanels();
 
-  if (_compareCreatorIds.length === 0) {
-    // Restore creator slide-out panel
-    const slidePanel = document.getElementById('creatorSlidePanel');
-    if (slidePanel && slidePanel.classList.contains('retracted')) {
-      slidePanel.classList.remove('retracted');
-    }
-    // Restore single-creator highlight
-    if (_demosCreatorId) {
-      highlightCreatorMarker(_demosCreatorId);
-    } else {
-      restoreAllMarkers();
-    }
-  } else {
-    // Update highlighting for remaining compare creators
-    const allHighlighted = [_demosCreatorId, ..._compareCreatorIds].filter(Boolean);
-    highlightCompareMarkers(allHighlighted);
+  // Restore creator slide-out panel
+  const slidePanel = document.getElementById('creatorSlidePanel');
+  if (slidePanel && slidePanel.classList.contains('retracted')) {
+    slidePanel.classList.remove('retracted');
   }
+  // Restore all markers to default colors
+  restoreAllMarkers();
 }
 
 function renderAllComparePanels() {
@@ -5376,6 +5357,32 @@ function renderAllComparePanels() {
     headerArea.appendChild(hero);
 
     const niches = creator.niches || [];
+
+    // Click creator name → load all their niches into Niche tab filters
+    if (niches.length > 0) {
+      nameEl.style.cursor = 'pointer';
+      nameEl.title = 'Filter by all niches';
+      nameEl.addEventListener('mouseenter', () => { nameEl.style.textDecoration = 'underline'; });
+      nameEl.addEventListener('mouseleave', () => { nameEl.style.textDecoration = 'none'; });
+      nameEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _nicheInjectedForCreator = _demosCreatorId || creator.id;
+        if (window._nlClearPills) window._nlClearPills(true);
+        dispatchFilters.niches = [...niches];
+        dispatchFilters.demographics = [];
+        dispatchFilters.platformTiers = [];
+        dispatchFilters.platforms = [];
+        dispatchFilters.tiers = [];
+        const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
+        if (dispatchBtn) dispatchBtn.click();
+        if (!_dispatchSections.niches) toggleDispatchSection('niches');
+        niches.forEach(n => { if (window._nlAddPill) window._nlAddPill(n, 'niche'); });
+        renderDispatchFilterPills();
+        renderDispatchTab();
+        updateMapMarkers();
+      });
+    }
+
     if (niches.length > 0) {
       const nichesRow = document.createElement('div');
       nichesRow.className = 'demos-niches-row';
@@ -5391,7 +5398,7 @@ function renderAllComparePanels() {
         pill.textContent = n;
         pill.addEventListener('click', (e) => {
           e.stopPropagation();
-          _nicheInjectedForCreator = creator.id;
+          _nicheInjectedForCreator = _demosCreatorId || creator.id;
           if (window._nlClearPills) window._nlClearPills(true);
           dispatchFilters.niches = [n];
           dispatchFilters.demographics = [];
@@ -5461,6 +5468,37 @@ function renderAllComparePanels() {
     body.appendChild(section);
     panel.appendChild(body);
     stack.appendChild(panel);
+  });
+
+  // Zoom map to fit all compared creators, accounting for panel widths
+  _fitMapToCompareCreators();
+}
+
+function _fitMapToCompareCreators() {
+  const allIds = [_demosCreatorId, ..._compareCreatorIds].filter(Boolean);
+  const points = allIds.map(id => {
+    const c = creators.find(cr => cr.id === id);
+    return c && c.lat && c.lng ? L.latLng(c.lat, c.lng) : null;
+  }).filter(Boolean);
+  if (points.length < 2) return; // only zoom when comparing
+
+  // Only zoom if any creator is not visible in the unobstructed map area
+  const panelCount = _compareCreatorIds.length;
+  const leftPad = panelCount * 360;
+  const mapSize = map.getSize();
+  const allVisible = points.every(pt => {
+    const px = map.latLngToContainerPoint(pt);
+    return px.x > leftPad && px.x < mapSize.x && px.y > 0 && px.y < mapSize.y;
+  });
+  if (allVisible) return;
+
+  const bounds = L.latLngBounds(points);
+  map.fitBounds(bounds, {
+    paddingTopLeft: [leftPad + 40, 40],
+    paddingBottomRight: [40, 40],
+    maxZoom: 8,
+    animate: true,
+    duration: 0.5
   });
 }
 
@@ -5817,8 +5855,6 @@ function applyNLSearch(query) {
   dispatchFilters.platformTiers = [];
   dispatchFilters.platforms = [];
   dispatchFilters.tiers = [];
-  dispatchFilters.ageMin = null;
-  dispatchFilters.ageMax = null;
   nlRegionFilter = null;
   // Clear vibe search term so pill grid shows all items (not text-filtered)
   _vibeSearchTerm = '';
@@ -5990,8 +6026,6 @@ function clearNLInlinePills() {
     dispatchFilters.platformTiers = [];
     dispatchFilters.platforms = [];
     dispatchFilters.tiers = [];
-    dispatchFilters.ageMin = null;
-    dispatchFilters.ageMax = null;
     nlRegionFilter = null;
     _vibeSearchTerm = '';
 
@@ -6213,8 +6247,6 @@ function clearNLInlinePills() {
       dispatchFilters.platformTiers = [];
       dispatchFilters.platforms = [];
       dispatchFilters.tiers = [];
-      dispatchFilters.ageMin = null;
-      dispatchFilters.ageMax = null;
       document.getElementById('nlSearchHint').style.display = 'none';
       renderDispatchFilters();
       renderDispatchFilterPills();
@@ -6247,8 +6279,6 @@ function clearNLInlinePills() {
     dispatchFilters.niches = [];
     dispatchFilters.demographics = [];
     dispatchFilters.platformTiers = [];
-    dispatchFilters.ageMin = null;
-    dispatchFilters.ageMax = null;
     document.getElementById('nlSearchHint').style.display = 'none';
     sugBox.classList.remove('open');
     renderDispatchFilters();
@@ -6274,7 +6304,6 @@ document.getElementById('sortSelect').addEventListener('change', () => {
 });
 
 // ── Custom sort dropdown with platform icons ──
-// ── Shared two-step sort picker builder ──
 const SORT_PLATFORM_SVG = {
   'Instagram': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="#E1306C" stroke-width="2.5"/><circle cx="12" cy="12" r="5" stroke="#E1306C" stroke-width="2.5"/><circle cx="17.5" cy="6.5" r="1.5" fill="#E1306C"/></svg>`,
   'TikTok': `<svg width="13" height="14" viewBox="0 0 18 20" fill="none"><path d="M9 0v13.5a3.5 3.5 0 1 1-3-3.46V7.04A6.5 6.5 0 1 0 12 13.5V6.73A7.5 7.5 0 0 0 17 8V5a5 5 0 0 1-5-5H9Z" fill="#00F2EA"/></svg>`,
@@ -6424,7 +6453,6 @@ buildSortPicker({
   compact: false,
   metrics: [
     { key: 'name', label: 'Name', descValue: 'z-a', ascValue: 'a-z' },
-    { key: 'age', label: 'Age', descValue: 'age-desc', ascValue: 'age-asc' },
     { key: 'followers', label: 'Followers', platforms: [
       { platform: 'Instagram', descValue: 'ig-desc', ascValue: 'ig-asc' },
       { platform: 'TikTok', descValue: 'tt-desc', ascValue: 'tt-asc' },
@@ -6659,19 +6687,7 @@ function _getPointAtBearing(lat, lng, bearingDeg, distM) {
 }
 
 function _showMapLegend() {
-  let legend = document.querySelector('.map-legend');
-  if (!legend) {
-    legend = document.createElement('div');
-    legend.className = 'map-legend';
-    legend.innerHTML = `
-      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--success); background: rgba(var(--success-rgb), 0.3);"></div> Full match</div>
-      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--success); background: rgba(var(--success-rgb), 0.15);"></div> High match</div>
-      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--warning, #C4A85A); background: rgba(var(--tag-niche-rgb), 0.15);"></div> Partial</div>
-      <div class="map-legend-item"><div class="map-legend-dot" style="border-color: var(--mocha); opacity: 0.5;"></div> Low / None</div>
-    `;
-    document.getElementById('mapContainer').appendChild(legend);
-  }
-  requestAnimationFrame(() => legend.classList.add('visible'));
+  // Legend removed — scores are shown inline on cards
 }
 
 function _hideMapLegend() {
@@ -7096,8 +7112,6 @@ function _handleTabLogic(tab, wasDispatch) {
     dispatchFilters.tiers = [];
     dispatchFilters.niches = [];
     dispatchFilters.demographics = [];
-    dispatchFilters.ageMin = null;
-    dispatchFilters.ageMax = null;
     _vibeSearchTerm = '';
     nlRegionFilter = null;
     const nlInput = document.getElementById('nlSearchInput');
@@ -7152,8 +7166,6 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   dispatchFilters.platformTiers = [];
   dispatchFilters.platforms = [];
   dispatchFilters.tiers = [];
-  dispatchFilters.ageMin = null;
-  dispatchFilters.ageMax = null;
   nlRegionFilter = null;
   _nicheInjectedForCreator = null;
   // Clear NL search input + inline pills
@@ -7527,7 +7539,36 @@ function _dismissMapCityPicker() {
 
 // Dismiss picker on Escape or click outside
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') _dismissMapCityPicker();
+  if (e.key === 'Escape') {
+    _dismissMapCityPicker();
+    if (_compareCreatorIds.length > 0) {
+      removeCompareCreator(_compareCreatorIds.length - 1);
+    }
+    // Clear all niche/dispatch filters
+    if (hasActiveDispatchFilters() || dispatchDestination) {
+      dispatchFilters.platformTiers = [];
+      dispatchFilters.platforms = [];
+      dispatchFilters.tiers = [];
+      dispatchFilters.niches = [];
+      dispatchFilters.demographics = [];
+      _vibeSearchTerm = '';
+      nlRegionFilter = null;
+      const nlInput = document.getElementById('nlSearchInput');
+      if (nlInput) nlInput.value = '';
+      clearNLInlinePills();
+      const nlHint = document.getElementById('nlSearchHint');
+      if (nlHint) nlHint.style.display = 'none';
+      const nlClear = document.getElementById('nlSearchClear');
+      if (nlClear) nlClear.style.display = 'none';
+      document.getElementById('locationFilterInput').value = '';
+      clearDispatchDestination();
+      renderDispatchFilters();
+      renderDispatchFilterPills();
+      renderDispatchActiveStrip();
+      _stripDispatchMarkerState();
+      updateMapMarkers();
+    }
+  }
   // Toggle crosshair cursor hint when Shift is held
   if (e.key === 'Shift') document.body.classList.add('shift-held');
   // X key closes compare panels one at a time (last added first)
@@ -8118,9 +8159,6 @@ function _autoExpandActiveSections() {
   }
   if ((dispatchFilters.platformTiers.length > 0 || dispatchFilters.platforms.length > 0 || dispatchFilters.tiers.length > 0) && !_dispatchSections.platformTier) {
     toggleDispatchSection('platformTier');
-  }
-  if ((dispatchFilters.ageMin !== null || dispatchFilters.ageMax !== null) && !_dispatchSections.age) {
-    toggleDispatchSection('age');
   }
 }
 

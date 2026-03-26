@@ -1272,6 +1272,72 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-primary);
   background: rgba(var(--bg-hover-rgb), 0.5);
 }
+/* ── Compare hero row: avatar + name + location + slot badge ── */
+.compare-hero {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 4px;
+}
+.compare-slot-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.compare-slot-0 .compare-slot-badge {
+  background: rgba(224, 80, 152, 0.2);
+  color: #F0A0C8;
+  border: 1px solid rgba(224, 80, 152, 0.3);
+}
+.compare-slot-1 .compare-slot-badge {
+  background: rgba(232, 160, 48, 0.2);
+  color: #F0D090;
+  border: 1px solid rgba(232, 160, 48, 0.3);
+}
+.compare-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--lavender), var(--sage));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.compare-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+.compare-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+.compare-hero-info .demos-creator-name {
+  font-size: 14px;
+  text-align: left;
+}
+.compare-location {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Compare body uses .demos-content class — hide scrollbar */
 /* Push compare header down to align with primary sidebar content (below sidebar tab bar) */
 .compare-panel .demos-sub-tabs {

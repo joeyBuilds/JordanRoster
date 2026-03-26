@@ -4885,6 +4885,9 @@ function addCompareCreator(creatorId) {
   if (_compareCreatorIds.length >= 2) _compareCreatorIds.shift();
   _compareCreatorIds.push(creatorId);
 
+  // Close ring — we're entering compare mode, ring would just be in the way
+  closeDetailPanel();
+
   // Auto-switch to Demo's tab if not there
   const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
   const currentTab = document.querySelector('.tab-button.active');
@@ -4952,10 +4955,41 @@ function renderAllComparePanels() {
     closeBtn.onclick = () => removeCompareCreator(i);
     headerArea.appendChild(closeBtn);
 
+    // ── Enhanced hero row: slot badge + avatar + name/location ──
+    const hero = document.createElement('div');
+    hero.className = 'compare-hero';
+
+    const badge = document.createElement('span');
+    badge.className = 'compare-slot-badge';
+    badge.textContent = 'Compare ' + (i + 1);
+    hero.appendChild(badge);
+
+    const avatar = document.createElement('div');
+    avatar.className = 'compare-avatar';
+    if (creator.photo) {
+      const img = document.createElement('img');
+      img.src = creator.photo;
+      img.alt = '';
+      avatar.appendChild(img);
+    } else {
+      avatar.textContent = (creator.firstName || creator.name || '?')[0].toUpperCase();
+    }
+    hero.appendChild(avatar);
+
+    const heroInfo = document.createElement('div');
+    heroInfo.className = 'compare-hero-info';
     const nameEl = document.createElement('div');
     nameEl.className = 'demos-creator-name';
     nameEl.textContent = getFullName(creator);
-    headerArea.appendChild(nameEl);
+    heroInfo.appendChild(nameEl);
+    if (creator.location) {
+      const loc = document.createElement('div');
+      loc.className = 'compare-location';
+      loc.textContent = '\uD83D\uDCCD ' + creator.location;
+      heroInfo.appendChild(loc);
+    }
+    hero.appendChild(heroInfo);
+    headerArea.appendChild(hero);
 
     const niches = creator.niches || [];
     if (niches.length > 0) {

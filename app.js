@@ -2574,10 +2574,111 @@ function showDetailPanel(creatorId) {
   }
 }
 
+// ── Render tag pills inline into a container (for ring body side columns) ──
+function renderInlinePills(tagList, categories, tagType, container, isLeft) {
+  const categoryOrder = Object.keys(categories);
+  const groups = [];
+  const tagSet = new Set(tagList);
+  categoryOrder.forEach(cat => {
+    const catTags = (categories[cat] || []).filter(t => tagSet.has(t));
+    if (catTags.length > 0) groups.push({ cat, tags: catTags });
+  });
+  const placed = new Set(groups.flatMap(g => g.tags));
+  const uncat = tagList.filter(t => !placed.has(t));
+  if (uncat.length > 0) groups.push({ cat: null, tags: uncat });
+  if (groups.length === 0) return;
+
+  // Check if we're in dispatch mode for glow effects
+  const ringHasDispatch = document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters();
+  let ringScore = null;
+  if (ringHasDispatch) {
+    // Find the creator from the overlay's context
+    const overlay = document.getElementById('ringOverlay');
+    const creatorId = overlay?.dataset.creatorId;
+    if (creatorId) {
+      const c = creators.find(cr => cr.id === creatorId);
+      if (c) ringScore = scoreCreatorFilters(c);
+    }
+  }
+
+  let delay = 50;
+  groups.forEach((group, gIdx) => {
+    group.tags.forEach((tag) => {
+      const colorClass = getCategoryColorClass(group.cat);
+      const el = document.createElement('div');
+      el.className = 'ring-pill ' + tagType + ' cat-' + colorClass;
+      el.textContent = tag;
+
+      // Grace glow on dispatch-matched pills
+      if (ringHasDispatch && ringScore && ringScore.matchDetails) {
+        const isMatchedTag = ringScore.matchDetails.some(d => d.type === tagType && d.label === tag);
+        if (isMatchedTag) {
+          el.classList.add('dispatch-matched-tag');
+          if (ringScore.totalFilters > 1) {
+            for (let gp = 0; gp < 3; gp++) {
+              const particle = document.createElement('div');
+              particle.className = 'pill-grace-particle';
+              const xPct = 15 + Math.random() * 70;
+              const dur = 1.8 + Math.random() * 1.5;
+              const pDelay = Math.random() * dur;
+              const sz = 1.5 + Math.random() * 2;
+              particle.style.cssText = `left:${xPct}%;--pg-dur:${dur}s;--pg-delay:-${pDelay.toFixed(1)}s;--pg-size:${sz}px`;
+              el.appendChild(particle);
+            }
+          }
+        }
+      }
+
+      // Entrance animation
+      const slideInX = isLeft ? -20 : 20;
+      el.style.opacity = '0';
+      el.style.transform = `translateX(${slideInX}px) scale(0.8)`;
+      el.style.transition = 'opacity 0.15s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+      el.onclick = (e) => {
+        e.stopPropagation();
+        if (tagType === 'niche' || tagType === 'demographic') {
+          closeDetailPanel();
+          if (tagType === 'niche') {
+            if (!dispatchFilters.niches.includes(tag)) dispatchFilters.niches.push(tag);
+          } else {
+            if (!dispatchFilters.demographics.includes(tag)) dispatchFilters.demographics.push(tag);
+          }
+          const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
+          if (dispatchBtn) dispatchBtn.click();
+          if (tagType === 'niche' && !_dispatchSections.niches) toggleDispatchSection('niches');
+          if (tagType === 'demographic' && !_dispatchSections.demos) toggleDispatchSection('demos');
+          renderDispatchFilterPills();
+          renderDispatchTab();
+          updateMapMarkers();
+        } else {
+          openTagModal(tag, tagType);
+        }
+      };
+
+      container.appendChild(el);
+
+      setTimeout(() => {
+        el.style.opacity = '1';
+        el.style.transform = 'translateX(0) scale(1)';
+        setTimeout(() => {
+          el.style.opacity = '';
+          el.style.transform = '';
+          el.style.transition = '';
+        }, 280);
+      }, delay);
+
+      delay += 18;
+    });
+    delay += 5;
+  });
+}
+
 function renderRing(creator, forceDispatch) {
   const overlay = document.getElementById('ringOverlay');
   const scrim = document.getElementById('ringScrim');
   overlay.innerHTML = '';
+  overlay.dataset.creatorId = creator.id;
 
   // Get marker pixel position on map
   const mapContainer = document.getElementById('mapContainer');
@@ -2718,11 +2819,29 @@ function renderRing(creator, forceDispatch) {
   }
 
 
-  // --- Row 2: Avatar with close button + dispatch score ring ---
+  // --- Row 2: 3-column body — niches | avatar | demographics ---
+  const hasNiches = creator.niches && creator.niches.length > 0;
+  const hasDemographics = creator.demographics && creator.demographics.length > 0;
+
+  const ringBody = document.createElement('div');
+  ringBody.className = 'ring-body';
+
+  // Left column: niches
+  const sideLeft = document.createElement('div');
+  sideLeft.className = 'ring-body-side side-left';
+  if (hasNiches) {
+    renderInlinePills(creator.niches, loadTagCategories('niche'), 'niche', sideLeft, true);
+  }
+  ringBody.appendChild(sideLeft);
+
+  // Center column: avatar + dispatch elements
+  const bodyCenter = document.createElement('div');
+  bodyCenter.className = 'ring-body-center';
+
   const avatarWrap = document.createElement('div');
   avatarWrap.className = 'ring-avatar-wrap';
 
-  // Close button — since scrim no longer blocks, we need an explicit dismiss
+  // Close button
   const closeBtn = document.createElement('button');
   closeBtn.className = 'ring-close-btn';
   closeBtn.innerHTML = '&times;';
@@ -2761,7 +2880,6 @@ function renderRing(creator, forceDispatch) {
     scoreBadge.style.background = strokeColor;
     avatarWrap.appendChild(scoreBadge);
 
-    // Stagger in the score elements
     setTimeout(() => {
       scoreRingSvg.classList.add('visible');
       scoreBadge.classList.add('visible');
@@ -2769,9 +2887,9 @@ function renderRing(creator, forceDispatch) {
   }
 
   avatarWrap.appendChild(avatar);
-  ringColumn.appendChild(avatarWrap);
+  bodyCenter.appendChild(avatarWrap);
 
-  // Dispatch pip gauge + distance (between avatar and info card)
+  // Dispatch pip gauge + distance
   if (ringHasDispatch && ringScore && ringScore.totalFilters > 0) {
     const ringPipGauge = document.createElement('div');
     ringPipGauge.className = 'ring-pip-gauge';
@@ -2782,24 +2900,32 @@ function renderRing(creator, forceDispatch) {
       seg.className = 'ring-pip-seg' + (isFilled ? ' filled' + (isAmber ? ' amber' : '') : '');
       ringPipGauge.appendChild(seg);
     }
-    ringColumn.appendChild(ringPipGauge);
+    bodyCenter.appendChild(ringPipGauge);
     setTimeout(() => ringPipGauge.classList.add('visible'), 300);
 
-    // Distance from dispatch destination
     if (dispatchDestination && creator.lat && creator.lng) {
       const dist = haversineDistance(creator.lat, creator.lng, dispatchDestination.lat, dispatchDestination.lng);
       const distEl = document.createElement('div');
       distEl.className = 'ring-dispatch-distance';
       distEl.textContent = `~${Math.round(dist)} mi from ${dispatchDestination.displayName || 'destination'}`;
-      ringColumn.appendChild(distEl);
+      bodyCenter.appendChild(distEl);
       setTimeout(() => distEl.classList.add('visible'), 400);
     }
   }
 
-  // --- Row 3: Contact info card (center) with absolutely-positioned side columns ---
-  const hasNiches = creator.niches && creator.niches.length > 0;
-  const hasDemographics = creator.demographics && creator.demographics.length > 0;
+  ringBody.appendChild(bodyCenter);
 
+  // Right column: demographics
+  const sideRight = document.createElement('div');
+  sideRight.className = 'ring-body-side side-right';
+  if (hasDemographics) {
+    renderInlinePills(creator.demographics, loadTagCategories('demographic'), 'demographic', sideRight, false);
+  }
+  ringBody.appendChild(sideRight);
+
+  ringColumn.appendChild(ringBody);
+
+  // --- Row 3: Contact info card ---
   const infoSection = document.createElement('div');
   infoSection.className = 'ring-info-section';
 
@@ -2853,8 +2979,6 @@ function renderRing(creator, forceDispatch) {
   }
 
   infoSection.appendChild(contactCard);
-
-  // Niches and Demographics are now rendered as Petal Arcs after clamping (see below)
 
   ringColumn.appendChild(infoSection);
 
@@ -2931,242 +3055,6 @@ function renderRing(creator, forceDispatch) {
 
   ringColumn.style.top = finalTop + 'px';
   ringColumn.style.left = finalLeft + 'px';
-
-  // ── "Pill Jail": Niches (left of Slot 1) and Demographics (right of Slot 3) ──
-  // Tags fill a vertical box that runs from just below the platform row to the
-  // bottom of the ring column, aligned to Slot 1 (niches) or Slot 3 (demographics).
-  // If too many tags to fit, pills shrink (font + padding) until they do.
-
-  // --- Jail bounds ---
-  const overlayOriginX = parseFloat(overlay.style.left) || 0;
-  const overlayOriginY = parseFloat(overlay.style.top) || 0;
-
-  // Top of jail: just below the platform row
-  const platformRow = ringColumn.querySelector('.ring-platforms-row');
-  let jailTop;
-  if (platformRow) {
-    const prRect = platformRow.getBoundingClientRect();
-    jailTop = prRect.bottom - overlayOriginY + 6; // 6px gap below chips
-  } else {
-    jailTop = finalTop + 4;
-  }
-
-  // Detect single-platform creators for wider pill layout
-  const platformCount = getCreatorPlatforms(creator).length;
-  const isSinglePlatform = platformCount <= 1;
-
-  // Bottom of jail: top of name card for multi-platform, full column for single-platform
-  const nameCard = ringColumn.querySelector('.ring-name-card');
-  let jailBottom;
-  if (isSinglePlatform) {
-    // Single platform: extend pills all the way down — they push out wide enough to clear
-    jailBottom = finalTop + colH;
-  } else if (nameCard) {
-    const ncRect = nameCard.getBoundingClientRect();
-    jailBottom = ncRect.top - overlayOriginY - 4;
-  } else {
-    jailBottom = finalTop + colH;
-  }
-
-  // Jail edges: use the actual platform row's left/right edges.
-  // For single-platform creators, push edges much further out so pills don't crowd the center.
-  const tuck = 8;
-  const minClearance = 55; // avatar is 90px wide → 45px radius + 10px breathing room
-  const singlePlatformSpread = 100; // push pills well clear of avatar + name card
-  let jailLeftEdge, jailRightEdge;
-  if (isSinglePlatform) {
-    jailLeftEdge = finalLeft - singlePlatformSpread;
-    jailRightEdge = finalLeft + singlePlatformSpread;
-  } else if (platformRow) {
-    const prRect = platformRow.getBoundingClientRect();
-    const rawLeft = prRect.left - overlayOriginX + tuck;
-    const rawRight = prRect.right - overlayOriginX - tuck;
-    jailLeftEdge = Math.min(rawLeft, finalLeft - minClearance);
-    jailRightEdge = Math.max(rawRight, finalLeft + minClearance);
-  } else {
-    jailLeftEdge = finalLeft - colW / 2 + tuck;
-    jailRightEdge = finalLeft + colW / 2 - tuck;
-  }
-
-  function renderPillJail(tagList, categories, tagType, isLeft) {
-    const categoryOrder = Object.keys(categories);
-
-    // Group tags by category in saved category order (respects drag-and-drop reordering)
-    const groups = [];
-    const tagSet = new Set(tagList);
-    categoryOrder.forEach(cat => {
-      // Use category array order so pill ordering is consistent across all views
-      const catTags = (categories[cat] || []).filter(t => tagSet.has(t));
-      if (catTags.length > 0) groups.push({ cat, tags: catTags });
-    });
-    const placed = new Set(groups.flatMap(g => g.tags));
-    const uncat = tagList.filter(t => !placed.has(t));
-    if (uncat.length > 0) groups.push({ cat: null, tags: uncat });
-    if (groups.length === 0) return;
-
-    // Keep category order matching dispatch sidebar (top-to-bottom)
-
-    const totalTags = tagList.length;
-    const catGapPx = 4;
-    const totalCatGaps = (groups.length - 1) * catGapPx;
-    const jailH = jailBottom - jailTop;
-
-    // Alignment edge
-    const nearEdge = isLeft ? jailLeftEdge : jailRightEdge;
-
-    // Determine pill size: start at normal (26px), shrink if needed to fit
-    const normalPillH = 26;
-    const normalStep = normalPillH + 4; // 30px per tag
-    const neededH = totalTags * normalStep + totalCatGaps;
-
-    let pillH, step, fontSize, pillPadY, pillPadX;
-    if (neededH <= jailH) {
-      // Fits at normal size
-      pillH = normalPillH;
-      step = normalStep;
-      fontSize = 11;
-      pillPadY = 4;
-      pillPadX = 10;
-    } else {
-      // Shrink to fit: reduce step first, then shrink pill size if overlapping too much
-      const minStep = 15; // absolute minimum before text becomes unreadable
-      step = Math.max(minStep, (jailH - totalCatGaps) / totalTags);
-      if (step >= 22) {
-        // Mild compression — keep normal font, just tighter spacing
-        pillH = normalPillH;
-        fontSize = 11;
-        pillPadY = 4;
-        pillPadX = 10;
-      } else if (step >= 18) {
-        // Medium compression — slightly smaller
-        pillH = 22;
-        fontSize = 10;
-        pillPadY = 3;
-        pillPadX = 8;
-      } else {
-        // Heavy compression — compact pills
-        pillH = 18;
-        fontSize = 9;
-        pillPadY = 2;
-        pillPadX = 6;
-      }
-    }
-    const isOverlapping = step < pillH;
-
-    // Always show all pills — shrink to fit, never truncate
-    // Place tags
-    let tagIndex = 0;
-    let currentY = jailTop;
-    let delay = 50;
-
-    groups.forEach((group, gIdx) => {
-      group.tags.forEach((tag, tIdx) => {
-        const ty = currentY;
-        const colorClass = getCategoryColorClass(group.cat);
-
-        const wrap = document.createElement('div');
-        wrap.style.cssText = `
-          position:absolute; left:${nearEdge}px; top:${ty}px;
-          transform: translate(${isLeft ? '-100%' : '0'}, 0);
-          z-index:${3 + tagIndex}; pointer-events:auto;
-        `;
-
-        const el = document.createElement('div');
-        el.className = 'ring-pill ' + tagType + ' cat-' + colorClass;
-        el.textContent = tag;
-        el.style.fontSize = fontSize + 'px';
-        el.style.padding = `${pillPadY}px ${pillPadX}px`;
-        el.style.lineHeight = '1.2';
-
-        // Grace glow effect on pills that match active dispatch filters
-        if (ringHasDispatch && ringScore && ringScore.matchDetails) {
-          const isMatchedTag = ringScore.matchDetails.some(d => d.type === tagType && d.label === tag);
-          if (isMatchedTag) {
-            el.classList.add('dispatch-matched-tag');
-            // Only add grace particles when multiple filters are active (not single-filter)
-            if (ringScore.totalFilters > 1) {
-              for (let gp = 0; gp < 3; gp++) {
-                const particle = document.createElement('div');
-                particle.className = 'pill-grace-particle';
-                const xPct = 15 + Math.random() * 70;
-                const dur = 1.8 + Math.random() * 1.5;
-                const pDelay = Math.random() * dur;
-                const sz = 1.5 + Math.random() * 2;
-                particle.style.cssText = `left:${xPct}%;--pg-dur:${dur}s;--pg-delay:-${pDelay.toFixed(1)}s;--pg-size:${sz}px`;
-                el.appendChild(particle);
-              }
-            }
-          }
-        }
-
-        if (isOverlapping) {
-          el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)';
-        }
-
-        // Entrance animation: slide in from outside
-        const slideInX = isLeft ? -30 : 30;
-        el.style.opacity = '0';
-        el.style.transform = `translateX(${slideInX}px) scale(0.8)`;
-        el.style.transition = 'opacity 0.15s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        el.onclick = (e) => {
-          e.stopPropagation();
-          if (tagType === 'niche' || tagType === 'demographic') {
-            // Close ring, switch to Niche/Dispatch tab, apply as a filter
-            closeDetailPanel();
-            // Add to the appropriate dispatch filter if not already present
-            if (tagType === 'niche') {
-              if (!dispatchFilters.niches.includes(tag)) {
-                dispatchFilters.niches.push(tag);
-              }
-            } else {
-              if (!dispatchFilters.demographics.includes(tag)) {
-                dispatchFilters.demographics.push(tag);
-              }
-            }
-            // Switch to dispatch tab
-            const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
-            if (dispatchBtn) dispatchBtn.click();
-            // Ensure the relevant section is expanded
-            if (tagType === 'niche' && !_dispatchSections.niches) toggleDispatchSection('niches');
-            if (tagType === 'demographic' && !_dispatchSections.demos) toggleDispatchSection('demos');
-            // Re-render filters and results
-            renderDispatchFilterPills();
-            renderDispatchTab();
-            updateMapMarkers();
-          } else {
-            openTagModal(tag, tagType);
-          }
-        };
-        wrap.appendChild(el);
-        overlay.appendChild(wrap);
-
-        setTimeout(() => {
-          el.style.opacity = '1';
-          el.style.transform = 'translateX(0) scale(1)';
-          setTimeout(() => {
-            el.style.opacity = '';
-            el.style.transform = '';
-            el.style.transition = '';
-          }, 280);
-        }, delay);
-
-        currentY += step;
-        tagIndex++;
-        delay += 18;
-      });
-
-      currentY += catGapPx;
-      delay += 5;
-    });
-
-  }
-
-  if (hasNiches) {
-    renderPillJail(creator.niches, loadTagCategories('niche'), 'niche', true);
-  }
-  if (hasDemographics) {
-    renderPillJail(creator.demographics, loadTagCategories('demographic'), 'demographic', false);
-  }
 
   // Show ring + scrim
   overlay.classList.add('open');
@@ -4814,14 +4702,17 @@ function renderDemosPanel(creator) {
     _demosSubTab = tabs[0]?.key || 'partners';
   }
 
-  // Render creator name + sub-tab bar
+  // Render creator hero (avatar + name) + niches + sub-tab bar
   if (subTabsEl) {
     subTabsEl.style.display = 'block';
     const niches = (creator.niches || []);
     const nichesHtml = niches.length > 0
       ? `<div class="demos-niches-row" title="Click to edit niches">${niches.map(n => `<span class="demos-niche-pill">${n}</span>`).join('')}</div>`
       : '';
-    subTabsEl.innerHTML = `<div class="demos-creator-name">${getFullName(creator)}</div>${nichesHtml}`;
+    const avatarHtml = creator.photo
+      ? `<div class="demos-primary-avatar"><img src="${creator.photo}" alt=""></div>`
+      : `<div class="demos-primary-avatar">${(creator.firstName || creator.name || '?')[0].toUpperCase()}</div>`;
+    subTabsEl.innerHTML = `<div class="demos-primary-hero">${avatarHtml}<div class="demos-creator-name">${getFullName(creator)}</div></div>${nichesHtml}`;
     // Make niches row clickable → opens Edit Creator modal
     const nichesRow = subTabsEl.querySelector('.demos-niches-row');
     if (nichesRow) {
@@ -4955,14 +4846,18 @@ function renderAllComparePanels() {
     closeBtn.onclick = () => removeCompareCreator(i);
     headerArea.appendChild(closeBtn);
 
-    // ── Enhanced hero row: slot badge + avatar + name/location ──
-    const hero = document.createElement('div');
-    hero.className = 'compare-hero';
-
+    // ── Badge row (own line above hero) ──
+    const badgeRow = document.createElement('div');
+    badgeRow.className = 'compare-badge-row';
     const badge = document.createElement('span');
     badge.className = 'compare-slot-badge';
     badge.textContent = 'Compare ' + (i + 1);
-    hero.appendChild(badge);
+    badgeRow.appendChild(badge);
+    headerArea.appendChild(badgeRow);
+
+    // ── Hero row: avatar + name/location ──
+    const hero = document.createElement('div');
+    hero.className = 'compare-hero';
 
     const avatar = document.createElement('div');
     avatar.className = 'compare-avatar';

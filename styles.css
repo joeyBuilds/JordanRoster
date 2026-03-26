@@ -1071,6 +1071,37 @@ body.shift-held #mapContainer .leaflet-container {
   border-bottom: none;
   flex-shrink: 0;
 }
+/* Primary creator hero row — avatar + name */
+.demos-primary-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 3px;
+}
+.demos-primary-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--lavender), var(--sage));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.demos-primary-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
 .demos-sub-tabs .demos-creator-name {
   font-family: 'Playfair Display', serif;
   font-size: 16px;
@@ -1078,7 +1109,6 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-primary);
   letter-spacing: 0.3px;
   text-align: center;
-  padding-bottom: 3px;
 }
 /* Niches row — fixed height for uniform alignment across panels */
 .demos-niches-row {
@@ -1255,7 +1285,7 @@ body.shift-held #mapContainer .leaflet-container {
 /* Compare panels reuse .demos-sub-tabs and .demos-content classes directly */
 .compare-panel-close {
   position: absolute;
-  top: 50px;
+  top: 48px;
   right: 4px;
   background: none;
   border: none;
@@ -1272,7 +1302,11 @@ body.shift-held #mapContainer .leaflet-container {
   color: var(--text-primary);
   background: rgba(var(--bg-hover-rgb), 0.5);
 }
-/* ── Compare hero row: avatar + name + location + slot badge ── */
+/* ── Compare badge row — sits above the hero row ── */
+.compare-badge-row {
+  padding: 0 4px 2px;
+}
+/* ── Compare hero row: avatar + name + location ── */
 .compare-hero {
   display: flex;
   align-items: center;
@@ -4521,27 +4555,46 @@ a.ring-platform-chip:hover {
 }
 
 
-/* Row 3: Info section — contact card in flow, side columns absolutely positioned */
+/* Row 2: Ring body — 3-column layout: niches | avatar | demographics */
+.ring-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+}
+.ring-body-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 0;
+  max-width: 140px;
+  padding-top: 6px;
+}
+.ring-body-side .ring-pill {
+  font-size: 10px;
+  padding: 3px 9px;
+}
+.ring-body-side.side-left {
+  align-items: flex-end;
+}
+.ring-body-side.side-right {
+  align-items: flex-start;
+}
+.ring-body-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Row 3: Info section — contact card */
 .ring-info-section {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-.ring-side-col {
-  position: absolute;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.ring-side-col-left {
-  right: calc(100% + 10px);
-  align-items: flex-end;
-}
-.ring-side-col-right {
-  left: calc(100% + 10px);
-  align-items: flex-start;
 }
 
 /* Name + location card (center of info row) — frosted glass */

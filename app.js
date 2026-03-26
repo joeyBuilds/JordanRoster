@@ -2169,7 +2169,8 @@ function updateMapMarkers() {
       const markerClassName = 'creator-marker'
         + (shouldFade ? ' dispatch-faded' : '')
         + (isMatch ? ' dispatch-match' : '')
-        + (isPerfect ? ' score-perfect' : '');
+        + (isPerfect ? ' score-perfect' : '')
+        + (isDispatch && hasDispatchFilters && scoreLevel ? ' score-level-' + scoreLevel : '');
 
       const icon = L.divIcon({
         html: iconHtml,
@@ -2840,14 +2841,6 @@ function renderRing(creator, forceDispatch) {
 
   const avatarWrap = document.createElement('div');
   avatarWrap.className = 'ring-avatar-wrap';
-
-  // Close button
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'ring-close-btn';
-  closeBtn.innerHTML = '&times;';
-  closeBtn.title = 'Close';
-  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeDetailPanel(); });
-  avatarWrap.appendChild(closeBtn);
 
   const avatar = document.createElement('div');
   avatar.className = 'ring-avatar';
@@ -6706,8 +6699,10 @@ document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
 document.getElementById('modalSaveBtn').addEventListener('click', saveCreator);
 // Backdrop click no longer closes modal — use ×, Cancel, or Esc instead
 
-// Ring scrim — click outside to close, stay at current map position
-// Ring scrim is now non-blocking (no dark overlay) — close via × button or Escape key
+// Ring scrim — click outside ring to close
+document.getElementById('ringScrim').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeDetailPanel();
+});
 
 // Tag modal scrim — click to close
 document.getElementById('tagModalScrim').addEventListener('click', (e) => {

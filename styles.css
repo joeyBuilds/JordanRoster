@@ -4356,7 +4356,8 @@ a.creator-platform-chip:hover {
 }
 .ring-scrim.open {
   opacity: 1;
-  pointer-events: none; /* Map stays interactive — no blocking scrim */
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* Radial spotlight glow behind the ring */
@@ -4525,35 +4526,6 @@ a.ring-platform-chip:hover {
   object-fit: cover;
   object-position: center 20%;
 }
-.ring-close-btn {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(var(--bg-hover-rgb), 0.5);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.ring-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transform: scale(1.1);
-}
-
 
 /* Row 2: Ring body — 3-column layout: niches | avatar | demographics */
 .ring-body {
@@ -4577,10 +4549,10 @@ a.ring-platform-chip:hover {
   padding: 3px 9px;
 }
 .ring-body-side.side-left {
-  align-items: flex-end;
+  align-items: flex-start;
 }
 .ring-body-side.side-right {
-  align-items: flex-start;
+  align-items: flex-end;
 }
 .ring-body-center {
   display: flex;
@@ -6748,12 +6720,6 @@ a.ring-platform-chip:hover {
     font-size: 13px;
   }
 
-  .ring-close-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 20px;
-    min-width: 36px;
-  }
 
   .ring-notes {
     max-width: 100%;
@@ -7667,12 +7633,12 @@ body.dispatch-mode .marker-cluster-inner {
   box-shadow: 0 0 8px rgba(142, 174, 139, 0.4), 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 .marker-avatar.score-border-half {
-  border: 3.5px solid var(--warning) !important;
-  box-shadow: 0 0 6px rgba(201, 168, 76, 0.3), 0 2px 8px rgba(0, 0, 0, 0.12);
+  border: 3px solid var(--warning) !important;
+  box-shadow: 0 0 4px rgba(201, 168, 76, 0.2), 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 .marker-avatar.score-border-low {
-  border: 3.5px solid var(--mocha) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  border: 2.5px solid #888 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* Score badge on map markers — high-contrast, tucked into avatar top-right */
@@ -7713,8 +7679,14 @@ body.dispatch-mode .marker-cluster-inner {
   50%      { box-shadow: 0 0 16px 4px rgba(212, 168, 50, 0.65), 0 1px 6px rgba(0, 0, 0, 0.4); }
 }
 .marker-score-badge.score-most { background: linear-gradient(135deg, #5aad6a, #3d8a4e); }
-.marker-score-badge.score-half { background: linear-gradient(135deg, #c9a84c, #a8883a); color: white; }
-.marker-score-badge.score-low { background: linear-gradient(135deg, #a08060, #7a6048); }
+.marker-score-badge.score-half { background: linear-gradient(135deg, #b08840, #8a6a30); color: rgba(255,255,255,0.85); }
+.marker-score-badge.score-low { background: linear-gradient(135deg, #787878, #5a5a5a); color: rgba(255,255,255,0.7); }
+/* Larger badges for top-tier scores */
+.marker-score-badge.score-full,
+.marker-score-badge.score-most {
+  font-size: 10px;
+  padding: 1.5px 5px;
+}
 
 /* ===========================
    PERFECT SCORE — Erdtree Grace
@@ -8015,6 +7987,51 @@ body.dispatch-mode .marker-cluster-inner {
 .creator-marker.dispatch-card-hover .marker-label {
   opacity: 1 !important;
   font-weight: 700;
+}
+
+/* ── Score-level visual hierarchy: scale + opacity for at-a-glance differentiation ── */
+
+/* Full score (100%): full size, full vibrancy — sunray/particles already distinguish */
+/* Most score (67-99%): full size, full opacity */
+.creator-marker.dispatch-match.score-level-full .marker-inner,
+.creator-marker.dispatch-match.score-level-most .marker-inner {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Half score (34-66%): reduced scale + slight desaturation */
+.creator-marker.dispatch-match.score-level-half .marker-inner {
+  transform: scale(0.82);
+  opacity: 0.68 !important;
+  filter: saturate(0.75) !important;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease, filter 0.4s ease;
+}
+
+/* Low score (1-33%): smallest + faded + desaturated */
+.creator-marker.dispatch-match.score-level-low .marker-inner {
+  transform: scale(0.72);
+  opacity: 0.48 !important;
+  filter: saturate(0.45) brightness(0.88) !important;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease, filter 0.4s ease;
+}
+
+/* Hover restores half/low pins to near-full prominence */
+.creator-marker.dispatch-match.score-level-half:hover .marker-inner {
+  transform: scale(0.95);
+  opacity: 0.9 !important;
+  filter: saturate(0.95) !important;
+}
+.creator-marker.dispatch-match.score-level-low:hover .marker-inner {
+  transform: scale(0.88);
+  opacity: 0.8 !important;
+  filter: saturate(0.8) brightness(0.95) !important;
+}
+
+/* Half/Low scored matches: no breathing halo — reserve for full/most */
+.creator-marker.dispatch-match.score-level-half .marker-gleam-ring,
+.creator-marker.dispatch-match.score-level-low .marker-gleam-ring {
+  animation: none;
+  opacity: 0;
 }
 
 /* ── Non-matching markers — gentle fade so they stay on the board ── */

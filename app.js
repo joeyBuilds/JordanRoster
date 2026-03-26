@@ -1127,6 +1127,7 @@ function renderRosterTab() {
 // Only niches, demographics, and age contribute to scoring.
 // Returns { matchCount, totalFilters, pct, matchDetails, missedDetails }
 function scoreCreatorFilters(creator) {
+  // Region is excluded from scoring — it filters geographically but doesn't count as a match criterion
   const totalFilters = (dispatchFilters.platformTiers.length > 0 ? 1 : 0) +
                        (dispatchFilters.platforms.length > 0 ? 1 : 0) +
                        (dispatchFilters.tiers.length > 0 ? 1 : 0) +
@@ -1734,8 +1735,8 @@ function renderRegionMap(container) {
   // SVG viewBox matches the square silhouette image
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
-  // Crop viewBox to just the US portion of the square image (removes whitespace padding)
-  svg.setAttribute('viewBox', '20 20 565 490');
+  // Crop viewBox tightly to the US silhouette (removes surrounding whitespace)
+  svg.setAttribute('viewBox', '35 30 540 465');
   svg.setAttribute('class', 'region-map-svg');
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
@@ -1788,31 +1789,41 @@ function renderRegionMap(container) {
   masked.setAttribute('mask', 'url(#regionUsMask)');
 
   // Region zones positioned over the silhouette
-  // Coordinates calibrated to the 600x600 image where US occupies ~(42,38)–(568,490)
+  // Coordinates derived from NL_REGIONS lat/lng bounds mapped to the 600x600 image:
+  //   US occupies ~(42,38)–(568,490) → lat [49,24], lng [-125,-67]
+  //   x(lng) = 42 + (lng+125) * 9.07    y(lat) = 38 + (49-lat) * 18.08
+  // Zones extend to image edges (0/600) so the mask clips them to the US shape.
   const regions = [
     // Coast overlays (behind core zones)
+    // West Coast: lat 32–49, lng -125 to -114 → x 42–142
     { label: 'West Coast',  shortLabel: 'W. Coast', isCoast: true,
-      path: 'M0,0 L130,0 L130,600 L0,600 Z',
-      labelPos: [68, 235] },
+      path: 'M0,0 L142,0 L142,600 L0,600 Z',
+      labelPos: [55, 240] },
+    // East Coast: lat 25–47.5, lng -85 to -67 → x 405–568
     { label: 'East Coast',  shortLabel: 'E. Coast', isCoast: true,
-      path: 'M455,0 L600,0 L600,600 L455,600 Z',
-      labelPos: [518, 290] },
+      path: 'M405,0 L600,0 L600,600 L405,600 Z',
+      labelPos: [530, 280] },
     // Core zones (on top)
+    // PNW: lat 42–49, lng -125 to -111 → x 42–169, y 38–165
     { label: 'Pacific Northwest', shortLabel: 'PNW',
-      path: 'M0,0 L218,0 L218,170 L0,170 Z',
-      labelPos: [105, 95] },
+      path: 'M0,0 L232,0 L232,165 L0,165 Z',
+      labelPos: [80, 95] },
+    // Southwest: lat 31–42, lng -120 to -102 → x 87–251, y 165–363
     { label: 'Southwest', shortLabel: 'SW',
-      path: 'M0,170 L218,170 L218,600 L0,600 Z',
-      labelPos: [118, 320] },
+      path: 'M0,165 L232,165 L232,600 L0,600 Z',
+      labelPos: [100, 340] },
+    // Central: lat 36–49, lng -104 to -80 → x 232–450, y 38–273
     { label: 'Central', shortLabel: 'Central',
-      path: 'M218,0 L405,0 L405,320 L218,320 Z',
-      labelPos: [310, 165] },
+      path: 'M232,0 L450,0 L450,273 L232,273 Z',
+      labelPos: [340, 145] },
+    // Northeast: lat 38–47.5, lng -80 to -67 → x 450–568, y 65–237
     { label: 'Northeast', shortLabel: 'NE',
-      path: 'M405,0 L600,0 L600,255 L405,255 Z',
-      labelPos: [495, 130] },
+      path: 'M450,0 L600,0 L600,255 L450,255 Z',
+      labelPos: [510, 120] },
+    // Southeast: lat 24–37, lng -95 to -75 → x 314–495, y 255–490
     { label: 'Southeast', shortLabel: 'SE',
-      path: 'M218,320 L405,320 L405,255 L600,255 L600,600 L218,600 Z',
-      labelPos: [410, 390] }
+      path: 'M232,273 L450,273 L450,255 L600,255 L600,600 L232,600 Z',
+      labelPos: [420, 400] }
   ];
 
   // Tooltip
@@ -1842,15 +1853,15 @@ function renderRegionMap(container) {
     masked.appendChild(path);
   });
 
-  // Boundary lines (also masked to US shape)
+  // Boundary lines (also masked to US shape) — aligned to region zone edges
   const bLines = document.createElementNS(NS, 'g');
   bLines.setAttribute('class', 'region-boundaries');
   [
-    'M218,0 L218,600',          // West / Central
-    'M405,0 L405,600',          // Central / East
-    'M0,170 L218,170',          // PNW / SW
-    'M405,255 L600,255',        // NE / SE
-    'M218,320 L405,320',        // Central / SE
+    'M232,0 L232,600',          // West / Central  (lng ≈ -104)
+    'M450,0 L450,273',          // Central / NE only (stops at Central/SE line)
+    'M0,165 L232,165',          // PNW / SW          (lat ≈ 42)
+    'M450,255 L600,255',        // NE / SE           (lat ≈ 37)
+    'M232,273 L450,273',        // Central / SE      (lat ≈ 36)
   ].forEach(d => {
     const line = document.createElementNS(NS, 'path');
     line.setAttribute('d', d);
@@ -2386,9 +2397,12 @@ function updateMapMarkers() {
       let score = null;
       if (isDispatch && hasDispatchFilters) {
         score = scoreCreatorFilters(creator);
-        scorePct = score.pct;
-        scoreText = `${score.matchCount}/${score.totalFilters}`;
-        scoreLevel = getScoreLevel(score.matchCount, score.totalFilters);
+        // Only show scoring if there are scoreable filters (region is excluded from scoring)
+        if (score.totalFilters > 0) {
+          scorePct = score.pct;
+          scoreText = `${score.matchCount}/${score.totalFilters}`;
+          scoreLevel = getScoreLevel(score.matchCount, score.totalFilters);
+        }
       }
 
       // Build score badge + border class for dispatch mode
@@ -2522,6 +2536,8 @@ function updateMapMarkers() {
 // ROSTER SEARCH → MAP PIN FADING
 // ===========================
 // Lightweight: toggles a CSS class on existing marker elements without rebuilding them.
+let _rosterSearchMatchIds = new Set(); // IDs matching current roster search (used by ring arrangement)
+
 function updateRosterMarkerFading() {
   const isDispatch = document.body.classList.contains('dispatch-mode');
   if (isDispatch) return; // dispatch has its own scoring system
@@ -2529,28 +2545,38 @@ function updateRosterMarkerFading() {
   const searchTerm = (document.getElementById('searchInput').value || '').trim();
 
   if (!searchTerm) {
-    // No search — remove fading from all markers
+    // No search — remove fading and z-boost from all markers
+    _rosterSearchMatchIds = new Set();
     Object.keys(markers).forEach(id => {
       const el = markers[id].getElement();
       if (el) el.classList.remove('roster-faded');
+      markers[id].setZIndexOffset(0);
     });
+    _arrangeMarkerRings();
     return;
   }
 
-  // Get the set of creator IDs that match the search
+  // Get the set of creator IDs that match the search (ordered by sort)
   const sortBy = document.getElementById('sortSelect').value;
   const matched = getFilteredCreators(searchTerm, sortBy, false);
-  const matchedIds = new Set(matched.map(c => c.id));
+  _rosterSearchMatchIds = new Set(matched.map(c => c.id));
 
   Object.keys(markers).forEach(id => {
     const el = markers[id].getElement();
     if (!el) return;
-    if (matchedIds.has(id)) {
+    if (_rosterSearchMatchIds.has(id)) {
       el.classList.remove('roster-faded');
+      // Boost matched markers above non-matches; top result gets highest
+      const rank = matched.findIndex(c => c.id === id);
+      markers[id].setZIndexOffset(10000 - rank);
     } else {
       el.classList.add('roster-faded');
+      markers[id].setZIndexOffset(-100);
     }
   });
+
+  // Re-arrange stacks so search matches float to top
+  _arrangeMarkerRings();
 }
 
 // ===========================
@@ -2786,6 +2812,14 @@ function _arrangeMarkerRings() {
           if (scoreB !== scoreA) return scoreB - scoreA;
           return _getCumulativeFollowing(b.id) - _getCumulativeFollowing(a.id);
         });
+      } else if (_rosterSearchMatchIds.size > 0) {
+        // Roster search active: matches first (preserving search order), then non-matches by following
+        group.sort((a, b) => {
+          const aMatch = _rosterSearchMatchIds.has(a.id) ? 1 : 0;
+          const bMatch = _rosterSearchMatchIds.has(b.id) ? 1 : 0;
+          if (bMatch !== aMatch) return bMatch - aMatch;
+          return _getCumulativeFollowing(b.id) - _getCumulativeFollowing(a.id);
+        });
       } else {
         group.sort((a, b) => _getCumulativeFollowing(b.id) - _getCumulativeFollowing(a.id));
       }
@@ -2821,9 +2855,10 @@ function _arrangeMarkerRings() {
         const stackScale = 1 - depth * 0.04; // subtle shrink for depth
         // Z-index: top of stack gets highest
         const zBase = (group.length - i) * 100;
+        const isSearchMatch = _rosterSearchMatchIds.has(entry.id);
         const zBoost = isDispatchActive
           ? (entry.marker._dispatchScore >= 1.0 ? 20000 : entry.marker._dispatchScore >= 0.66 ? 15000 : entry.marker._dispatchScore > 0 ? 12000 : 1)
-          : zBase;
+          : isSearchMatch ? (10000 + zBase) : zBase;
 
         _ringFormations.push({ marker: entry.marker, _zIndexBoosted: true });
 
@@ -3544,6 +3579,26 @@ function renderRing(creator, forceDispatch) {
     });
 
     ringColumn.appendChild(platformRow);
+
+    // --- Total follower count badge (between platform chips and avatar) ---
+    const totalFollowers = ringPlatforms.reduce((sum, p) => {
+      const f = getFollowers(creator, p);
+      return sum + (f || 0);
+    }, 0);
+    if (totalFollowers > 0) {
+      const totalBadge = document.createElement('div');
+      totalBadge.className = 'ring-total-followers';
+      totalBadge.innerHTML = `<span class="ring-total-icon">👥</span><span class="ring-total-value">${formatFollowers(totalFollowers)}</span><span class="ring-total-label">total reach</span>`;
+      totalBadge.style.opacity = '0';
+      totalBadge.style.transform = 'translateY(6px)';
+      totalBadge.style.transition = 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      ringColumn.appendChild(totalBadge);
+      setTimeout(() => {
+        totalBadge.style.opacity = '1';
+        totalBadge.style.transform = 'translateY(0)';
+        setTimeout(() => { totalBadge.style.opacity = ''; totalBadge.style.transform = ''; totalBadge.style.transition = ''; }, 300);
+      }, 60 + ringPlatforms.length * 40 + 30);
+    }
   }
 
 
@@ -8618,3 +8673,486 @@ async function geocodeMissing() {
 }
 
 init().catch(e => console.error('Unhandled init error:', e));
+
+// ═══════════════════════════════════════════════════════════
+// INSIGHTS PANEL — Dashboard, Regional, Deep Cuts
+// ═══════════════════════════════════════════════════════════
+
+(function setupInsightsPanel() {
+  const toggleBtn = document.getElementById('insightsToggleBtn');
+  const panel = document.getElementById('insightsPanel');
+  const scrim = document.getElementById('insightsScrim');
+  const closeBtn = document.getElementById('insightsCloseBtn');
+  if (!toggleBtn || !panel) return;
+
+  let insightsCharts = {};  // track Chart.js instances for cleanup
+  let insightsOpen = false;
+
+  function openInsights() {
+    panel.classList.add('open');
+    scrim.classList.add('open');
+    toggleBtn.classList.add('active');
+    insightsOpen = true;
+    renderInsights();
+  }
+
+  function closeInsights() {
+    panel.classList.remove('open');
+    scrim.classList.remove('open');
+    toggleBtn.classList.remove('active');
+    insightsOpen = false;
+    // Destroy charts to free memory
+    Object.values(insightsCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
+    insightsCharts = {};
+  }
+
+  toggleBtn.addEventListener('click', () => insightsOpen ? closeInsights() : openInsights());
+  closeBtn.addEventListener('click', closeInsights);
+  scrim.addEventListener('click', closeInsights);
+
+  // Tab switching
+  document.querySelectorAll('.insights-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.insights-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.insights-tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.insightsTab;
+      const contentMap = { 'dashboard': 'insightsTabDashboard', 'regional': 'insightsTabRegional', 'deep-cuts': 'insightsTabDeepCuts' };
+      document.getElementById(contentMap[target]).classList.add('active');
+    });
+  });
+
+  // Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && insightsOpen) closeInsights();
+  });
+
+  // ── Helper: get region from location string ──
+  function getRegion(location) {
+    if (!location) return 'Unknown';
+    const loc = location.toLowerCase();
+    const stateMap = {
+      'wa': 'Pacific NW', 'or': 'Pacific NW', 'id': 'Pacific NW',
+      'ca': 'California', 'hi': 'Hawaii',
+      'nv': 'Mountain West', 'ut': 'Mountain West', 'co': 'Mountain West', 'mt': 'Mountain West', 'wy': 'Mountain West', 'az': 'Southwest', 'nm': 'Southwest',
+      'tx': 'Southwest', 'ok': 'Southwest',
+      'ny': 'Northeast', 'ma': 'Northeast', 'ct': 'Northeast', 'nj': 'Northeast', 'pa': 'Northeast', 'me': 'Northeast', 'vt': 'Northeast', 'nh': 'Northeast', 'ri': 'Northeast', 'de': 'Northeast', 'md': 'Northeast', 'dc': 'Northeast',
+      'fl': 'Southeast', 'ga': 'Southeast', 'nc': 'Southeast', 'sc': 'Southeast', 'va': 'Southeast', 'al': 'Southeast', 'ms': 'Southeast', 'la': 'Southeast', 'tn': 'Southeast', 'ky': 'Southeast', 'wv': 'Southeast', 'ar': 'Southeast',
+      'il': 'Midwest', 'oh': 'Midwest', 'mi': 'Midwest', 'in': 'Midwest', 'wi': 'Midwest', 'mn': 'Midwest', 'ia': 'Midwest', 'mo': 'Midwest', 'nd': 'Midwest', 'sd': 'Midwest', 'ne': 'Midwest', 'ks': 'Midwest',
+      'ak': 'Alaska',
+    };
+    // Try to match state abbreviation at end, e.g. "Seattle, WA"
+    const stateMatch = location.match(/,\s*([A-Za-z]{2})$/);
+    if (stateMatch) {
+      const abbr = stateMatch[1].toLowerCase();
+      if (stateMap[abbr]) return stateMap[abbr];
+    }
+    // Try matching state names
+    if (loc.includes('washington') && !loc.includes('dc')) return 'Pacific NW';
+    if (loc.includes('oregon')) return 'Pacific NW';
+    if (loc.includes('california') || loc.includes('los angeles') || loc.includes('san francisco') || loc.includes('san diego')) return 'California';
+    if (loc.includes('seattle') || loc.includes('portland') || loc.includes('boise')) return 'Pacific NW';
+    if (loc.includes('denver') || loc.includes('salt lake') || loc.includes('bozeman')) return 'Mountain West';
+    if (loc.includes('new york') || loc.includes('boston') || loc.includes('phila')) return 'Northeast';
+    if (loc.includes('austin') || loc.includes('dallas') || loc.includes('houston') || loc.includes('phoenix')) return 'Southwest';
+    if (loc.includes('miami') || loc.includes('atlanta') || loc.includes('nashville') || loc.includes('charlotte')) return 'Southeast';
+    if (loc.includes('chicago') || loc.includes('detroit') || loc.includes('minneapolis')) return 'Midwest';
+    // International check
+    if (location.match(/,\s*[A-Z]{2}$/) === null && location.includes(',')) return 'International';
+    return 'Other';
+  }
+
+  // ── Helper: get total followers for a creator ──
+  function getTotalFollowers(creator) {
+    return getCreatorPlatforms(creator).reduce((sum, p) => sum + (getFollowers(creator, p) || 0), 0);
+  }
+
+  // ── Main render function ──
+  function renderInsights() {
+    // Destroy old charts
+    Object.values(insightsCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
+    insightsCharts = {};
+
+    const data = creators || [];
+    if (data.length === 0) {
+      document.getElementById('insightsBody').innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted)">No creators in roster yet</div>';
+      return;
+    }
+
+    renderDashboard(data);
+    renderRegional(data);
+    renderDeepCuts(data);
+  }
+
+  // ══════════════════════
+  // DASHBOARD TAB
+  // ══════════════════════
+  function renderDashboard(data) {
+    // KPIs
+    const totalReach = data.reduce((s, c) => s + getTotalFollowers(c), 0);
+    const allPlatformEntries = [];
+    const uniqueStates = new Set();
+    const nicheSet = new Set();
+    let engSum = 0, engCount = 0;
+
+    data.forEach(c => {
+      getCreatorPlatforms(c).forEach(p => {
+        allPlatformEntries.push(p);
+        const er = getEngagementRate(c, p);
+        if (er) { engSum += er; engCount++; }
+      });
+      if (c.niches) c.niches.forEach(n => nicheSet.add(n));
+      if (c.location) {
+        const m = c.location.match(/,\s*([A-Za-z]{2})$/);
+        if (m) uniqueStates.add(m[1].toUpperCase());
+      }
+    });
+
+    const avgEng = engCount > 0 ? (engSum / engCount).toFixed(1) + '%' : 'N/A';
+
+    const kpiStrip = document.getElementById('insightsKpiStrip');
+    kpiStrip.innerHTML = [
+      { value: data.length, label: 'Creators' },
+      { value: formatFollowers(totalReach), label: 'Total Reach' },
+      { value: avgEng, label: 'Avg Engagement' },
+      { value: uniqueStates.size, label: 'States' },
+      { value: nicheSet.size, label: 'Niches' },
+    ].map(k => `<div class="insights-kpi"><div class="insights-kpi-value">${k.value}</div><div class="insights-kpi-label">${k.label}</div></div>`).join('');
+
+    // Platform distribution donut
+    const platCounts = {};
+    PLATFORMS.forEach(p => platCounts[p] = 0);
+    data.forEach(c => getCreatorPlatforms(c).forEach(p => { if (platCounts[p] !== undefined) platCounts[p]++; }));
+
+    const platColors = { 'Instagram': '#E1306C', 'TikTok': '#00F2EA', 'YouTube': '#FF0000' };
+    insightsCharts.platformDonut = new Chart(document.getElementById('insightsPlatformDonut'), {
+      type: 'doughnut',
+      data: {
+        labels: PLATFORMS,
+        datasets: [{ data: PLATFORMS.map(p => platCounts[p]), backgroundColor: PLATFORMS.map(p => platColors[p]), borderWidth: 0, spacing: 3, borderRadius: 4 }]
+      },
+      options: {
+        cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: 'rgba(var(--text-secondary-rgb,164,189,170),1)', padding: 12, usePointStyle: true, pointStyleWidth: 8, font: { family: "'DM Sans',sans-serif", size: 11 } } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} creators` } }
+        }
+      }
+    });
+
+    // Tier bar chart
+    const tierCounts = {};
+    TIERS.forEach(t => tierCounts[t] = 0);
+    data.forEach(c => {
+      const t = getHighestTier(c);
+      if (t && tierCounts[t] !== undefined) tierCounts[t]++;
+    });
+    const tierColors = ['#5E7A64', '#8BBF96', '#A8D4B0', '#D4C47C', '#C882A0'];
+
+    insightsCharts.tierBar = new Chart(document.getElementById('insightsTierBar'), {
+      type: 'bar',
+      data: {
+        labels: TIERS.map(t => t.replace(/\s*\(.*\)/, '')),
+        datasets: [{ data: TIERS.map(t => tierCounts[t]), backgroundColor: tierColors, borderRadius: 8, borderSkipped: false }]
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } } },
+          y: { grid: { display: false }, ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } } }
+        }
+      }
+    });
+
+    // Top 10 niches bar
+    const nicheCounts = {};
+    data.forEach(c => { if (c.niches) c.niches.forEach(n => { nicheCounts[n] = (nicheCounts[n] || 0) + 1; }); });
+    const topNiches = Object.entries(nicheCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+    insightsCharts.nicheBar = new Chart(document.getElementById('insightsNicheBar'), {
+      type: 'bar',
+      data: {
+        labels: topNiches.map(n => n[0]),
+        datasets: [{ data: topNiches.map(n => n[1]), backgroundColor: 'rgba(139,191,150,0.5)', borderColor: 'rgba(139,191,150,0.8)', borderWidth: 1, borderRadius: 6, borderSkipped: false }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#A4BDAA', maxRotation: 45, font: { family: "'DM Sans',sans-serif", size: 10 } } },
+          y: { grid: { display: false }, beginAtZero: true, ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } } }
+        }
+      }
+    });
+
+    // Platform performance cards
+    const perfDiv = document.getElementById('insightsPlatformPerf');
+    perfDiv.innerHTML = '';
+    PLATFORMS.forEach(p => {
+      let fSum = 0, fCnt = 0, eSum = 0, eCnt = 0;
+      data.forEach(c => {
+        const f = getFollowers(c, p);
+        if (f) { fSum += f; fCnt++; }
+        const e = getEngagementRate(c, p);
+        if (e) { eSum += e; eCnt++; }
+      });
+      const avgF = fCnt > 0 ? formatFollowers(Math.round(fSum / fCnt)) : '—';
+      const avgE = eCnt > 0 ? (eSum / eCnt).toFixed(1) + '%' : '—';
+      const color = platColors[p];
+      perfDiv.innerHTML += `<div class="insights-perf-cell"><div class="insights-perf-platform" style="color:${color}">${p}</div><div class="insights-perf-stat" style="color:${color}">${avgE}</div><div class="insights-perf-label">Avg Engagement</div><div class="insights-perf-stat" style="font-size:16px;margin-top:6px">${avgF}</div><div class="insights-perf-label">Avg Followers</div></div>`;
+    });
+  }
+
+  // ══════════════════════
+  // REGIONAL TAB
+  // ══════════════════════
+  function renderRegional(data) {
+    // Group creators by region
+    const regionData = {};
+    data.forEach(c => {
+      const r = getRegion(c.location);
+      if (!regionData[r]) regionData[r] = { creators: [], totalFollowers: 0, platforms: {} };
+      regionData[r].creators.push(c);
+      regionData[r].totalFollowers += getTotalFollowers(c);
+      getCreatorPlatforms(c).forEach(p => {
+        regionData[r].platforms[p] = (regionData[r].platforms[p] || 0) + 1;
+      });
+    });
+
+    // Heatmap grid
+    const heatmap = document.getElementById('insightsHeatmap');
+    heatmap.innerHTML = '';
+    const maxRegionFollowers = Math.max(...Object.values(regionData).map(r => r.totalFollowers), 1);
+    const sortedRegions = Object.entries(regionData).sort((a, b) => b[1].totalFollowers - a[1].totalFollowers);
+
+    sortedRegions.forEach(([name, info]) => {
+      const intensity = info.totalFollowers / maxRegionFollowers;
+      const cell = document.createElement('div');
+      cell.className = 'insights-heat-cell';
+      cell.style.background = `rgba(139, 191, 150, ${0.05 + intensity * 0.25})`;
+      cell.style.borderColor = `rgba(139, 191, 150, ${0.1 + intensity * 0.3})`;
+      cell.innerHTML = `<div class="heat-region-name">${name}</div><div class="heat-region-count" style="opacity:${0.5 + intensity * 0.5}">${info.creators.length}</div><div class="heat-region-reach">${formatFollowers(info.totalFollowers)} reach</div>`;
+      heatmap.appendChild(cell);
+    });
+
+    // Regional leaderboard — top creators across all regions
+    const lb = document.getElementById('insightsRegionalLB');
+    lb.innerHTML = '';
+    const sorted = data.slice().sort((a, b) => getTotalFollowers(b) - getTotalFollowers(a)).slice(0, 8);
+    const maxF = getTotalFollowers(sorted[0]) || 1;
+
+    sorted.forEach((c, i) => {
+      const total = getTotalFollowers(c);
+      const pct = (total / maxF * 100).toFixed(0);
+      const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+      const initials = getInitials(c.firstName, c.lastName);
+      const bgColors = ['var(--coral)', 'var(--lavender)', 'var(--pink)', 'var(--sage)', 'var(--gold)', 'var(--mocha)', 'var(--rose)', 'var(--accent)'];
+      lb.innerHTML += `<div class="insights-lb-row"><div class="insights-lb-rank ${rankClass}">${i + 1}</div><div class="insights-lb-avatar" style="background:${bgColors[i % bgColors.length]}">${initials}</div><div class="insights-lb-info"><div class="insights-lb-name">${getFullName(c)}</div><div class="insights-lb-location">📍 ${c.location || 'Unknown'}</div></div><div class="insights-lb-bar-wrap"><div class="insights-lb-bar" style="width:${pct}%"></div></div><div class="insights-lb-followers">${formatFollowers(total)}</div></div>`;
+    });
+
+    // Coverage gaps
+    const gapsDiv = document.getElementById('insightsCoverageGaps');
+    gapsDiv.innerHTML = '';
+
+    // Find underrepresented regions
+    const allRegionNames = ['Pacific NW', 'California', 'Mountain West', 'Southwest', 'Northeast', 'Southeast', 'Midwest'];
+    const underRep = allRegionNames.filter(r => !regionData[r] || regionData[r].creators.length <= 2)
+      .map(r => ({ name: r, count: regionData[r] ? regionData[r].creators.length : 0 }))
+      .sort((a, b) => a.count - b.count);
+
+    if (underRep.length > 0) {
+      gapsDiv.innerHTML += `<div class="insights-gap-section"><div class="insights-gap-label">Underrepresented Regions</div><div class="insights-gap-pills">${underRep.map(r => `<span class="insights-gap-pill ${r.count === 0 ? 'danger' : 'warning'}">${r.name} – ${r.count} creator${r.count !== 1 ? 's' : ''}</span>`).join('')}</div></div>`;
+    }
+
+    // Find niches with 0 creators from preset list
+    const allUsedNiches = new Set();
+    data.forEach(c => { if (c.niches) c.niches.forEach(n => allUsedNiches.add(n)); });
+    const defaultNicheList = Object.values(DEFAULT_NICHE_CATEGORIES || {}).flat();
+    const emptyNiches = defaultNicheList.filter(n => !allUsedNiches.has(n)).slice(0, 6);
+    if (emptyNiches.length > 0) {
+      gapsDiv.innerHTML += `<div class="insights-gap-section"><div class="insights-gap-label">Niche Gaps (No creators)</div><div class="insights-gap-pills">${emptyNiches.map(n => `<span class="insights-gap-pill danger">${n}</span>`).join('')}</div></div>`;
+    }
+
+    // Platform gaps by region — regions with IG/TT but no YT
+    const platGaps = [];
+    Object.entries(regionData).forEach(([name, info]) => {
+      const has = Object.keys(info.platforms);
+      if (has.includes('Instagram') || has.includes('TikTok')) {
+        if (!has.includes('YouTube')) {
+          platGaps.push(`${name} – ${info.creators.length} IG/TT, 0 YT`);
+        }
+      }
+    });
+    if (platGaps.length > 0) {
+      gapsDiv.innerHTML += `<div class="insights-gap-section"><div class="insights-gap-label">No YouTube Presence</div><div class="insights-gap-pills">${platGaps.map(g => `<span class="insights-gap-pill warning">${g}</span>`).join('')}</div></div>`;
+    }
+
+    if (gapsDiv.innerHTML === '') {
+      gapsDiv.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:12px;text-align:center">Great coverage! No major gaps detected.</div>';
+    }
+
+    // Platform mix by region
+    const mixDiv = document.getElementById('insightsRegionPlatformMix');
+    mixDiv.innerHTML = '';
+    const platColors = { 'Instagram': 'rgba(225,48,108,0.6)', 'TikTok': 'rgba(0,242,234,0.4)', 'YouTube': 'rgba(255,0,0,0.45)' };
+    sortedRegions.slice(0, 6).forEach(([name, info]) => {
+      const maxPlat = Math.max(...Object.values(info.platforms), 1);
+      const scale = v => (v / maxPlat * 100).toFixed(0);
+      let barsHtml = '';
+      PLATFORMS.forEach(p => {
+        const count = info.platforms[p] || 0;
+        if (count > 0) {
+          barsHtml += `<div class="insights-comp-bar" style="width:${scale(count)}%;background:${platColors[p]}">${count}</div>`;
+        }
+      });
+      mixDiv.innerHTML += `<div class="insights-comp-row"><div class="insights-comp-label">${name}</div><div class="insights-comp-bars">${barsHtml}</div></div>`;
+    });
+  }
+
+  // ══════════════════════
+  // DEEP CUTS TAB
+  // ══════════════════════
+  function renderDeepCuts(data) {
+    // Engagement vs Followers scatter
+    const datasets = [];
+    const platColors = { 'Instagram': '#E1306C', 'TikTok': '#00F2EA', 'YouTube': '#FF0000' };
+    PLATFORMS.forEach(p => {
+      const points = [];
+      data.forEach(c => {
+        const f = getFollowers(c, p);
+        const e = getEngagementRate(c, p);
+        if (f && e) {
+          points.push({ x: Math.round(f / 1000), y: parseFloat(e.toFixed(1)), name: getFullName(c) });
+        }
+      });
+      if (points.length > 0) {
+        datasets.push({
+          label: p,
+          data: points,
+          backgroundColor: platColors[p] + '80',
+          borderColor: platColors[p],
+          borderWidth: 1,
+          pointRadius: 5,
+          pointHoverRadius: 7
+        });
+      }
+    });
+
+    if (datasets.length > 0) {
+      insightsCharts.scatter = new Chart(document.getElementById('insightsEngScatter'), {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `${ctx.raw.name || ''}: ${ctx.raw.x}K followers, ${ctx.raw.y}% eng` } }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Followers (K)', color: '#5E7A64' }, grid: { display: false }, ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } } },
+            y: { title: { display: true, text: 'Engagement %', color: '#5E7A64' }, grid: { color: 'rgba(255,255,255,0.04)' }, min: 0, ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // Aggregate audience demographics
+    const audienceDiv = document.getElementById('insightsAudienceDemo');
+    audienceDiv.innerHTML = '';
+    const genderTotals = {};
+    const ageTotals = {};
+    let totalWeightedFollowers = 0;
+
+    data.forEach(c => {
+      getCreatorPlatforms(c).forEach(p => {
+        const plat = c.platforms && c.platforms[p];
+        if (!plat || !plat.audienceData) return;
+        const followers = plat.followers || 0;
+        const ad = plat.audienceData;
+
+        // Gender data
+        if (ad.gender) {
+          Object.entries(ad.gender).forEach(([g, pct]) => {
+            genderTotals[g] = (genderTotals[g] || 0) + (parseFloat(pct) || 0) * followers;
+          });
+          totalWeightedFollowers += followers;
+        }
+
+        // Age data
+        if (ad.age) {
+          Object.entries(ad.age).forEach(([bracket, pct]) => {
+            ageTotals[bracket] = (ageTotals[bracket] || 0) + (parseFloat(pct) || 0) * followers;
+          });
+        }
+      });
+    });
+
+    const barColors = ['var(--pink)', 'var(--lavender)', 'var(--sage)', 'var(--coral)', 'var(--gold)', 'var(--mocha)', 'var(--text-muted)'];
+
+    if (totalWeightedFollowers > 0) {
+      // Gender section
+      audienceDiv.innerHTML += '<div class="insights-audience-section-label">Gender Split (weighted by followers)</div>';
+      const genderEntries = Object.entries(genderTotals).sort((a, b) => b[1] - a[1]);
+      const genderTotal = genderEntries.reduce((s, e) => s + e[1], 0);
+      genderEntries.forEach(([label, weighted], i) => {
+        const pct = (weighted / genderTotal * 100).toFixed(0);
+        audienceDiv.innerHTML += `<div class="insights-aud-bar"><div class="insights-aud-bar-label"><span>${label}</span><span>${pct}%</span></div><div class="insights-aud-bar-track"><div class="insights-aud-bar-fill" style="width:${pct}%;background:${barColors[i % barColors.length]}"></div></div></div>`;
+      });
+
+      // Age section
+      if (Object.keys(ageTotals).length > 0) {
+        audienceDiv.innerHTML += '<div class="insights-audience-section-label" style="margin-top:18px">Age Distribution</div>';
+        const ageEntries = Object.entries(ageTotals).sort((a, b) => {
+          const numA = parseInt(a[0]) || 0, numB = parseInt(b[0]) || 0;
+          return numA - numB;
+        });
+        const ageTotal = ageEntries.reduce((s, e) => s + e[1], 0);
+        ageEntries.forEach(([label, weighted], i) => {
+          const pct = (weighted / ageTotal * 100).toFixed(0);
+          audienceDiv.innerHTML += `<div class="insights-aud-bar"><div class="insights-aud-bar-label"><span>${label}</span><span>${pct}%</span></div><div class="insights-aud-bar-track"><div class="insights-aud-bar-fill" style="width:${pct}%;background:${barColors[(i + 3) % barColors.length]}"></div></div></div>`;
+        });
+      }
+    } else {
+      audienceDiv.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:12px">No audience data available yet. Import from July to populate.</div>';
+    }
+
+    // Hidden gems — high engagement, low follower count
+    const gemsDiv = document.getElementById('insightsHiddenGems');
+    gemsDiv.innerHTML = '';
+    const gems = [];
+    data.forEach(c => {
+      getCreatorPlatforms(c).forEach(p => {
+        const f = getFollowers(c, p);
+        const e = getEngagementRate(c, p);
+        if (f && e && f < 100000 && e > 5) {
+          gems.push({ creator: c, platform: p, followers: f, engagement: e });
+        }
+      });
+    });
+    gems.sort((a, b) => b.engagement - a.engagement);
+
+    if (gems.length === 0) {
+      // Relax criteria
+      data.forEach(c => {
+        getCreatorPlatforms(c).forEach(p => {
+          const f = getFollowers(c, p);
+          const e = getEngagementRate(c, p);
+          if (f && e && f < 500000 && e > 3) {
+            gems.push({ creator: c, platform: p, followers: f, engagement: e });
+          }
+        });
+      });
+      gems.sort((a, b) => b.engagement - a.engagement);
+    }
+
+    gems.slice(0, 6).forEach(g => {
+      const color = platColors[g.platform];
+      const initials = getInitials(g.creator.firstName, g.creator.lastName);
+      const nicheTags = (g.creator.niches || []).slice(0, 2).join(', ');
+      gemsDiv.innerHTML += `<div class="insights-lb-row"><div class="insights-lb-avatar" style="background:${color}33;border:1.5px solid ${color}66;color:${color};font-size:10px">${formatEngagementRate(g.engagement)}</div><div class="insights-lb-info"><div class="insights-lb-name">${getFullName(g.creator)}</div><div class="insights-lb-location">${g.platform} · ${nicheTags || 'No niche'} · ${formatFollowers(g.followers)}</div></div><div class="insights-gem-badge">⚡ Overperformer</div></div>`;
+    });
+
+    if (gems.length === 0) {
+      gemsDiv.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Not enough engagement data to identify hidden gems yet.</div>';
+    }
+  }
+})();

@@ -27,8 +27,11 @@
   <!-- Supabase client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" async></script>
 
+  <!-- Chart.js for Insights panel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
   <!-- App Styles -->
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
   <script>
@@ -47,6 +50,10 @@
       </h1>
     </div>
     <div class="topBar-actions">
+      <button class="insights-toggle-btn" id="insightsToggleBtn" title="Roster Insights">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+        <span class="insights-btn-label">Insights</span>
+      </button>
       <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle light/dark theme">🌙</button>
       <div class="eqex-brand">
         <img src="BetterAlchemyCircle_transparent.png" alt="" class="eqex-sigil" />
@@ -338,6 +345,74 @@
     </button>
   </div>
 
+  <!-- Insights Panel Overlay -->
+  <div class="insights-scrim" id="insightsScrim"></div>
+  <div class="insights-panel" id="insightsPanel">
+    <div class="insights-header">
+      <h2 class="insights-title">Roster Insights</h2>
+      <button class="insights-close" id="insightsCloseBtn">&times;</button>
+    </div>
+    <div class="insights-tabs">
+      <button class="insights-tab active" data-insights-tab="dashboard">Dashboard</button>
+      <button class="insights-tab" data-insights-tab="regional">By Region</button>
+      <button class="insights-tab" data-insights-tab="deep-cuts">Deep Cuts</button>
+    </div>
+    <div class="insights-body" id="insightsBody">
+      <!-- Dashboard Tab -->
+      <div class="insights-tab-content active" id="insightsTabDashboard">
+        <div class="insights-kpi-strip" id="insightsKpiStrip"></div>
+        <div class="insights-grid-2">
+          <div class="insights-card"><div class="insights-card-title">Platform Distribution</div><div class="insights-chart-wrap"><canvas id="insightsPlatformDonut"></canvas></div></div>
+          <div class="insights-card"><div class="insights-card-title">Tier Breakdown</div><div class="insights-chart-wrap"><canvas id="insightsTierBar"></canvas></div></div>
+        </div>
+        <div class="insights-grid-2">
+          <div class="insights-card"><div class="insights-card-title">Top 10 Niches</div><div class="insights-chart-wrap"><canvas id="insightsNicheBar"></canvas></div></div>
+          <div class="insights-card">
+            <div class="insights-card-title">Platform Performance</div>
+            <div class="insights-platform-perf" id="insightsPlatformPerf"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Regional Tab -->
+      <div class="insights-tab-content" id="insightsTabRegional">
+        <div class="insights-card"><div class="insights-card-title">Follower Density by Region</div><div class="insights-heatmap" id="insightsHeatmap"></div></div>
+        <div class="insights-grid-2">
+          <div class="insights-card"><div class="insights-card-title">Top Creators by Region</div><div id="insightsRegionalLB"></div></div>
+          <div class="insights-card">
+            <div class="insights-card-title">Coverage Gaps &amp; Opportunities</div>
+            <div id="insightsCoverageGaps"></div>
+          </div>
+        </div>
+        <div class="insights-card"><div class="insights-card-title">Platform Mix by Region</div><div id="insightsRegionPlatformMix"></div></div>
+      </div>
+      <!-- Deep Cuts Tab -->
+      <div class="insights-tab-content" id="insightsTabDeepCuts">
+        <div class="insights-grid-2">
+          <div class="insights-card">
+            <div class="insights-card-title">Engagement vs. Follower Count</div>
+            <p class="insights-card-subtitle">Smaller creators often have higher engagement — find your hidden gems</p>
+            <div class="insights-chart-wrap"><canvas id="insightsEngScatter"></canvas></div>
+            <div class="insights-scatter-legend">
+              <span class="scatter-leg-item"><span class="scatter-dot" style="background:#E1306C"></span> Instagram</span>
+              <span class="scatter-leg-item"><span class="scatter-dot" style="background:#00F2EA"></span> TikTok</span>
+              <span class="scatter-leg-item"><span class="scatter-dot" style="background:#FF0000"></span> YouTube</span>
+            </div>
+          </div>
+          <div class="insights-card">
+            <div class="insights-card-title">Aggregate Audience Demographics</div>
+            <p class="insights-card-subtitle">Where your creators' audiences skew — useful for brand matchmaking</p>
+            <div id="insightsAudienceDemo"></div>
+          </div>
+        </div>
+        <div class="insights-card">
+          <div class="insights-card-title">Hidden Gems</div>
+          <p class="insights-card-subtitle">Creators with unusually high engagement for their tier</p>
+          <div id="insightsHiddenGems"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Ring Scrim (click to close) -->
   <div class="ring-scrim" id="ringScrim"></div>
   <!-- Ring Overlay (positioned dynamically over map) -->
@@ -416,8 +491,8 @@
   </div>
 
   <!-- Database Layer (Supabase) -->
-  <script src="db.js?v=6"></script>
+  <script src="db.js?v=7"></script>
   <!-- App Script -->
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

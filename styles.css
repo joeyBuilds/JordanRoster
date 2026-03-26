@@ -8217,41 +8217,27 @@ body.dispatch-mode .marker-cluster-inner {
   opacity: 0;
 }
 
-/* ── Secondary matches (matched but not top-N) — present but subdued ── */
+/* ── Secondary matches (matched but not top-N) — hidden from map ── */
 .creator-marker.dispatch-secondary .marker-inner {
-  transform: scale(0.7) !important;
-  opacity: 0.35 !important;
-  filter: saturate(0.4) brightness(0.85) !important;
-  transition: transform 0.3s ease, opacity 0.4s ease, filter 0.4s ease;
-}
-.creator-marker.dispatch-secondary:hover .marker-inner {
-  transform: scale(0.9) !important;
-  opacity: 0.85 !important;
-  filter: saturate(0.9) brightness(1) !important;
-}
-.creator-marker.dispatch-secondary .marker-gleam-ring {
-  animation: none;
-  opacity: 0;
+  opacity: 0 !important;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 .creator-marker.dispatch-secondary .marker-label {
-  opacity: 0.2 !important;
+  opacity: 0 !important;
 }
 
-/* ── Non-matching markers — gentle fade so they stay on the board ── */
+/* ── Non-matching markers — hidden from map when top-N is active ── */
 .creator-marker.dispatch-faded .marker-inner {
-  opacity: 0.2;
-  filter: grayscale(0.7) brightness(0.75);
-  transition: opacity 0.4s ease, filter 0.4s ease;
-}
-.creator-marker.dispatch-faded:hover .marker-inner {
-  opacity: 0.6;
-  filter: grayscale(0.2) brightness(0.95);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 .creator-marker.dispatch-faded .marker-glow {
   opacity: 0;
 }
 .creator-marker.dispatch-faded .marker-label {
-  opacity: 0.15 !important;
+  opacity: 0 !important;
 }
 
 /* Non-matching markers fade — roster search */

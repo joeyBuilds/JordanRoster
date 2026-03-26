@@ -6813,6 +6813,15 @@ document.addEventListener('keydown', (e) => {
     const ring = document.getElementById('ringOverlay');
     if (ring && ring.classList.contains('open')) { closeDetailPanel(); closedSomething = true; }
 
+    // ESC closes dispatch results panel and clears filters (lowest priority)
+    if (!closedSomething) {
+      const matchPanel = document.getElementById('matchFloatPanel');
+      if (matchPanel && matchPanel.classList.contains('visible') && matchPanel.classList.contains('dispatch-mode')) {
+        document.getElementById('matchFloatClose').click();
+        closedSomething = true;
+      }
+    }
+
   }
 });
 

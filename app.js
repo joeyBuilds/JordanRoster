@@ -2857,7 +2857,7 @@ function renderRing(creator, forceDispatch) {
     scoreRingSvg.setAttribute('viewBox', '0 0 106 106');
     const circumference = 2 * Math.PI * 47;
     const offset = circumference * (1 - ringScore.pct);
-    const strokeColor = ringScoreLevel === 'half' ? 'var(--warning)' : (ringScoreLevel === 'low' ? 'var(--mocha)' : 'var(--success)');
+    const strokeColor = ringScoreLevel === 'full' ? 'var(--gold)' : (ringScoreLevel === 'most' ? '#c49035' : (ringScoreLevel === 'half' ? 'var(--warning)' : '#888'));
     scoreRingSvg.innerHTML = `
       <circle cx="53" cy="53" r="47" fill="none" stroke="rgba(200,190,180,0.15)" stroke-width="3"/>
       <circle cx="53" cy="53" r="47" fill="none" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round"
@@ -2918,11 +2918,13 @@ function renderRing(creator, forceDispatch) {
 
   ringColumn.appendChild(ringBody);
 
-  // --- Row 3: Contact info card ---
+  // --- Name card, actions, notes go inside bodyCenter so they stay below avatar ---
+  // (not after ring-body, which would push them below the tallest side column)
+
+  // Contact info card
   const infoSection = document.createElement('div');
   infoSection.className = 'ring-info-section';
 
-  // Center: Contact info card
   const contactCard = document.createElement('div');
   contactCard.className = 'ring-name-card';
 
@@ -2973,9 +2975,9 @@ function renderRing(creator, forceDispatch) {
 
   infoSection.appendChild(contactCard);
 
-  ringColumn.appendChild(infoSection);
+  bodyCenter.appendChild(infoSection);
 
-  // --- Row 4: Action buttons ---
+  // --- Action buttons (inside center column) ---
   const actions = document.createElement('div');
   actions.className = 'ring-actions';
 
@@ -3010,15 +3012,15 @@ function renderRing(creator, forceDispatch) {
 
   actions.appendChild(editBtn);
   actions.appendChild(deleteBtn);
-  ringColumn.appendChild(actions);
+  bodyCenter.appendChild(actions);
 
-  // --- Row 5: Notes (click to expand/collapse) ---
+  // --- Notes (inside center column, click to expand/collapse) ---
   if (creator.notes) {
     const notes = document.createElement('div');
     notes.className = 'ring-notes';
     notes.textContent = creator.notes;
     notes.onclick = (e) => { e.stopPropagation(); notes.classList.toggle('expanded'); };
-    ringColumn.appendChild(notes);
+    bodyCenter.appendChild(notes);
   }
 
   overlay.appendChild(ringColumn);

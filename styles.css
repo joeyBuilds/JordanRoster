@@ -1285,7 +1285,7 @@ body.shift-held #mapContainer .leaflet-container {
 /* Compare panels reuse .demos-sub-tabs and .demos-content classes directly */
 .compare-panel-close {
   position: absolute;
-  top: 48px;
+  top: 10px;
   right: 4px;
   background: none;
   border: none;
@@ -1373,16 +1373,41 @@ body.shift-held #mapContainer .leaflet-container {
 }
 
 /* Compare body uses .demos-content class — hide scrollbar */
-/* Push compare header down to align with primary sidebar content (below sidebar tab bar) */
+/* Compare header — minimal top padding, badge row fills the space */
 .compare-panel .demos-sub-tabs {
-  padding-top: 46px;
+  padding-top: 8px;
 }
 .compare-panel .demos-content {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overflow-y: auto;
 }
 .compare-panel .demos-content::-webkit-scrollbar {
   display: none;
+}
+/* Compact stat cells in compare panels to avoid scrollbar */
+.compare-panel .demos-stat-cell {
+  padding: 5px 6px 4px;
+}
+.compare-panel .demos-stat-value {
+  font-size: 14px;
+}
+.compare-panel .demos-stat-label {
+  font-size: 7.5px;
+}
+.compare-panel .demos-stats-grid {
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.compare-panel .demos-demo-card {
+  padding: 4px 6px;
+  margin-bottom: 2px;
+}
+.compare-panel .demos-bar-row {
+  margin-bottom: 1px;
+}
+.compare-panel .demos-platform-section {
+  padding: 3px 6px 4px;
 }
 
 /* ── Compare slot color themes ── */
@@ -4541,7 +4566,7 @@ a.ring-platform-chip:hover {
   gap: 4px;
   min-width: 0;
   flex: 1 1 0;
-  max-width: 140px;
+  max-width: 180px;
   padding-top: 6px;
 }
 .ring-body-side .ring-pill {
@@ -4559,6 +4584,7 @@ a.ring-platform-chip:hover {
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
+  gap: 10px;
 }
 
 /* Row 3: Info section — contact card */
@@ -7516,9 +7542,9 @@ body.dispatch-mode .marker-cluster-inner {
   100% { background-position: -50% 0; }
 }
 .creator-card[data-score="most"] {
-  background: linear-gradient(135deg, rgba(var(--success-rgb),0.2) 0%, rgba(var(--bg-card-rgb),0.55) 100%) !important;
-  border-color: rgba(var(--success-rgb),0.3) !important;
-  border-left: 3px solid var(--success) !important;
+  background: linear-gradient(135deg, rgba(196, 144, 53, 0.2) 0%, rgba(var(--bg-card-rgb),0.55) 100%) !important;
+  border-color: rgba(196, 144, 53, 0.3) !important;
+  border-left: 3px solid #c49035 !important;
 }
 .creator-card[data-score="half"] {
   background: linear-gradient(135deg, rgba(var(--tag-niche-rgb),0.2) 0%, rgba(var(--bg-card-rgb),0.5) 100%) !important;
@@ -7590,7 +7616,7 @@ body.dispatch-mode .marker-cluster-inner {
   transform: translateY(0);
 }
 .creator-card[data-score="full"] .card-score-fraction { color: var(--gold); font-weight: 800; z-index: 2; position: relative; }
-.creator-card[data-score="most"] .card-score-fraction { color: var(--success); }
+.creator-card[data-score="most"] .card-score-fraction { color: #c49035; }
 .creator-card[data-score="half"] .card-score-fraction { color: var(--warning); }
 .creator-card[data-score="low"] .card-score-fraction { color: var(--mocha); }
 
@@ -7629,8 +7655,8 @@ body.dispatch-mode .marker-cluster-inner {
   box-shadow: 0 0 12px rgba(212, 168, 50, 0.5), 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 .marker-avatar.score-border-most {
-  border: 3.5px solid var(--success) !important;
-  box-shadow: 0 0 8px rgba(142, 174, 139, 0.4), 0 2px 8px rgba(0, 0, 0, 0.12);
+  border: 3.5px solid #c49035 !important;
+  box-shadow: 0 0 8px rgba(196, 144, 53, 0.35), 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 .marker-avatar.score-border-half {
   border: 3px solid var(--warning) !important;
@@ -7678,9 +7704,9 @@ body.dispatch-mode .marker-cluster-inner {
   0%, 100% { box-shadow: 0 0 10px 2px rgba(212, 168, 50, 0.4), 0 1px 6px rgba(0, 0, 0, 0.4); }
   50%      { box-shadow: 0 0 16px 4px rgba(212, 168, 50, 0.65), 0 1px 6px rgba(0, 0, 0, 0.4); }
 }
-.marker-score-badge.score-most { background: linear-gradient(135deg, #5aad6a, #3d8a4e); }
-.marker-score-badge.score-half { background: linear-gradient(135deg, #b08840, #8a6a30); color: rgba(255,255,255,0.85); }
-.marker-score-badge.score-low { background: linear-gradient(135deg, #787878, #5a5a5a); color: rgba(255,255,255,0.7); }
+.marker-score-badge.score-most { background: linear-gradient(135deg, #c49035, #a87828); }
+.marker-score-badge.score-half { background: linear-gradient(135deg, #967050, #7a5a3a); color: rgba(255,255,255,0.8); }
+.marker-score-badge.score-low { background: linear-gradient(135deg, #6a6a6a, #505050); color: rgba(255,255,255,0.65); }
 /* Larger badges for top-tier scores */
 .marker-score-badge.score-full,
 .marker-score-badge.score-most {

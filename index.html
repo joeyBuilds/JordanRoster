@@ -176,20 +176,6 @@
           <!-- Collapsible filter sections -->
           <div class="dispatch-vibes">
 
-            <!-- Platform & Tier — collapsible (excluded from score count) -->
-            <div class="dispatch-section-label dispatch-collapsible" id="platformTierLabel" onclick="toggleDispatchSection('platformTier')">
-              <span class="dispatch-caret" id="platformTierCaret">
-                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
-              Platform &amp; Tier <span class="collapsible-active-count" id="platformTierActiveCount"></span>
-            </div>
-            <div id="platformTierCollapsible" class="dispatch-collapsible-body">
-              <div>
-                <div id="platformTierFilter" class="platform-tier-filter"></div>
-                <!-- pills moved to active strip area above -->
-              </div>
-            </div>
-
             <!-- Niches — collapsible -->
             <div class="dispatch-section-label dispatch-collapsible" id="nichesLabel" onclick="toggleDispatchSection('niches')">
               <span class="dispatch-caret" id="nichesCaret">
@@ -215,6 +201,19 @@
               <div>
                 <button class="dispatch-edit-cats-btn" onclick="openCategoryOrganizer('demographic')" title="Organize demographic categories">✎</button>
                 <div id="dispatchDemoPills" class="dispatch-pill-grid"></div>
+              </div>
+            </div>
+
+            <!-- Platform & Tier — collapsible (excluded from score count) -->
+            <div class="dispatch-section-label dispatch-collapsible" id="platformTierLabel" onclick="toggleDispatchSection('platformTier')">
+              <span class="dispatch-caret" id="platformTierCaret">
+                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              Platform &amp; Tier <span class="collapsible-active-count" id="platformTierActiveCount"></span>
+            </div>
+            <div id="platformTierCollapsible" class="dispatch-collapsible-body">
+              <div>
+                <div id="platformTierFilter" class="platform-tier-filter"></div>
               </div>
             </div>
 
@@ -295,6 +294,25 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
         Fit All
       </button>
+      <!-- Hotkeys pill -->
+      <div class="hotkeys-pill">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+        Hotkeys
+        <div class="hotkeys-menu">
+          <div class="hotkeys-row">
+            <div class="hotkeys-keys"><kbd>Shift</kbd> <span class="hotkeys-plus">+</span> <kbd>Click</kbd></div>
+            <div class="hotkeys-desc">Set a dispatch location on map</div>
+          </div>
+          <div class="hotkeys-row">
+            <div class="hotkeys-keys"><kbd>Cmd</kbd> <span class="hotkeys-plus">+</span> <kbd>Click</kbd></div>
+            <div class="hotkeys-desc">Compare creators side by side</div>
+          </div>
+          <div class="hotkeys-row">
+            <div class="hotkeys-keys"><kbd>Esc</kbd></div>
+            <div class="hotkeys-desc">Clear &amp; close all panels</div>
+          </div>
+        </div>
+      </div>
       <!-- Floating dispatch panels stacked on bottom-left -->
       <div class="dispatch-float-stack" id="dispatchFloatStack">
         <div id="dispatchNearest" class="nearest-float" style="display: none;"></div>

@@ -5256,17 +5256,30 @@ function addCompareCreator(creatorId) {
 function removeCompareCreator(index) {
   _compareCreatorIds.splice(index, 1);
 
-  // Closing any panel exits compare mode entirely
+  if (_compareCreatorIds.length === 0) {
+    _compareSubTabs = {};
+    renderAllComparePanels();
+    // Restore creator slide-out panel
+    const slidePanel = document.getElementById('creatorSlidePanel');
+    if (slidePanel && slidePanel.classList.contains('retracted')) {
+      slidePanel.classList.remove('retracted');
+    }
+    restoreAllMarkers();
+  } else {
+    renderAllComparePanels();
+    highlightCompareMarkers(_compareCreatorIds);
+  }
+}
+
+function clearAllComparePanels() {
   _compareCreatorIds = [];
   _compareSubTabs = {};
   renderAllComparePanels();
 
-  // Restore creator slide-out panel
   const slidePanel = document.getElementById('creatorSlidePanel');
   if (slidePanel && slidePanel.classList.contains('retracted')) {
     slidePanel.classList.remove('retracted');
   }
-  // Restore all markers to default colors
   restoreAllMarkers();
 }
 
@@ -7542,7 +7555,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     _dismissMapCityPicker();
     if (_compareCreatorIds.length > 0) {
-      removeCompareCreator(_compareCreatorIds.length - 1);
+      clearAllComparePanels();
     }
     // Clear all niche/dispatch filters
     if (hasActiveDispatchFilters() || dispatchDestination) {

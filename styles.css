@@ -4292,6 +4292,14 @@ a.creator-platform-chip:hover {
   gap: 12px;
   z-index: 10;
   pointer-events: auto;
+  /* Frosted backdrop so ring content stands out from map */
+  background: rgba(var(--bg-primary-rgb), 0.35);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  border-radius: 24px;
+  padding: 16px 20px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* Row 1: Platform chips */
@@ -4825,14 +4833,32 @@ a.ring-platform-chip:hover {
   cursor: pointer;
   transition: all 0.25s ease;
 }
-.ring-notes:hover,
+.ring-notes::after {
+  content: 'more \2192';
+  display: block;
+  text-align: center;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.6;
+  margin-top: 2px;
+  transition: opacity 0.15s ease;
+}
+.ring-notes:hover::after {
+  opacity: 1;
+}
+.ring-notes.expanded::after {
+  content: 'less \2190';
+}
 .ring-notes.expanded {
   -webkit-line-clamp: unset;
   max-height: 200px;
   overflow-y: auto;
   scrollbar-width: none;
 }
-.ring-notes:hover::-webkit-scrollbar,
 .ring-notes.expanded::-webkit-scrollbar {
   display: none;
 }

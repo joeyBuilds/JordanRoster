@@ -29,6 +29,9 @@
 
   <!-- Chart.js for Insights panel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <!-- Chart.js zoom plugin (wheel zoom + pan for scatter) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 
   <!-- App Styles -->
   <link rel="stylesheet" href="styles.css?v=7">
@@ -362,7 +365,7 @@
       <div class="insights-tab-content active" id="insightsTabDashboard">
         <div class="insights-kpi-strip" id="insightsKpiStrip"></div>
         <div class="insights-grid-2">
-          <div class="insights-card"><div class="insights-card-title">Platform Distribution</div><div class="insights-chart-wrap"><canvas id="insightsPlatformDonut"></canvas></div></div>
+          <div class="insights-card"><div class="insights-card-title">Platform Distribution</div><div class="insights-chart-wrap"><canvas id="insightsPlatformDonut"></canvas></div><div class="insights-donut-legend" id="insightsDonutLegend"></div></div>
           <div class="insights-card"><div class="insights-card-title">Tier Breakdown</div><div class="insights-chart-wrap"><canvas id="insightsTierBar"></canvas></div></div>
         </div>
         <div class="insights-grid-2">
@@ -377,26 +380,30 @@
       <div class="insights-tab-content" id="insightsTabRegional">
         <div class="insights-card"><div class="insights-card-title">Follower Density by Region</div><div class="insights-heatmap" id="insightsHeatmap"></div></div>
         <div class="insights-grid-2">
-          <div class="insights-card"><div class="insights-card-title">Top Creators by Region</div><div id="insightsRegionalLB"></div></div>
-          <div class="insights-card">
+          <div class="insights-card insights-lb-card"><div class="insights-card-title">Top Creators by Region</div><div id="insightsRegionalLB"></div></div>
+          <div class="insights-card insights-lb-card"><div class="insights-card-title">Total Follower Leaderboard</div><div id="insightsFollowerLB"></div></div>
+        </div>
+        <div class="insights-grid-2">
+          <div class="insights-card"><div class="insights-card-title">Platform Mix by Region</div><div class="insights-chart-wrap" style="height:150px"><canvas id="insightsRegionPlatformMix"></canvas></div></div>
+          <div class="insights-card insights-card-compact">
             <div class="insights-card-title">Coverage Gaps &amp; Opportunities</div>
             <div id="insightsCoverageGaps"></div>
           </div>
         </div>
-        <div class="insights-card"><div class="insights-card-title">Platform Mix by Region</div><div id="insightsRegionPlatformMix"></div></div>
       </div>
       <!-- Deep Cuts Tab -->
       <div class="insights-tab-content" id="insightsTabDeepCuts">
         <div class="insights-grid-2">
-          <div class="insights-card">
+          <div class="insights-card" style="position:relative">
             <div class="insights-card-title">Engagement vs. Follower Count</div>
             <p class="insights-card-subtitle">Smaller creators often have higher engagement — find your hidden gems</p>
-            <div class="insights-chart-wrap"><canvas id="insightsEngScatter"></canvas></div>
-            <div class="insights-scatter-legend">
-              <span class="scatter-leg-item"><span class="scatter-dot" style="background:#E1306C"></span> Instagram</span>
-              <span class="scatter-leg-item"><span class="scatter-dot" style="background:#00F2EA"></span> TikTok</span>
-              <span class="scatter-leg-item"><span class="scatter-dot" style="background:#FF0000"></span> YouTube</span>
+            <div class="insights-chart-wrap scatter-wrap">
+              <canvas id="insightsEngScatter"></canvas>
+              <button class="scatter-reset-zoom" id="scatterResetZoom" title="Reset zoom">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+              </button>
             </div>
+            <div class="insights-scatter-legend" id="insightsScatterLegend"></div>
           </div>
           <div class="insights-card">
             <div class="insights-card-title">Aggregate Audience Demographics</div>

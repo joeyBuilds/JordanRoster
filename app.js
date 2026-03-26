@@ -320,6 +320,13 @@ const PLATFORM_SVGS = {
   'YouTube': `<svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="20" height="14" rx="4" stroke="white" stroke-width="2"/><path d="M9 5v6l5-3-5-3Z" fill="white"/></svg>`
 };
 
+// Small SVGs for Insights panels (use currentColor so they inherit from parent)
+const PLATFORM_SVGS_INSIGHTS = {
+  'Instagram': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2.5"/><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2.5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor"/></svg>`,
+  'TikTok': `<svg width="13" height="14" viewBox="0 0 18 20" fill="none"><path d="M9 0v13.5a3.5 3.5 0 1 1-3-3.46V7.04A6.5 6.5 0 1 0 12 13.5V6.73A7.5 7.5 0 0 0 17 8V5a5 5 0 0 1-5-5H9Z" fill="currentColor"/></svg>`,
+  'YouTube': `<svg width="16" height="12" viewBox="0 0 22 16" fill="none"><rect x="1" y="1" width="20" height="14" rx="4" stroke="currentColor" stroke-width="2.5"/><path d="M9 5v6l5-3-5-3Z" fill="currentColor"/></svg>`
+};
+
 // Small SVGs for sidebar card chips (platform-colored)
 const PLATFORM_SVGS_SM = {
   'Instagram': `<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="#E1306C" stroke-width="2.5"/><circle cx="12" cy="12" r="5" stroke="#E1306C" stroke-width="2.5"/><circle cx="17.5" cy="6.5" r="1.5" fill="#E1306C"/></svg>`,
@@ -2518,12 +2525,35 @@ function updateMapMarkers() {
 
       // Click marker → open profile directly (no popup)
       // Ctrl/Cmd+Click → add to compare view
+      // If marker is top of a stack → zoom to expand the group
       marker.on('click', (e) => {
         if (e.originalEvent && (e.originalEvent.ctrlKey || e.originalEvent.metaKey)) {
           addCompareCreator(creator.id);
+          return;
+        }
+
+        const stackGroup = _markerStackGroups[creator.id];
+        if (stackGroup && stackGroup.ids.length > 1 && map.getZoom() < RING_ZOOM_THRESHOLD) {
+          // Zoom to fit this group — pad bounds so markers fan out in ring mode
+          const bounds = L.latLngBounds(stackGroup.latlngs);
+          if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+            map.flyTo(bounds.getCenter(), Math.max(RING_ZOOM_THRESHOLD + 1, map.getZoom() + 3), { duration: 0.5 });
+          } else {
+            map.flyToBounds(bounds.pad(0.5), { maxZoom: RING_ZOOM_THRESHOLD + 2, duration: 0.5 });
+          }
         } else {
           showDetailPanel(creator.id);
         }
+      });
+
+      // Hover: bring marker to front (win z-index war)
+      marker.on('mouseover', () => {
+        const el = marker.getElement();
+        if (el) el.style.zIndex = 50000;
+      });
+      marker.on('mouseout', () => {
+        const el = marker.getElement();
+        if (el) el.style.zIndex = '';
       });
 
       // Stagger score badge visibility after markers render
@@ -2734,6 +2764,7 @@ function _stripDispatchMarkerState() {
 // RING FORMATION — Fan overlapping markers into circles
 // ===========================
 let _ringFormations = []; // track offset markers for cleanup
+let _markerStackGroups = {}; // markerId → { ids: [creatorIds], latlngs: [LatLng] } when in stack mode
 
 // Get cumulative followers across all platforms for a creator
 function _getCumulativeFollowing(creatorId) {
@@ -2764,6 +2795,10 @@ function _arrangeMarkerRings() {
         inner.style.removeProperty('--ring-tx');
         inner.style.removeProperty('--ring-ty');
       }
+      // Restore pointer events for markers that were hidden in a stack
+      if (info._stackHidden) {
+        el.style.pointerEvents = '';
+      }
     }
     // Reset z-index boost
     if (info._zIndexBoosted) {
@@ -2781,10 +2816,10 @@ function _arrangeMarkerRings() {
     }
   });
   _ringFormations = [];
+  _markerStackGroups = {};
 
-  // Only arrange when zoomed in enough that co-located pins actually overlap.
+  // Arrange overlapping markers at every zoom level
   const zoom = map.getZoom();
-  if (zoom < 5) return;
 
   const entries = [];
   for (const id in markers) {
@@ -2794,10 +2829,14 @@ function _arrangeMarkerRings() {
     entries.push({ id, marker: m, latLng: ll, px, grouped: false });
   }
 
-  // Threshold: how close (in pixels) markers need to be to group
-  const threshold = Math.max(20, 50 - (zoom - 5) * 5);
+  // Threshold: how close (in pixels) two markers must be to stack.
+  // One full marker width — if their centers are within this distance
+  // they visually overlap and should stack. No zoom-dependent scaling.
+  const markerPx = 56 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marker-scale')) || 1);
+  const threshold = markerPx;
 
-  // Find groups of overlapping markers
+  // Simple seed-based grouping: each ungrouped marker checks distance
+  // to the SEED (first marker in group) only — no chaining across regions.
   const groups = [];
   for (let i = 0; i < entries.length; i++) {
     if (entries[i].grouped) continue;
@@ -2859,64 +2898,49 @@ function _arrangeMarkerRings() {
         }
       }
 
-      // Calculate centroid
-      let cx = 0, cy = 0;
-      group.forEach(e => { cx += e.px.x; cy += e.px.y; });
-      cx /= group.length;
-      cy /= group.length;
-
-      // Stack offset: each card behind shifts slightly down-right to show depth
-      const stackStep = 3; // pixels of cascade per card
-      const maxVisible = Math.min(group.length, 5); // cap visible stack depth
-
       group.forEach((entry, i) => {
-        // Center offset — nudge toward group centroid
-        const baseTx = -(entry.px.x - cx);
-        const baseTy = -(entry.px.y - cy);
+        const isTop = i === 0;
 
-        // Stack cascade: i=0 is top (winner), higher i = further behind
-        const depth = Math.min(i, maxVisible - 1);
-        const stackTx = baseTx + depth * stackStep;
-        const stackTy = baseTy + depth * stackStep;
-        const stackScale = 1 - depth * 0.04; // subtle shrink for depth
-        // Z-index: top of stack gets highest
-        const zBase = (group.length - i) * 100;
-        const isSearchMatch = _rosterSearchMatchIds.has(entry.id);
-        const zBoost = isDispatchActive
-          ? (entry.marker._dispatchScore >= 1.0 ? 20000 : entry.marker._dispatchScore >= 0.66 ? 15000 : entry.marker._dispatchScore > 0 ? 12000 : 1)
-          : isSearchMatch ? (10000 + zBase) : zBase;
-
-        _ringFormations.push({ marker: entry.marker, _zIndexBoosted: true });
+        _ringFormations.push({ marker: entry.marker, _zIndexBoosted: true, _stackHidden: !isTop });
 
         const el = entry.marker.getElement();
         if (el) {
-          const inner = el.querySelector('.marker-inner');
-          if (inner) {
-            if (i >= maxVisible) {
-              // Completely hidden behind the stack
+          if (isTop) {
+            // Top of stack: stays at its exact geographic position, no offset
+            el.style.pointerEvents = '';
+            entry.marker.setZIndexOffset(30000);
+          } else {
+            // Non-top: completely hidden and non-interactive
+            const inner = el.querySelector('.marker-inner');
+            if (inner) {
               inner.classList.add('stack-hidden');
-            } else {
-              inner.style.setProperty('--ring-tx', stackTx + 'px');
-              inner.style.setProperty('--ring-ty', stackTy + 'px');
-              inner.classList.add('stack-offset');
-              if (depth > 0) inner.classList.add('stack-depth-' + depth);
             }
+            el.style.pointerEvents = 'none';
+            entry.marker.setZIndexOffset(0);
           }
-          entry.marker.setZIndexOffset(zBoost);
         }
 
-        // Tooltip: only show for the top-of-stack marker
+        // Tooltip: only the top marker gets one
         entry.marker.unbindTooltip();
-        if (i === 0) {
+        if (isTop) {
           const countLabel = group.length > 1 ? ` +${group.length - 1}` : '';
           entry.marker.bindTooltip((entry.marker._tooltipText || '') + countLabel, {
             direction: 'top',
-            offset: [stackTx, stackTy - 30],
-            className: 'creator-tooltip',
+            offset: [0, -30],
+            className: 'creator-tooltip stack-tooltip',
             opacity: 1
           });
         }
       });
+
+      // Record stack group membership for click-to-expand
+      if (group.length > 1) {
+        const groupLatlngs = group.map(e => e.latLng);
+        const groupIds = group.map(e => e.id);
+        group.forEach(entry => {
+          _markerStackGroups[entry.id] = { ids: groupIds, latlngs: groupLatlngs };
+        });
+      }
 
     } else {
       // ── RING/FAN MODE (zoomed in): spread markers into a circle ──
@@ -3255,6 +3279,14 @@ function renderCreatorSlidePanel(creator, forceDispatch) {
 function showDetailPanel(creatorId) {
   const creator = creators.find(c => c.id === creatorId);
   if (!creator) return;
+
+  // Clear roster search so all creators remain visible on the map
+  const _si = document.getElementById('searchInput');
+  if (_si && _si.value) {
+    _si.value = '';
+    _syncSearchClearBtn();
+    updateRosterMarkerFading();
+  }
 
   // Close compare mode if active
   if (_compareCreatorIds.length > 0) {
@@ -4967,6 +4999,7 @@ function renderModalBody() {
 
     function openPanel() {
       panelSelections = [...body[bodyKey]];
+      panelCustomItems = [];
       deleteMode = false;
       deleteMarked.clear();
       deleteToggle.classList.remove('active');
@@ -7685,10 +7718,8 @@ function initMap() {
   map = L.map('map', {
     center: [37.0902, -95.7129],
     zoom: 4,
-    minZoom: 2,
-    maxBounds: [[-90, -180], [90, 180]],
-    maxBoundsViscosity: 1.0,
-    noWrap: true,
+    minZoom: 4,
+    worldCopyJump: true,
     preferCanvas: true,
     zoomSnap: 0.25,
     zoomDelta: 0.5,
@@ -7703,7 +7734,6 @@ function initMap() {
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: '© Esri',
     maxZoom: 19,
-    noWrap: true,
     updateWhenZooming: false,
     updateWhenIdle: true
   }).addTo(map);
@@ -7712,9 +7742,18 @@ function initMap() {
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
     attribution: '',
     maxZoom: 19,
-    noWrap: true,
     pane: 'overlayPane'
   }).addTo(map);
+
+  // Clamp latitude so you can't pan into polar grey zones (tiles stop at ~85°)
+  // Longitude is unclamped — the map wraps infinitely via worldCopyJump
+  map.on('moveend', () => {
+    const c = map.getCenter();
+    const maxLat = 82;
+    if (c.lat > maxLat || c.lat < -maxLat) {
+      map.panTo([Math.max(-maxLat, Math.min(maxLat, c.lat)), c.lng], { animate: false });
+    }
+  });
 
   // Ambient time-of-day overlay — shifts map mood based on local time
   (function initTimeOfDay() {
@@ -8859,11 +8898,17 @@ init().catch(e => console.error('Unhandled init error:', e));
       options: {
         cutout: '65%',
         plugins: {
-          legend: { position: 'bottom', labels: { color: 'rgba(var(--text-secondary-rgb,164,189,170),1)', padding: 12, usePointStyle: true, pointStyleWidth: 8, font: { family: "'DM Sans',sans-serif", size: 11 } } },
+          legend: { display: false },
           tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} creators` } }
         }
       }
     });
+
+    // Custom donut legend with SVG platform logos
+    const donutLegend = document.getElementById('insightsDonutLegend');
+    donutLegend.innerHTML = PLATFORMS.map(p =>
+      `<span class="insights-donut-leg-item" style="color:${platColors[p]}">${PLATFORM_SVGS_INSIGHTS[p] || ''} ${p}</span>`
+    ).join('');
 
     // Tier bar chart
     const tierCounts = {};
@@ -8924,7 +8969,8 @@ init().catch(e => console.error('Unhandled init error:', e));
       const avgF = fCnt > 0 ? formatFollowers(Math.round(fSum / fCnt)) : '—';
       const avgE = eCnt > 0 ? (eSum / eCnt).toFixed(1) + '%' : '—';
       const color = platColors[p];
-      perfDiv.innerHTML += `<div class="insights-perf-cell"><div class="insights-perf-platform" style="color:${color}">${p}</div><div class="insights-perf-stat" style="color:${color}">${avgE}</div><div class="insights-perf-label">Avg Engagement</div><div class="insights-perf-stat" style="font-size:16px;margin-top:6px">${avgF}</div><div class="insights-perf-label">Avg Followers</div></div>`;
+      const icon = PLATFORM_SVGS_INSIGHTS[p] || '';
+      perfDiv.innerHTML += `<div class="insights-perf-cell"><div class="insights-perf-platform" style="color:${color}">${icon} ${p}</div><div class="insights-perf-stat" style="color:${color}">${avgE}</div><div class="insights-perf-label">Avg Engagement</div><div class="insights-perf-stat" style="font-size:16px;margin-top:6px">${avgF}</div><div class="insights-perf-label">Avg Followers</div></div>`;
     });
   }
 
@@ -8960,19 +9006,44 @@ init().catch(e => console.error('Unhandled init error:', e));
       heatmap.appendChild(cell);
     });
 
-    // Regional leaderboard — top creators across all regions
+    // Regional leaderboard — top creator per region
     const lb = document.getElementById('insightsRegionalLB');
     lb.innerHTML = '';
-    const sorted = data.slice().sort((a, b) => getTotalFollowers(b) - getTotalFollowers(a)).slice(0, 8);
-    const maxF = getTotalFollowers(sorted[0]) || 1;
+    const regionLeaders = sortedRegions.map(([regionName, info]) => {
+      const top = info.creators.slice().sort((a, b) => getTotalFollowers(b) - getTotalFollowers(a))[0];
+      return { creator: top, region: regionName, followers: getTotalFollowers(top) };
+    }).sort((a, b) => b.followers - a.followers);
+    const maxF = regionLeaders[0]?.followers || 1;
+    const bgColors = ['var(--coral)', 'var(--lavender)', 'var(--pink)', 'var(--sage)', 'var(--gold)', 'var(--mocha)', 'var(--rose)', 'var(--accent)'];
 
-    sorted.forEach((c, i) => {
-      const total = getTotalFollowers(c);
+    regionLeaders.forEach((entry, i) => {
+      const c = entry.creator;
+      const total = entry.followers;
       const pct = (total / maxF * 100).toFixed(0);
       const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
       const initials = getInitials(c.firstName, c.lastName);
-      const bgColors = ['var(--coral)', 'var(--lavender)', 'var(--pink)', 'var(--sage)', 'var(--gold)', 'var(--mocha)', 'var(--rose)', 'var(--accent)'];
-      lb.innerHTML += `<div class="insights-lb-row"><div class="insights-lb-rank ${rankClass}">${i + 1}</div><div class="insights-lb-avatar" style="background:${bgColors[i % bgColors.length]}">${initials}</div><div class="insights-lb-info"><div class="insights-lb-name">${getFullName(c)}</div><div class="insights-lb-location">📍 ${c.location || 'Unknown'}</div></div><div class="insights-lb-bar-wrap"><div class="insights-lb-bar" style="width:${pct}%"></div></div><div class="insights-lb-followers">${formatFollowers(total)}</div></div>`;
+      const avatarContent = c.photo
+        ? `<img src="${c.photo}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="insights-lb-initials" style="display:none;background:${bgColors[i % bgColors.length]}">${initials}</span>`
+        : `<span class="insights-lb-initials" style="background:${bgColors[i % bgColors.length]}">${initials}</span>`;
+      lb.innerHTML += `<div class="insights-lb-row insights-lb-row-sm"><div class="insights-lb-rank ${rankClass}">${i + 1}</div><div class="insights-lb-avatar insights-lb-avatar-photo">${avatarContent}</div><div class="insights-lb-info"><div class="insights-lb-name">${getFullName(c)}</div><div class="insights-lb-location"><span class="insights-lb-region">${entry.region}</span> · 📍 ${c.location || 'Unknown'}</div></div><div class="insights-lb-followers">${formatFollowers(total)}</div></div>`;
+    });
+
+    // Total follower leaderboard — entire roster
+    const flb = document.getElementById('insightsFollowerLB');
+    flb.innerHTML = '';
+    const allSorted = data.slice().sort((a, b) => getTotalFollowers(b) - getTotalFollowers(a));
+    const topMaxF = getTotalFollowers(allSorted[0]) || 1;
+    const bgColorsAll = ['var(--coral)', 'var(--lavender)', 'var(--pink)', 'var(--sage)', 'var(--gold)', 'var(--mocha)', 'var(--rose)', 'var(--accent)'];
+
+    allSorted.forEach((c, i) => {
+      const total = getTotalFollowers(c);
+      const pct = (total / topMaxF * 100).toFixed(0);
+      const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+      const initials = getInitials(c.firstName, c.lastName);
+      const avatarContent = c.photo
+        ? `<img src="${c.photo}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="insights-lb-initials" style="background:${bgColorsAll[i % bgColorsAll.length]}">${initials}</span>`
+        : `<span class="insights-lb-initials" style="background:${bgColorsAll[i % bgColorsAll.length]}">${initials}</span>`;
+      flb.innerHTML += `<div class="insights-lb-row insights-lb-row-sm"><div class="insights-lb-rank ${rankClass}">${i + 1}</div><div class="insights-lb-avatar insights-lb-avatar-photo">${avatarContent}</div><div class="insights-lb-info"><div class="insights-lb-name">${getFullName(c)}</div></div><div class="insights-lb-followers">${formatFollowers(total)}</div></div>`;
     });
 
     // Coverage gaps
@@ -9016,21 +9087,43 @@ init().catch(e => console.error('Unhandled init error:', e));
       gapsDiv.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:12px;text-align:center">Great coverage! No major gaps detected.</div>';
     }
 
-    // Platform mix by region
-    const mixDiv = document.getElementById('insightsRegionPlatformMix');
-    mixDiv.innerHTML = '';
-    const platColors = { 'Instagram': 'rgba(225,48,108,0.6)', 'TikTok': 'rgba(0,242,234,0.4)', 'YouTube': 'rgba(255,0,0,0.45)' };
-    sortedRegions.slice(0, 6).forEach(([name, info]) => {
-      const maxPlat = Math.max(...Object.values(info.platforms), 1);
-      const scale = v => (v / maxPlat * 100).toFixed(0);
-      let barsHtml = '';
-      PLATFORMS.forEach(p => {
-        const count = info.platforms[p] || 0;
-        if (count > 0) {
-          barsHtml += `<div class="insights-comp-bar" style="width:${scale(count)}%;background:${platColors[p]}">${count}</div>`;
+    // Platform mix by region — grouped vertical bar chart
+    const platColors = { 'Instagram': '#E1306C', 'TikTok': '#00F2EA', 'YouTube': '#FF0000' };
+    const regionLabels = sortedRegions.slice(0, 6).map(([name]) => name);
+    const platBgColors = { 'Instagram': '#E1306C99', 'TikTok': '#00F2EA88', 'YouTube': '#FF000099' };
+    const platDatasets = PLATFORMS.map(p => ({
+      label: p,
+      data: sortedRegions.slice(0, 6).map(([, info]) => info.platforms[p] || 0),
+      backgroundColor: platBgColors[p],
+      borderColor: platColors[p],
+      borderWidth: 1.5,
+      borderRadius: 4,
+      borderSkipped: false
+    }));
+
+    insightsCharts.regionMix = new Chart(document.getElementById('insightsRegionPlatformMix'), {
+      type: 'bar',
+      data: { labels: regionLabels, datasets: platDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}` } }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(150,140,130,0.08)' },
+            border: { display: false },
+            ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 }, stepSize: 2 }
+          }
         }
-      });
-      mixDiv.innerHTML += `<div class="insights-comp-row"><div class="insights-comp-label">${name}</div><div class="insights-comp-bars">${barsHtml}</div></div>`;
+      }
     });
   }
 
@@ -9040,7 +9133,7 @@ init().catch(e => console.error('Unhandled init error:', e));
   function renderDeepCuts(data) {
     // Engagement vs Followers scatter
     const datasets = [];
-    const platColors = { 'Instagram': '#E1306C', 'TikTok': '#00F2EA', 'YouTube': '#FF0000' };
+    const platColors = { 'Instagram': '#D4789C', 'TikTok': '#6BC5C2', 'YouTube': '#D47878' };
     PLATFORMS.forEach(p => {
       const points = [];
       data.forEach(c => {
@@ -9054,30 +9147,91 @@ init().catch(e => console.error('Unhandled init error:', e));
         datasets.push({
           label: p,
           data: points,
-          backgroundColor: platColors[p] + '80',
-          borderColor: platColors[p],
-          borderWidth: 1,
-          pointRadius: 5,
-          pointHoverRadius: 7
+          backgroundColor: platColors[p] + 'CC',
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          pointHoverBackgroundColor: platColors[p],
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 2.5,
+          pointStyle: 'circle'
         });
       }
     });
 
     if (datasets.length > 0) {
+      // Compute natural bounds for zoom limits (current view = max zoom-out)
+      const allPts = datasets.flatMap(d => d.data);
+      const maxX = Math.max(...allPts.map(p => p.x));
+      const maxY = Math.max(...allPts.map(p => p.y));
+      const xMax = Math.ceil(maxX * 1.1 / 100) * 100 || 100;
+      const yMax = Math.ceil(maxY * 1.1) || 20;
+
       insightsCharts.scatter = new Chart(document.getElementById('insightsEngScatter'), {
         type: 'scatter',
         data: { datasets },
         options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 8, right: 12, bottom: 4, left: 4 } },
           plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: ctx => `${ctx.raw.name || ''}: ${ctx.raw.x}K followers, ${ctx.raw.y}% eng` } }
+            tooltip: {
+              backgroundColor: 'rgba(40,32,28,0.85)',
+              titleFont: { family: "'DM Sans',sans-serif", size: 12 },
+              bodyFont: { family: "'DM Sans',sans-serif", size: 11 },
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: { label: ctx => `${ctx.raw.name || ''}: ${ctx.raw.x}K followers, ${ctx.raw.y}% eng` }
+            },
+            zoom: {
+              pan: { enabled: true, mode: 'xy' },
+              zoom: {
+                wheel: { enabled: true, speed: 0.08 },
+                pinch: { enabled: true },
+                mode: 'xy'
+              },
+              limits: {
+                x: { min: 0, max: xMax },
+                y: { min: 0, max: yMax }
+              }
+            }
           },
           scales: {
-            x: { title: { display: true, text: 'Followers (K)', color: '#5E7A64' }, grid: { display: false }, ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } } },
-            y: { title: { display: true, text: 'Engagement %', color: '#5E7A64' }, grid: { color: 'rgba(255,255,255,0.04)' }, min: 0, ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 } } }
+            x: {
+              min: 0, max: xMax,
+              title: { display: true, text: 'Followers (K)', color: 'var(--text-muted)', font: { family: "'DM Sans',sans-serif", size: 11 } },
+              grid: { color: 'rgba(150,140,130,0.08)', lineWidth: 1 },
+              border: { display: false },
+              ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 }, padding: 6, maxTicksLimit: 8 }
+            },
+            y: {
+              min: 0, max: yMax,
+              title: { display: true, text: 'Engagement %', color: 'var(--text-muted)', font: { family: "'DM Sans',sans-serif", size: 11 } },
+              grid: { color: 'rgba(150,140,130,0.08)', lineWidth: 1 },
+              border: { display: false },
+              ticks: { color: '#A4BDAA', font: { family: "'DM Sans',sans-serif", size: 10 }, padding: 6, maxTicksLimit: 6 }
+            }
           }
         }
       });
+
+      // Reset zoom button
+      const resetBtn = document.getElementById('scatterResetZoom');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          insightsCharts.scatter.resetZoom();
+        });
+      }
+    }
+
+    // Scatter legend with SVG platform logos
+    const scatterLegend = document.getElementById('insightsScatterLegend');
+    if (scatterLegend) {
+      scatterLegend.innerHTML = PLATFORMS.map(p =>
+        `<span class="scatter-leg-item" style="color:${platColors[p]}">${PLATFORM_SVGS_INSIGHTS[p] || ''} ${p}</span>`
+      ).join('');
     }
 
     // Aggregate audience demographics
@@ -9169,14 +9323,31 @@ init().catch(e => console.error('Unhandled init error:', e));
       gems.sort((a, b) => b.engagement - a.engagement);
     }
 
-    gems.slice(0, 6).forEach(g => {
-      const color = platColors[g.platform];
-      const initials = getInitials(g.creator.firstName, g.creator.lastName);
-      const nicheTags = (g.creator.niches || []).slice(0, 2).join(', ');
-      gemsDiv.innerHTML += `<div class="insights-lb-row"><div class="insights-lb-avatar" style="background:${color}33;border:1.5px solid ${color}66;color:${color};font-size:10px">${formatEngagementRate(g.engagement)}</div><div class="insights-lb-info"><div class="insights-lb-name">${getFullName(g.creator)}</div><div class="insights-lb-location">${g.platform} · ${nicheTags || 'No niche'} · ${formatFollowers(g.followers)}</div></div><div class="insights-gem-badge">⚡ Overperformer</div></div>`;
-    });
-
-    if (gems.length === 0) {
+    if (gems.length > 0) {
+      gemsDiv.innerHTML = '<div class="gems-grid"></div>';
+      const grid = gemsDiv.querySelector('.gems-grid');
+      gems.slice(0, 6).forEach(g => {
+        const color = platColors[g.platform];
+        const platIcon = PLATFORM_SVGS_INSIGHTS[g.platform] || '';
+        const nicheTags = (g.creator.niches || []).slice(0, 2).join(', ');
+        const loc = g.creator.location || '—';
+        const tier = g.creator.tier ? g.creator.tier.split(' ')[0] : '—';
+        const totalFollowers = getTotalFollowers(g.creator);
+        const photo = g.creator.photo
+          ? `<img src="${g.creator.photo}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+          : `<span style="font-size:10px;font-weight:700;color:${color}">${getInitials(g.creator.firstName, g.creator.lastName)}</span>`;
+        grid.innerHTML += `<div class="gem-card">
+          <div class="gem-card-top">
+            <div class="gem-card-avatar" style="border-color:${color}66">${photo}</div>
+            <div class="gem-card-eng" style="color:${color}">${formatEngagementRate(g.engagement)}</div>
+          </div>
+          <div class="gem-card-name">${getFullName(g.creator)}</div>
+          <div class="gem-card-meta"><span style="color:${color};display:inline-flex;vertical-align:middle;margin-right:2px">${platIcon}</span>${formatFollowers(g.followers)}</div>
+          <div class="gem-card-detail">📍 ${loc}</div>
+          <div class="gem-card-detail">${nicheTags || '—'} · ${tier}</div>
+        </div>`;
+      });
+    } else {
       gemsDiv.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Not enough engagement data to identify hidden gems yet.</div>';
     }
   }

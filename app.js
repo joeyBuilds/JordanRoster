@@ -339,16 +339,74 @@ let _dispatchTopIds = new Set();     // IDs of the top-N dispatch results (shown
 let _dispatchRank1Id = null;         // ID of the single #1 ranked creator (gets sunray)
 const DISPATCH_TOP_N = 5;           // Number of top results to feature
 let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
+
+// Region bounding boxes: [latMin, latMax, lngMin, lngMax]
+const NL_REGIONS = {
+  'pnw':       { label: 'Pacific Northwest', bounds: [42, 49, -125, -111] },
+  'pacific northwest': { label: 'Pacific Northwest', bounds: [42, 49, -125, -111] },
+  'northwest': { label: 'Pacific Northwest', bounds: [42, 49, -125, -111] },
+  'southwest': { label: 'Southwest', bounds: [31, 42, -120, -102] },
+  'sw':        { label: 'Southwest', bounds: [31, 42, -120, -102] },
+  'southeast': { label: 'Southeast', bounds: [24, 37, -95, -75] },
+  'se':        { label: 'Southeast', bounds: [24, 37, -95, -75] },
+  'northeast': { label: 'Northeast', bounds: [38, 47.5, -80, -67] },
+  'ne':        { label: 'Northeast', bounds: [38, 47.5, -80, -67] },
+  'new england': { label: 'Northeast', bounds: [41, 47.5, -73.5, -67] },
+  'central':   { label: 'Central', bounds: [36, 49, -104, -80] },
+  'midwest':   { label: 'Central', bounds: [36, 49, -104, -80] },
+  'west coast': { label: 'West Coast', bounds: [32, 49, -125, -114] },
+  'east coast': { label: 'East Coast', bounds: [25, 47.5, -85, -67] },
+  'southern':  { label: 'Southeast', bounds: [24, 37, -95, -75] },
+};
+
 let dispatchFilters = {
   platformTiers: [],  // [{platform: 'Instagram', tier: 'Micro (10K-100K)'}, ...] — specific combos from sidebar
   platforms: [],      // ['Instagram', ...] — independent platform filter (any tier)
   tiers: [],          // ['Micro (10K-100K)', ...] — independent tier filter (any platform)
   niches: [],
-  demographics: []
+  demographics: [],
+  regions: []         // ['Pacific Northwest', 'Southwest', ...] — multi-select region labels
 };
 
-// NL search region filter — set by natural language parser, used by getFilteredCreators
-let nlRegionFilter = null; // { label, bounds: [latMin, latMax, lngMin, lngMax] }
+// Helper: look up region bounds by label from NL_REGIONS
+function getRegionBoundsForLabel(label) {
+  const entry = Object.values(NL_REGIONS).find(r => r.label === label);
+  return entry ? entry.bounds : null;
+}
+
+// Helper: fly map to combined bounds of all selected regions
+function _flyToSelectedRegions() {
+  if (dispatchFilters.regions.length === 0 || !map) return;
+  let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+  dispatchFilters.regions.forEach(label => {
+    const b = getRegionBoundsForLabel(label);
+    if (!b) return;
+    minLat = Math.min(minLat, b[0]);
+    maxLat = Math.max(maxLat, b[1]);
+    minLng = Math.min(minLng, b[2]);
+    maxLng = Math.max(maxLng, b[3]);
+  });
+  if (minLat < 90) {
+    map.flyToBounds([[minLat, minLng], [maxLat, maxLng]], { padding: [30, 30], duration: 0.8, maxZoom: 7 });
+  }
+}
+
+// Helper: compute which regions a creator belongs to based on lat/lng
+function computeCreatorRegions(creator) {
+  if (creator.lat == null || creator.lng == null) return [];
+  const uniqueLabels = [...new Set(Object.values(NL_REGIONS).map(r => r.label))];
+  return uniqueLabels.filter(label => {
+    const b = getRegionBoundsForLabel(label);
+    if (!b) return false;
+    const [latMin, latMax, lngMin, lngMax] = b;
+    return creator.lat >= latMin && creator.lat <= latMax && creator.lng >= lngMin && creator.lng <= lngMax;
+  });
+}
+
+// Assign .regions to all creators (called on load and after imports)
+function assignAllCreatorRegions() {
+  creators.forEach(c => { c.regions = computeCreatorRegions(c); });
+}
 
 // ── Cached filter state check (replaces 8+ inline copies of this logic) ──
 function hasActiveDispatchFilters() {
@@ -357,7 +415,7 @@ function hasActiveDispatchFilters() {
          dispatchFilters.tiers.length > 0 ||
          dispatchFilters.niches.length > 0 ||
          dispatchFilters.demographics.length > 0 ||
-         nlRegionFilter !== null;
+         dispatchFilters.regions.length > 0;
 }
 
 // ── Cached niche/demo lookups (invalidated on creator changes) ──
@@ -810,12 +868,11 @@ function getFilteredCreators(searchTerm = '', sortBy = 'a-z', applyDispatchFilte
       );
     }
     // Age range filter
-    // Region bounding box filter (from NL search)
-    if (nlRegionFilter && nlRegionFilter.bounds) {
-      const [latMin, latMax, lngMin, lngMax] = nlRegionFilter.bounds;
+    // Region filter — uses precomputed creator.regions from lat/lng
+    if (dispatchFilters.regions.length > 0) {
       filtered = filtered.filter(c => {
-        if (c.lat == null || c.lng == null) return false;
-        return c.lat >= latMin && c.lat <= latMax && c.lng >= lngMin && c.lng <= lngMax;
+        if (!c.regions || c.regions.length === 0) return false;
+        return dispatchFilters.regions.some(label => c.regions.includes(label));
       });
     }
   }
@@ -1471,7 +1528,7 @@ function clearVibesFilters() {
 }
 
 // ── Collapsible Niche / Demographic sections ──
-const _dispatchSections = { niches: false, demos: false, platformTier: false }; // collapsed by default
+const _dispatchSections = { niches: false, demos: false, platformTier: false, region: false }; // collapsed by default
 
 function toggleDispatchSection(section) {
   _dispatchSections[section] = !_dispatchSections[section];
@@ -1600,6 +1657,12 @@ function renderDispatchFilterPills() {
     nicheContainer.innerHTML = `<div class="dispatch-no-results">No niches or demographics matching "${_vibeSearchTerm}"</div>`;
   }
 
+  // ── Region map selector ──
+  const regionContainer = document.getElementById('dispatchRegionPills');
+  if (regionContainer) {
+    renderRegionMap(regionContainer);
+  }
+
   // ── Active count badges ──
   const nichesCount = document.getElementById('nichesActiveCount');
   const demosCount = document.getElementById('demosActiveCount');
@@ -1622,8 +1685,198 @@ function renderDispatchFilterPills() {
     ptCount.classList.toggle('visible', n > 0);
   }
 
+  // Region active count
+  const regionCount = document.getElementById('regionActiveCount');
+  if (regionCount) {
+    const n = dispatchFilters.regions.length;
+    regionCount.textContent = n;
+    regionCount.classList.toggle('visible', n > 0);
+  }
+
   // ── Active filters strip ──
   renderDispatchActiveStrip();
+}
+
+/* ═══ Region toggle helper ═══ */
+function toggleRegionFilter(label) {
+  const idx = dispatchFilters.regions.indexOf(label);
+  if (idx >= 0) {
+    dispatchFilters.regions.splice(idx, 1);
+    if (window._nlRemovePill) window._nlRemovePill(label, 'region');
+  } else {
+    dispatchFilters.regions.push(label);
+    if (!_dispatchSections.region) toggleDispatchSection('region');
+    const entry = Object.values(NL_REGIONS).find(r => r.label === label);
+    if (window._nlAddPill && entry) {
+      window._nlAddPill(label, 'region', { regionData: { label: entry.label, bounds: entry.bounds } });
+    }
+  }
+  renderDispatchFilterPills();
+  renderDispatchTab();
+  if (dispatchFilters.regions.length > 0) _flyToSelectedRegions();
+}
+
+/* ═══ Region SVG Map Selector ═══ */
+// Uses the USA-Silhouette.png as a mask so region highlights clip to the real US shape.
+function renderRegionMap(container) {
+  // Preserve state across re-renders — only rebuild if SVG still exists
+  if (container._regionMapRendered && container.querySelector('.region-map-svg')) {
+    container.querySelectorAll('.region-zone').forEach(el => {
+      const label = el.dataset.region;
+      el.classList.toggle('active', dispatchFilters.regions.includes(label));
+    });
+    return;
+  }
+  container._regionMapRendered = false;
+  container.innerHTML = '';
+  container.classList.add('region-map-container');
+
+  // SVG viewBox matches the square silhouette image
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  // Crop viewBox to just the US portion of the square image (removes whitespace padding)
+  svg.setAttribute('viewBox', '20 20 565 490');
+  svg.setAttribute('class', 'region-map-svg');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  // ── Defs: invert filter + mask from silhouette PNG ──
+  const defs = document.createElementNS(NS, 'defs');
+
+  // Filter to invert: black US → white, white bg → black (for mask luminance)
+  const filter = document.createElementNS(NS, 'filter');
+  filter.setAttribute('id', 'regionInvert');
+  filter.setAttribute('color-interpolation-filters', 'sRGB');
+  const feTransfer = document.createElementNS(NS, 'feComponentTransfer');
+  ['R', 'G', 'B'].forEach(ch => {
+    const func = document.createElementNS(NS, 'feFunc' + ch);
+    func.setAttribute('type', 'linear');
+    func.setAttribute('slope', '-1');
+    func.setAttribute('intercept', '1');
+    feTransfer.appendChild(func);
+  });
+  filter.appendChild(feTransfer);
+  defs.appendChild(filter);
+
+  // Mask: inverted silhouette → white US on black bg → US area is visible
+  const mask = document.createElementNS(NS, 'mask');
+  mask.setAttribute('id', 'regionUsMask');
+  const maskImg = document.createElementNS(NS, 'image');
+  maskImg.setAttribute('href', 'USA-Silhouette.png');
+  maskImg.setAttributeNS(null, 'x', '0');
+  maskImg.setAttributeNS(null, 'y', '0');
+  maskImg.setAttributeNS(null, 'width', '600');
+  maskImg.setAttributeNS(null, 'height', '600');
+  maskImg.setAttribute('filter', 'url(#regionInvert)');
+  mask.appendChild(maskImg);
+  defs.appendChild(mask);
+
+  svg.appendChild(defs);
+
+  // ── Background silhouette (tinted, subtle) ──
+  const bgImg = document.createElementNS(NS, 'image');
+  bgImg.setAttribute('href', 'USA-Silhouette.png');
+  bgImg.setAttributeNS(null, 'x', '0');
+  bgImg.setAttributeNS(null, 'y', '0');
+  bgImg.setAttributeNS(null, 'width', '600');
+  bgImg.setAttributeNS(null, 'height', '600');
+  bgImg.setAttribute('class', 'region-map-silhouette');
+  svg.appendChild(bgImg);
+
+  // ── Masked group: region zones + boundary lines ──
+  // Everything here is clipped to the US shape by the mask
+  const masked = document.createElementNS(NS, 'g');
+  masked.setAttribute('mask', 'url(#regionUsMask)');
+
+  // Region zones positioned over the silhouette
+  // Coordinates calibrated to the 600x600 image where US occupies ~(42,38)–(568,490)
+  const regions = [
+    // Coast overlays (behind core zones)
+    { label: 'West Coast',  shortLabel: 'W. Coast', isCoast: true,
+      path: 'M0,0 L130,0 L130,600 L0,600 Z',
+      labelPos: [68, 235] },
+    { label: 'East Coast',  shortLabel: 'E. Coast', isCoast: true,
+      path: 'M455,0 L600,0 L600,600 L455,600 Z',
+      labelPos: [518, 290] },
+    // Core zones (on top)
+    { label: 'Pacific Northwest', shortLabel: 'PNW',
+      path: 'M0,0 L218,0 L218,170 L0,170 Z',
+      labelPos: [105, 95] },
+    { label: 'Southwest', shortLabel: 'SW',
+      path: 'M0,170 L218,170 L218,600 L0,600 Z',
+      labelPos: [118, 320] },
+    { label: 'Central', shortLabel: 'Central',
+      path: 'M218,0 L405,0 L405,320 L218,320 Z',
+      labelPos: [310, 165] },
+    { label: 'Northeast', shortLabel: 'NE',
+      path: 'M405,0 L600,0 L600,255 L405,255 Z',
+      labelPos: [495, 130] },
+    { label: 'Southeast', shortLabel: 'SE',
+      path: 'M218,320 L405,320 L405,255 L600,255 L600,600 L218,600 Z',
+      labelPos: [410, 390] }
+  ];
+
+  // Tooltip
+  const tooltip = document.createElement('div');
+  tooltip.className = 'region-map-tooltip';
+  container.appendChild(tooltip);
+
+  regions.forEach(region => {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', region.path);
+    path.setAttribute('class', 'region-zone' + (region.isCoast ? ' coast-zone' : ''));
+    path.dataset.region = region.label;
+    if (dispatchFilters.regions.includes(region.label)) path.classList.add('active');
+
+    path.addEventListener('mouseenter', () => {
+      tooltip.textContent = region.label;
+      tooltip.classList.add('visible');
+    });
+    path.addEventListener('mousemove', (e) => {
+      const r = container.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - r.left) + 'px';
+      tooltip.style.top = (e.clientY - r.top - 30) + 'px';
+    });
+    path.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+    path.addEventListener('click', () => toggleRegionFilter(region.label));
+
+    masked.appendChild(path);
+  });
+
+  // Boundary lines (also masked to US shape)
+  const bLines = document.createElementNS(NS, 'g');
+  bLines.setAttribute('class', 'region-boundaries');
+  [
+    'M218,0 L218,600',          // West / Central
+    'M405,0 L405,600',          // Central / East
+    'M0,170 L218,170',          // PNW / SW
+    'M405,255 L600,255',        // NE / SE
+    'M218,320 L405,320',        // Central / SE
+  ].forEach(d => {
+    const line = document.createElementNS(NS, 'path');
+    line.setAttribute('d', d);
+    line.setAttribute('class', 'region-border');
+    bLines.appendChild(line);
+  });
+  masked.appendChild(bLines);
+
+  svg.appendChild(masked);
+
+  // ── Labels (outside mask so always visible over the silhouette) ──
+  const labelsG = document.createElementNS(NS, 'g');
+  labelsG.setAttribute('class', 'region-labels');
+  regions.forEach(region => {
+    const text = document.createElementNS(NS, 'text');
+    text.setAttribute('x', region.labelPos[0]);
+    text.setAttribute('y', region.labelPos[1]);
+    text.setAttribute('class', 'region-label-text');
+    text.textContent = region.shortLabel;
+    text.style.pointerEvents = 'none';
+    labelsG.appendChild(text);
+  });
+  svg.appendChild(labelsG);
+
+  container.appendChild(svg);
+  container._regionMapRendered = true;
 }
 
 /* ═══ Active Filters Strip — collected badges at top ═══ */
@@ -1673,15 +1926,18 @@ function renderDispatchActiveStrip() {
     });
   });
 
-  // Region — skip if already an inline pill
-  if (nlRegionFilter && !inlinePillValues.has(nlRegionFilter.label)) {
-    addBadge('region', '🗺\ufe0f ' + nlRegionFilter.label, 'location', () => {
-      nlRegionFilter = null;
+  // Regions — skip if already an inline pill
+  dispatchFilters.regions.forEach(label => {
+    if (inlinePillValues.has(label)) return;
+    addBadge('r-' + label, '🗺\ufe0f ' + label, 'location', () => {
+      dispatchFilters.regions = dispatchFilters.regions.filter(r => r !== label);
+      if (window._nlRemovePill) window._nlRemovePill(label, 'region');
+      renderDispatchFilterPills();
       renderDispatchTab();
       updateMapMarkers();
       renderDispatchActiveStrip();
     });
-  }
+  });
 
   // Remove stale badges
   [...strip.children].forEach(el => {
@@ -1709,7 +1965,7 @@ function renderDispatchActiveStrip() {
       dispatchFilters.platformTiers = [];
       dispatchFilters.platforms = [];
       dispatchFilters.tiers = [];
-      nlRegionFilter = null;
+      dispatchFilters.regions = [];
       renderDispatchFilterPills();
       renderDispatchTab();
     });
@@ -2311,13 +2567,18 @@ function highlightCreatorMarker(creatorId) {
     if (id === creatorId) {
       el.classList.add('marker-highlighted');
       el.classList.remove('marker-dimmed');
+      // Boost z-index so selected creator renders on top of stacked markers
+      markers[id].setZIndexOffset(10000);
       // Add particle effect
       _addMarkerParticles(el);
     } else {
       el.classList.add('marker-dimmed');
       el.classList.remove('marker-highlighted');
+      markers[id].setZIndexOffset(0);
     }
   });
+  // Re-arrange stacks so the selected creator is promoted to top
+  _arrangeMarkerRings();
 }
 
 function _addMarkerParticles(markerEl, color) {
@@ -2387,6 +2648,8 @@ function restoreAllMarkers() {
     const el = markers[id] && markers[id].getElement();
     if (!el) return;
     el.classList.remove('marker-highlighted', 'marker-dimmed', 'marker-compare-0', 'marker-compare-1');
+    // Reset z-index boost from selection
+    markers[id].setZIndexOffset(0);
     const particles = el.querySelector('.marker-particles');
     if (particles) particles.remove();
   });
@@ -2508,6 +2771,9 @@ function _arrangeMarkerRings() {
   const isDispatchActive = document.body.classList.contains('dispatch-mode');
   const useStack = zoom < RING_ZOOM_THRESHOLD;
 
+  // Determine which creator is currently selected (highlighted)
+  const highlightedId = _demosCreatorId || null;
+
   groups.forEach(group => {
     if (useStack) {
       // ── STACK MODE (zoomed out): pile up, biggest following on top ──
@@ -2522,6 +2788,15 @@ function _arrangeMarkerRings() {
         });
       } else {
         group.sort((a, b) => _getCumulativeFollowing(b.id) - _getCumulativeFollowing(a.id));
+      }
+
+      // Promote selected creator to top of stack
+      if (highlightedId) {
+        const idx = group.findIndex(e => e.id === highlightedId);
+        if (idx > 0) {
+          const [selected] = group.splice(idx, 1);
+          group.unshift(selected);
+        }
       }
 
       // Calculate centroid
@@ -4859,6 +5134,9 @@ async function saveCreator() {
     }
   }
 
+  // Recompute region tags from updated coordinates
+  creator.regions = computeCreatorRegions(creator);
+
   db.persist(creators);
   pruneOrphanedTags('niche');
   pruneOrphanedTags('demographic');
@@ -5080,7 +5358,7 @@ function renderPartnersView(creator, container) {
 }
 
 // ── Main Demo's panel dispatcher ──
-function renderDemosPanel(creator) {
+async function renderDemosPanel(creator) {
   const content = document.getElementById('demosContent');
   const subTabsEl = document.getElementById('demosSubTabs');
   const emptyState = document.getElementById('demosEmpty');
@@ -5098,6 +5376,16 @@ function renderDemosPanel(creator) {
     content.appendChild(emptyState);
     emptyState.style.display = 'flex';
     return;
+  }
+
+  // Lazy-load audience data if not yet fetched for this creator
+  const hasAudienceData = Object.values(creator.platforms || {}).some(p => p.audienceData);
+  if (!hasAudienceData && !creator._audienceLoaded) {
+    const audienceMap = await db.loadAudienceData(creator.id);
+    for (const [platform, data] of Object.entries(audienceMap)) {
+      if (creator.platforms[platform]) creator.platforms[platform].audienceData = data;
+    }
+    creator._audienceLoaded = true;
   }
 
   // Build sub-tab list: platform tabs (icon-only) + Rates + Partners (text)
@@ -5231,7 +5519,7 @@ function renderDemosPanel(creator) {
 let _compareCreatorIds = []; // max 2
 let _compareSubTabs = {};   // per-panel overrides: { creatorId: 'TikTok' }
 
-function addCompareCreator(creatorId) {
+async function addCompareCreator(creatorId) {
   // Don't add if it's the primary or already in compare
   if (creatorId === _demosCreatorId) return;
   if (_compareCreatorIds.includes(creatorId)) return;
@@ -5239,6 +5527,16 @@ function addCompareCreator(creatorId) {
   // Max 2 — replace oldest
   if (_compareCreatorIds.length >= 2) _compareCreatorIds.shift();
   _compareCreatorIds.push(creatorId);
+
+  // Lazy-load audience data for compare creator
+  const creator = creators.find(c => c.id === creatorId);
+  if (creator && !creator._audienceLoaded) {
+    const audienceMap = await db.loadAudienceData(creatorId);
+    for (const [platform, data] of Object.entries(audienceMap)) {
+      if (creator.platforms[platform]) creator.platforms[platform].audienceData = data;
+    }
+    creator._audienceLoaded = true;
+  }
 
   // Retract creator slide-out panel (don't close — preserve state)
   const slidePanel = document.getElementById('creatorSlidePanel');
@@ -5656,6 +5954,7 @@ function importData(file) {
       creators = deduplicateCreators(data);
       creators.forEach(migratePlatforms);
       creators.forEach(migrateDemographics);
+      assignAllCreatorRegions();
       db.persist(creators);
       renderRosterTab();
       renderDispatchTab();
@@ -5672,24 +5971,7 @@ function importData(file) {
 // NATURAL LANGUAGE SEARCH
 // ===========================
 
-// Region bounding boxes: [latMin, latMax, lngMin, lngMax]
-const NL_REGIONS = {
-  'pnw':       { label: 'Pacific Northwest', bounds: [42, 49, -125, -111] },
-  'pacific northwest': { label: 'Pacific Northwest', bounds: [42, 49, -125, -111] },
-  'northwest': { label: 'Pacific Northwest', bounds: [42, 49, -125, -111] },
-  'southwest': { label: 'Southwest', bounds: [31, 42, -120, -102] },
-  'sw':        { label: 'Southwest', bounds: [31, 42, -120, -102] },
-  'southeast': { label: 'Southeast', bounds: [24, 37, -95, -75] },
-  'se':        { label: 'Southeast', bounds: [24, 37, -95, -75] },
-  'northeast': { label: 'Northeast', bounds: [38, 47.5, -80, -67] },
-  'ne':        { label: 'Northeast', bounds: [38, 47.5, -80, -67] },
-  'new england': { label: 'Northeast', bounds: [41, 47.5, -73.5, -67] },
-  'central':   { label: 'Central', bounds: [36, 49, -104, -80] },
-  'midwest':   { label: 'Central', bounds: [36, 49, -104, -80] },
-  'west coast': { label: 'West Coast', bounds: [32, 49, -125, -114] },
-  'east coast': { label: 'East Coast', bounds: [25, 47.5, -85, -67] },
-  'southern':  { label: 'Southeast', bounds: [24, 37, -95, -75] },
-};
+// NL_REGIONS is defined near the top of the file (before dispatchFilters)
 
 // Synonym → actual niche value (from DEFAULT_NICHE_CATEGORIES)
 const NL_NICHE_SYNONYMS = {
@@ -5874,7 +6156,7 @@ function applyNLSearch(query) {
   dispatchFilters.platformTiers = [];
   dispatchFilters.platforms = [];
   dispatchFilters.tiers = [];
-  nlRegionFilter = null;
+  dispatchFilters.regions = [];
   // Clear vibe search term so pill grid shows all items (not text-filtered)
   _vibeSearchTerm = '';
 
@@ -5895,8 +6177,8 @@ function applyNLSearch(query) {
   }
 
   // Region
-  if (parsed.region) {
-    nlRegionFilter = parsed.region;
+  if (parsed.region && !dispatchFilters.regions.includes(parsed.region.label)) {
+    dispatchFilters.regions.push(parsed.region.label);
   }
 
   // Build hint text showing what was understood
@@ -5923,15 +6205,8 @@ function applyNLSearch(query) {
   renderDispatchActiveStrip();
   renderDispatchTab();
 
-  // Fly map to region bounds when a region filter is applied
-  if (parsed.region && parsed.region.bounds && map) {
-    const [latMin, latMax, lngMin, lngMax] = parsed.region.bounds;
-    map.flyToBounds([[latMin, lngMin], [latMax, lngMax]], {
-      padding: [30, 30],
-      duration: 0.8,
-      maxZoom: 7
-    });
-  }
+  // Fly map to region bounds when region filters are active
+  _flyToSelectedRegions();
 }
 
 // ===========================
@@ -6045,7 +6320,7 @@ function clearNLInlinePills() {
     dispatchFilters.platformTiers = [];
     dispatchFilters.platforms = [];
     dispatchFilters.tiers = [];
-    nlRegionFilter = null;
+    dispatchFilters.regions = [];
     _vibeSearchTerm = '';
 
     for (const p of _nlInlinePills) {
@@ -6061,7 +6336,8 @@ function clearNLInlinePills() {
         const tierVal = p.rawValue || p.value;
         if (!dispatchFilters.tiers.includes(tierVal)) dispatchFilters.tiers.push(tierVal);
       } else if (p.type === 'region' && p.regionData) {
-        nlRegionFilter = p.regionData;
+        const rl = p.regionData.label;
+        if (!dispatchFilters.regions.includes(rl)) dispatchFilters.regions.push(rl);
       }
     }
 
@@ -6071,7 +6347,9 @@ function clearNLInlinePills() {
       const parsed = parseNLSearch(remainingText);
       parsed.niches.forEach(n => { if (!dispatchFilters.niches.includes(n)) dispatchFilters.niches.push(n); });
       parsed.demographics.forEach(d => { if (!dispatchFilters.demographics.includes(d)) dispatchFilters.demographics.push(d); });
-      if (parsed.region && !nlRegionFilter) nlRegionFilter = parsed.region;
+      if (parsed.region && !dispatchFilters.regions.includes(parsed.region.label)) {
+        dispatchFilters.regions.push(parsed.region.label);
+      }
     }
 
     document.getElementById('nlSearchHint').style.display = 'none';
@@ -6081,13 +6359,8 @@ function clearNLInlinePills() {
     renderDispatchActiveStrip();
     renderDispatchTab();
 
-    // Fly to region if one was just set
-    if (nlRegionFilter && nlRegionFilter.bounds && map) {
-      const [latMin, latMax, lngMin, lngMax] = nlRegionFilter.bounds;
-      map.flyToBounds([[latMin, lngMin], [latMax, lngMax]], {
-        padding: [30, 30], duration: 0.8, maxZoom: 7
-      });
-    }
+    // Fly to region(s) if any were just set
+    _flyToSelectedRegions();
   }
 
   // ── Suggestions (only for current token being typed) ──
@@ -6259,7 +6532,7 @@ function clearNLInlinePills() {
       }, 500);
     } else if (_nlInlinePills.length === 0) {
       // Input cleared and no pills — reset everything
-      nlRegionFilter = null;
+      dispatchFilters.regions = [];
       _vibeSearchTerm = '';
       dispatchFilters.niches = [];
       dispatchFilters.demographics = [];
@@ -6293,7 +6566,7 @@ function clearNLInlinePills() {
     input.value = '';
     clearAllPills(true); // skip reapply, we'll do it ourselves
     clearBtn.style.display = 'none';
-    nlRegionFilter = null;
+    dispatchFilters.regions = [];
     _vibeSearchTerm = '';
     dispatchFilters.niches = [];
     dispatchFilters.demographics = [];
@@ -7132,7 +7405,7 @@ function _handleTabLogic(tab, wasDispatch) {
     dispatchFilters.niches = [];
     dispatchFilters.demographics = [];
     _vibeSearchTerm = '';
-    nlRegionFilter = null;
+    dispatchFilters.regions = [];
     const nlInput = document.getElementById('nlSearchInput');
     if (nlInput) nlInput.value = '';
     clearNLInlinePills();
@@ -7185,7 +7458,7 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   dispatchFilters.platformTiers = [];
   dispatchFilters.platforms = [];
   dispatchFilters.tiers = [];
-  nlRegionFilter = null;
+  dispatchFilters.regions = [];
   _nicheInjectedForCreator = null;
   // Clear NL search input + inline pills
   const nlInput = document.getElementById('nlSearchInput');
@@ -7199,9 +7472,11 @@ document.getElementById('matchFloatClose').addEventListener('click', () => {
   // Close ring if open
   closeDetailPanel();
 
-  // Slide back to Roster mode
-  const rosterBtn = document.querySelector('.tab-button[data-tab="roster"]');
-  if (rosterBtn) rosterBtn.click();
+  renderDispatchFilters();
+  renderDispatchFilterPills();
+  renderDispatchActiveStrip();
+  _stripDispatchMarkerState();
+  updateMapMarkers();
 });
 
 // Recycle bin
@@ -7419,15 +7694,10 @@ function initMap() {
     setInterval(updateAmbient, 300000);
   })();
 
-  // Scale markers based on zoom level — smooth curve that keeps pins readable
+  // Show/hide name labels based on zoom — markers stay full size at all zoom levels
   function updateMarkerScale() {
     const zoom = map.getZoom();
-    // Smoother easing: never below 0.6, reaches 1.0 at zoom 8+
-    // Uses ease-out curve so pins stay visible at wide zoom
-    const t = Math.min(1, Math.max(0, (zoom - 2) / 6));
-    const scale = 0.6 + 0.4 * (1 - Math.pow(1 - t, 2)); // ease-out quad
-    document.documentElement.style.setProperty('--marker-scale', scale.toFixed(3));
-    // Show/hide name labels based on zoom
+    document.documentElement.style.setProperty('--marker-scale', '1');
     document.documentElement.style.setProperty('--label-opacity', zoom >= 6 ? '1' : '0');
   }
   const _debouncedArrangeRings = debounce(_arrangeMarkerRings, 100);
@@ -7571,7 +7841,7 @@ document.addEventListener('keydown', (e) => {
       dispatchFilters.niches = [];
       dispatchFilters.demographics = [];
       _vibeSearchTerm = '';
-      nlRegionFilter = null;
+      dispatchFilters.regions = [];
       const nlInput = document.getElementById('nlSearchInput');
       if (nlInput) nlInput.value = '';
       clearNLInlinePills();
@@ -8079,6 +8349,7 @@ const julyImport = (() => {
         creators.forEach(migrateDemographics);
         creators.forEach(migrateLocation);
         creators = deduplicateCreators(creators);
+        assignAllCreatorRegions();
         renderRosterTab();
         updateMapMarkers();
         updateStorageIndicator();
@@ -8179,6 +8450,9 @@ function _autoExpandActiveSections() {
   if ((dispatchFilters.platformTiers.length > 0 || dispatchFilters.platforms.length > 0 || dispatchFilters.tiers.length > 0) && !_dispatchSections.platformTier) {
     toggleDispatchSection('platformTier');
   }
+  if (dispatchFilters.regions.length > 0 && !_dispatchSections.region) {
+    toggleDispatchSection('region');
+  }
 }
 
 // ===========================
@@ -8249,6 +8523,9 @@ async function init() {
     creators.forEach(c => { if (migrateDemographics(c)) dataChanged = true; });
     creators.forEach(c => { if (migrateLocation(c)) dataChanged = true; });
 
+    // Auto-assign region tags from lat/lng coordinates
+    assignAllCreatorRegions();
+
     // Deduplicate on load in case duplicates crept in from concurrent imports
     const beforeCount = creators.length;
     creators = deduplicateCreators(creators);
@@ -8314,9 +8591,10 @@ async function geocodeMissing() {
         creator.lat = parseFloat(results[0].lat);
         creator.lng = parseFloat(results[0].lon);
         geocoded++;
+        // Save coords directly — avoids wiping audience_data via full persist
+        db.updateCoords(creator.id, creator.lat, creator.lng);
         // Update map every 3 geocodes or on last one
         if (geocoded % 3 === 0 || i === missing.length - 1) {
-          db.persist(creators);
           updateMapMarkers();
         }
       }
@@ -8329,7 +8607,6 @@ async function geocodeMissing() {
     }
   }
 
-  db.persist(creators);
   updateMapMarkers();
   fitMapToCreators();
   if (geocoded > 0) {

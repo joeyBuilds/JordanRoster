@@ -496,6 +496,7 @@ body.theme-light .dispatch-pill.active.cat-culture       { background: rgba(110,
 body.theme-light .dispatch-pill.active.cat-age           { background: rgba(140,125,110,0.35); border-color: rgba(140,125,110,0.8); color: #fff; }
 body.theme-light .dispatch-pill.active.cat-representation{ background: rgba(125,145,125,0.35); border-color: rgba(125,145,125,0.8); color: #fff; }
 body.theme-light .dispatch-pill.active.cat-other         { background: rgba(130,125,120,0.30); border-color: rgba(130,125,120,0.7); color: #fff; }
+body.theme-light .dispatch-pill.active.region            { background: rgba(80,130,120,0.35); border-color: rgba(80,130,120,0.8); color: #fff; }
 body.theme-light .dispatch-pill.active.niche {
   background: rgba(var(--tag-niche-rgb), 0.35);
   border-color: rgba(var(--tag-niche-rgb), 0.8);
@@ -4700,6 +4701,139 @@ a.creator-platform-chip:hover {
 .dispatch-pill.active.cat-age           { background: rgba(170,155,140,0.45); border-color: rgba(200,185,170,0.85); color: #fff; }
 .dispatch-pill.active.cat-representation{ background: rgba(155,175,155,0.45); border-color: rgba(185,205,185,0.85); color: #fff; }
 .dispatch-pill.active.cat-other         { background: rgba(160,155,150,0.40); border-color: rgba(190,185,180,0.75); color: #fff; }
+
+/* Region active pill */
+.dispatch-pill.active.region           { background: rgba(100,150,140,0.45); border-color: rgba(130,180,170,0.85); color: #fff; }
+
+/* ═══ Region SVG Map (PNG silhouette-backed) ═══ */
+.region-map-container {
+  position: relative;
+  padding: 4px 0 0;
+}
+.region-map-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: pointer;
+  overflow: visible;
+}
+
+/* The PNG silhouette shown as subtle background */
+.region-map-silhouette {
+  opacity: 0.13;
+  pointer-events: none;
+}
+
+/* Region highlight zones — masked to US shape by SVG <mask> */
+.region-zone {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+  transition: fill 0.25s ease;
+}
+.region-zone:hover {
+  fill: rgba(155,181,160,0.55);
+}
+.region-zone.active {
+  fill: rgba(100,150,140,0.6);
+}
+.region-zone.active:hover {
+  fill: rgba(100,150,140,0.75);
+}
+
+/* Coast zones — subtler overlay style */
+.region-zone.coast-zone {
+  fill: transparent;
+  opacity: 0.65;
+}
+.region-zone.coast-zone:hover {
+  fill: rgba(130,170,190,0.4);
+}
+.region-zone.coast-zone.active {
+  fill: rgba(100,140,170,0.5);
+}
+.region-zone.coast-zone.active:hover {
+  fill: rgba(100,140,170,0.65);
+}
+
+/* Dashed boundary lines between regions */
+.region-boundaries .region-border {
+  fill: none;
+  stroke: var(--text-secondary, #7D6B63);
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Region name labels */
+.region-labels .region-label-text {
+  fill: var(--text-primary, #4E3D36);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  opacity: 0.45;
+  pointer-events: none;
+  letter-spacing: 0.5px;
+}
+
+/* Tooltip */
+.region-map-tooltip {
+  position: absolute;
+  background: var(--text-primary, #4E3D36);
+  color: var(--bg-primary, #F7F0E8);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+.region-map-tooltip.visible {
+  opacity: 1;
+}
+
+/* Inline pill for region type */
+.nl-inline-pill.region {
+  background: rgba(100,150,140,0.25);
+  border-color: rgba(100,150,140,0.6);
+  color: rgba(100,150,140,1);
+}
+
+/* ── Light theme overrides ── */
+body.theme-light .region-map-silhouette {
+  opacity: 0.08;
+}
+body.theme-light .region-zone:hover {
+  fill: rgba(80,130,120,0.35);
+}
+body.theme-light .region-zone.active {
+  fill: rgba(80,130,120,0.45);
+}
+body.theme-light .region-zone.active:hover {
+  fill: rgba(80,130,120,0.6);
+}
+body.theme-light .region-zone.coast-zone:hover {
+  fill: rgba(80,120,150,0.25);
+}
+body.theme-light .region-zone.coast-zone.active {
+  fill: rgba(80,120,150,0.35);
+}
+body.theme-light .region-zone.coast-zone.active:hover {
+  fill: rgba(80,120,150,0.5);
+}
+body.theme-light .nl-inline-pill.region {
+  background: rgba(80,130,120,0.2);
+  border-color: rgba(80,130,120,0.5);
+  color: rgba(60,110,100,1);
+}
 
 /* Legacy active styles as fallback */
 .dispatch-pill.active.niche {
@@ -9197,6 +9331,13 @@ body.dispatch-mode .marker-cluster-inner {
 /* Active creator's marker — accentuated when panel is open */
 .creator-marker.marker-highlighted {
   z-index: 10000 !important;
+}
+/* Override stack-depth dimming so selected creator is always fully visible */
+.creator-marker.marker-highlighted .marker-inner {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: translate(0, 0) scale(var(--marker-scale, 1)) !important;
+  pointer-events: auto !important;
 }
 .creator-marker.marker-highlighted .marker-avatar {
   transform: scale(1.3);

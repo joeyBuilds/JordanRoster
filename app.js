@@ -335,6 +335,8 @@ let currentEditingCreator = null;
 let map = null;
 let markers = {};
 let _dispatchMatchedIds = new Set(); // IDs of creators matching current dispatch filters
+let _dispatchTopIds = new Set();     // IDs of the top-N dispatch results (shown prominently on map)
+const DISPATCH_TOP_N = 5;           // Number of top results to feature
 let mapStateBeforeDetail = null; // {center, zoom} saved before flying to a creator
 let dispatchFilters = {
   platformTiers: [],  // [{platform: 'Instagram', tier: 'Micro (10K-100K)'}, ...] — specific combos from sidebar
@@ -1176,6 +1178,7 @@ function renderDispatchTab() {
     // Only rebuild markers if we were previously showing dispatch matches
     if (_dispatchMatchedIds.size > 0) {
       _dispatchMatchedIds = new Set();
+      _dispatchTopIds = new Set();
       updateMapMarkers();
     }
     if (dispatchDestination) renderNearestCreators();
@@ -1225,6 +1228,14 @@ function renderDispatchTab() {
       return secondaryCmp(a, b);
     });
 
+    // Track top-N IDs for map pin prominence
+    _dispatchTopIds = new Set(scored.slice(0, DISPATCH_TOP_N).map(e => e.creator.id));
+
+    // Determine if we're showing expanded or collapsed view
+    const isExpanded = matchBody.dataset.expanded === 'true';
+    const visibleCount = isExpanded ? scored.length : Math.min(DISPATCH_TOP_N, scored.length);
+    const hasMore = scored.length > DISPATCH_TOP_N;
+
     let prevMatchCount = null;
     scored.forEach((entry, i) => {
       const { creator, matchCount, totalFilters, pct, matchDetails, missedDetails } = entry;
@@ -1234,12 +1245,13 @@ function renderDispatchTab() {
         const divider = document.createElement('div');
         divider.className = 'dispatch-score-divider';
         divider.innerHTML = `<span class="dispatch-score-divider-label">${matchCount}/${totalFilters}</span>`;
+        if (i >= visibleCount) divider.classList.add('dispatch-hidden-card');
         matchBody.appendChild(divider);
       } else if (i > 0) {
-        // Spacer between cards within same score group
         const spacer = document.createElement('div');
         spacer.style.height = '6px';
         spacer.style.flexShrink = '0';
+        if (i >= visibleCount) spacer.classList.add('dispatch-hidden-card');
         matchBody.appendChild(spacer);
       }
       prevMatchCount = matchCount;
@@ -1249,6 +1261,11 @@ function renderDispatchTab() {
       // ── Score level for color wash ──
       const scoreLevel = getScoreLevel(matchCount, totalFilters);
       card.setAttribute('data-score', scoreLevel);
+
+      // Hide cards beyond top-N unless expanded
+      if (i >= visibleCount) {
+        card.classList.add('dispatch-hidden-card');
+      }
 
       // ── Stagger transition delay based on card index ──
       card.classList.add('dispatch-stagger-card');
@@ -1265,8 +1282,6 @@ function renderDispatchTab() {
           pipGauge.appendChild(seg);
         }
         avatarCol.appendChild(pipGauge);
-
-        // Stagger pip appearance after card
         setTimeout(() => pipGauge.classList.add('visible'), 150 + i * 40);
       }
 
@@ -1276,8 +1291,6 @@ function renderDispatchTab() {
         fraction.className = 'card-score-fraction';
         fraction.textContent = `${matchCount}/${totalFilters}`;
         card.appendChild(fraction);
-
-        // Stagger fraction appearance after pips
         setTimeout(() => fraction.classList.add('visible'), 250 + i * 40);
       }
 
@@ -1293,6 +1306,20 @@ function renderDispatchTab() {
 
       matchBody.appendChild(card);
     });
+
+    // "Show more" / "Show less" toggle
+    if (hasMore) {
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'dispatch-show-more-btn';
+      toggleBtn.textContent = isExpanded
+        ? 'Show top ' + DISPATCH_TOP_N
+        : 'Show all ' + scored.length + ' matches';
+      toggleBtn.onclick = () => {
+        matchBody.dataset.expanded = isExpanded ? 'false' : 'true';
+        renderDispatchTab();
+      };
+      matchBody.appendChild(toggleBtn);
+    }
   }
 
   matchPanel.classList.add('visible');
@@ -2131,6 +2158,7 @@ function updateMapMarkers() {
 
       // Build gleam ring HTML for dispatch-matched creators
       const isMatch = isDispatch && hasDispatchFilters && _dispatchMatchedIds.has(creator.id);
+      const isTopResult = isDispatch && hasDispatchFilters && _dispatchTopIds.has(creator.id);
       // Sunrays only for perfect-score creators when multiple filters are active
       const isPerfect = isMatch && scorePct >= 1.0 && score && score.totalFilters > 1;
       // Derive a pseudo-random stagger from creator id hash so each pin breathes at its own pace
@@ -2155,8 +2183,8 @@ function updateMapMarkers() {
         ? `--score-pct:${scorePct.toFixed(3)};${isMatch ? '--stagger:' + staggerMs + 'ms;' : ''}`
         : (isMatch ? '--stagger:' + staggerMs + 'ms' : '');
 
-      // Only show badge when score is meaningful (>40% match) to reduce map noise
-      const showBadge = isDispatch && hasDispatchFilters && scorePct > 0.4;
+      // Only show badge on top-N results to reduce map noise
+      const showBadge = isDispatch && hasDispatchFilters && isTopResult;
       const badgeHtml = showBadge ? scoreBadgeHtml : '';
 
       const iconHtml = `
@@ -2175,9 +2203,11 @@ function updateMapMarkers() {
       `;
 
       const shouldFade = isDispatch && hasDispatchFilters && !isMatch;
+      const isSecondary = isMatch && !isTopResult && _dispatchTopIds.size > 0;
       const markerClassName = 'creator-marker'
         + (shouldFade ? ' dispatch-faded' : '')
         + (isMatch ? ' dispatch-match' : '')
+        + (isSecondary ? ' dispatch-secondary' : '')
         + (isPerfect ? ' score-perfect' : '')
         + (isDispatch && hasDispatchFilters && scoreLevel ? ' score-level-' + scoreLevel : '');
 

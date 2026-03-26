@@ -2699,15 +2699,16 @@ function renderMosaicCloud(tagList, categories, tagType, container, isLeft) {
         }
       }
 
-      // Click to dispatch-filter on this tag
+      // Click single tag → open dispatch with ONLY this tag (clean slate)
       pill.onclick = (e) => {
         e.stopPropagation();
         if (tagType === 'niche' || tagType === 'demographic') {
           closeDetailPanel();
+          // Clear existing filters for this type, then set only the clicked tag
           if (tagType === 'niche') {
-            if (!dispatchFilters.niches.includes(tag)) dispatchFilters.niches.push(tag);
+            dispatchFilters.niches = [tag];
           } else {
-            if (!dispatchFilters.demographics.includes(tag)) dispatchFilters.demographics.push(tag);
+            dispatchFilters.demographics = [tag];
           }
           const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
           if (dispatchBtn) dispatchBtn.click();

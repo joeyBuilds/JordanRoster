@@ -4883,8 +4883,7 @@ a.ring-platform-chip:hover {
 }
 
 .mosaic-group {
-  display: inline-flex;
-  flex-direction: column;
+  display: inline-block;
   cursor: pointer;
   position: relative;
 }

@@ -965,6 +965,27 @@ function renderCreatorCard(creator) {
   card.appendChild(avatarCol);
   card.appendChild(body);
 
+  // ── Roster card hover → highlight this pin, fade all others ──
+  card.addEventListener('mouseenter', () => {
+    Object.keys(markers).forEach(id => {
+      const el = markers[id] && markers[id].getElement();
+      if (!el) return;
+      if (id === creator.id) {
+        el.classList.add('roster-card-hover');
+        el.classList.remove('roster-faded');
+      } else {
+        el.classList.add('roster-faded');
+      }
+    });
+  });
+  card.addEventListener('mouseleave', () => {
+    Object.keys(markers).forEach(id => {
+      const el = markers[id] && markers[id].getElement();
+      if (!el) return;
+      el.classList.remove('roster-card-hover', 'roster-faded');
+    });
+  });
+
   return card;
 }
 
@@ -3102,8 +3123,18 @@ function renderRing(creator, forceDispatch) {
   if (creator.notes) {
     const notes = document.createElement('div');
     notes.className = 'ring-notes';
-    notes.textContent = creator.notes;
-    notes.onclick = (e) => { e.stopPropagation(); notes.classList.toggle('expanded'); };
+    notes.appendChild(document.createTextNode(creator.notes));
+
+    const notesHint = document.createElement('div');
+    notesHint.className = 'ring-notes-hint';
+    notesHint.textContent = 'click for bio';
+    notes.appendChild(notesHint);
+
+    notes.onclick = (e) => {
+      e.stopPropagation();
+      const isExpanded = notes.classList.toggle('expanded');
+      notesHint.textContent = isExpanded ? 'click to close' : 'click for bio';
+    };
     bodyCenter.appendChild(notes);
   }
 

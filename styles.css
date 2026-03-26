@@ -689,7 +689,7 @@ body.shift-held #mapContainer .leaflet-container {
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
-/* The avatar circle — white ring via box-shadow so border doesn't shrink the image */
+/* The avatar circle — subtle ring via box-shadow */
 .marker-avatar {
   position: relative;
   width: 52px;
@@ -697,10 +697,9 @@ body.shift-held #mapContainer .leaflet-container {
   border-radius: 50%;
   border: none;
   box-shadow:
-    0 0 0 3px rgba(255,255,255,0.95),
-    0 0 0 4.5px rgba(var(--accent-rgb),0.5),
-    0 4px 16px 2px rgba(0,0,0,0.5),
-    0 0 24px 6px rgba(255,255,255,0.15);
+    0 0 0 1.5px rgba(255,255,255,0.45),
+    0 0 0 3px rgba(var(--accent-rgb),0.25),
+    0 4px 16px 2px rgba(0,0,0,0.5);
   overflow: hidden;
   background: linear-gradient(135deg, var(--lavender), var(--sage));
   z-index: 1;
@@ -741,14 +740,13 @@ body.shift-held #mapContainer .leaflet-container {
   letter-spacing: 0.02em;
 }
 
-/* Hover state — scale up + brighten glow */
+/* Hover state — scale up + brighten ring */
 .creator-marker:hover .marker-avatar {
   transform: scale(1.12);
   box-shadow:
-    0 0 0 3px rgba(255,255,255,0.95),
-    0 0 0 5px rgba(var(--accent-rgb),0.7),
-    0 6px 24px 4px rgba(0,0,0,0.5),
-    0 0 32px 10px rgba(255,255,255,0.25);
+    0 0 0 2px rgba(255,255,255,0.8),
+    0 0 0 4px rgba(var(--accent-rgb),0.5),
+    0 6px 24px 4px rgba(0,0,0,0.5);
 }
 .creator-marker:hover .marker-glow {
   transform: scale(1.25);
@@ -5054,12 +5052,12 @@ a.ring-platform-chip:hover {
 .ring-notes {
   max-width: 280px;
   min-width: 160px;
-  padding: 10px 16px;
+  padding: 10px 16px 4px;
   border-radius: 14px;
   font-size: 11px;
   font-style: italic;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.55;
   background: rgba(var(--bg-card-rgb), 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -5069,42 +5067,54 @@ a.ring-platform-chip:hover {
   border: 1px solid var(--glass-border);
   white-space: normal;
   text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: max-height 0.35s ease;
+  position: relative;
+  overflow: hidden;
+  /* Collapsed: ~2.5 lines of text + hint = roughly 65px */
+  max-height: 72px;
 }
-.ring-notes::after {
-  content: 'more \2192';
-  display: block;
-  text-align: center;
-  font-size: 9px;
+/* "click for bio" hint — sits at the very bottom */
+.ring-notes-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* Gradient fade from transparent → card background → solid for hint text */
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--bg-card-rgb), 0) 0%,
+    rgba(var(--bg-card-rgb), 0.85) 40%,
+    rgba(var(--bg-card-rgb), 0.95) 100%
+  );
+  padding: 18px 0 5px;
+  font-size: 8px;
   font-style: normal;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
+  text-align: center;
   color: var(--accent);
-  opacity: 0.6;
-  margin-top: 2px;
-  transition: opacity 0.15s ease;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
 }
-.ring-notes:hover::after {
-  opacity: 1;
+.ring-notes:hover .ring-notes-hint {
+  opacity: 0.75;
 }
-.ring-notes.expanded::after {
-  content: 'less \2190';
-}
+/* Expanded state */
 .ring-notes.expanded {
-  -webkit-line-clamp: unset;
-  max-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
   scrollbar-width: none;
+  padding-bottom: 8px;
 }
 .ring-notes.expanded::-webkit-scrollbar {
   display: none;
+}
+.ring-notes.expanded .ring-notes-hint {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ===========================
@@ -8241,8 +8251,8 @@ body.dispatch-mode .marker-cluster-inner {
 
 /* Non-matching markers fade — roster search */
 .creator-marker.roster-faded .marker-inner {
-  opacity: 0.25;
-  filter: grayscale(0.6);
+  opacity: 0.15;
+  filter: grayscale(0.7) brightness(0.6);
   transition: opacity 0.3s ease, filter 0.3s ease;
 }
 .creator-marker.roster-faded .marker-glow {
@@ -8251,6 +8261,22 @@ body.dispatch-mode .marker-cluster-inner {
 .creator-marker.roster-faded .marker-label {
   opacity: 0;
   transition: opacity 0.3s ease;
+}
+/* Highlighted pin when hovering its roster card */
+.creator-marker.roster-card-hover .marker-avatar {
+  transform: scale(1.18);
+  box-shadow:
+    0 0 0 2.5px rgba(255,255,255,0.9),
+    0 0 0 5px rgba(var(--accent-rgb),0.7),
+    0 6px 24px 4px rgba(0,0,0,0.5),
+    0 0 32px 10px rgba(var(--accent-rgb),0.25);
+}
+.creator-marker.roster-card-hover .marker-glow {
+  transform: scale(1.4);
+  opacity: 1;
+}
+.creator-marker.roster-card-hover .marker-label {
+  opacity: 1 !important;
 }
 
 /* ===========================

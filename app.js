@@ -8305,31 +8305,26 @@ async function geocodeMissing() {
   console.log(`[geocode] ${missing.length} creators missing coordinates — geocoding...`);
   showToast(`📍 Geocoding ${missing.length} locations…`, 'success');
 
-  const BATCH_SIZE = 3;
   let geocoded = 0;
-  for (let i = 0; i < missing.length; i += BATCH_SIZE) {
-    const batch = missing.slice(i, i + BATCH_SIZE);
-    const results = await Promise.allSettled(
-      batch.map(async (creator) => {
-        try {
-          const res = await searchLocations(creator.location);
-          if (res.length > 0) {
-            creator.lat = parseFloat(res[0].lat);
-            creator.lng = parseFloat(res[0].lon);
-            return true;
-          }
-        } catch (e) {
-          console.warn(`[geocode] Failed for "${creator.location}":`, e.message);
+  for (let i = 0; i < missing.length; i++) {
+    const creator = missing[i];
+    try {
+      const results = await searchLocations(creator.location);
+      if (results.length > 0) {
+        creator.lat = parseFloat(results[0].lat);
+        creator.lng = parseFloat(results[0].lon);
+        geocoded++;
+        // Update map every 3 geocodes or on last one
+        if (geocoded % 3 === 0 || i === missing.length - 1) {
+          db.persist(creators);
+          updateMapMarkers();
         }
-        return false;
-      })
-    );
-    geocoded += results.filter(r => r.status === 'fulfilled' && r.value).length;
-    // Update map after each batch
-    db.persist(creators);
-    updateMapMarkers();
-    // Nominatim rate limit: 1100ms per batch (not per request)
-    if (i + BATCH_SIZE < missing.length) {
+      }
+    } catch (e) {
+      console.warn(`[geocode] Failed for "${creator.location}":`, e.message);
+    }
+    // Nominatim: strictly 1 req/sec
+    if (i < missing.length - 1) {
       await new Promise(r => setTimeout(r, 1100));
     }
   }

@@ -4866,6 +4866,134 @@ a.ring-platform-chip:hover {
   cursor: default;
 }
 
+/* ═══════════════════════════════════════════════
+   MOSAIC CLOUD — category labels that reveal tags on hover
+   ═══════════════════════════════════════════════ */
+.mosaic-cloud {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+}
+.mosaic-cloud.side-left {
+  align-items: flex-start;
+}
+.mosaic-cloud.side-right {
+  align-items: flex-end;
+}
+
+.mosaic-group {
+  display: inline-flex;
+  flex-direction: column;
+  cursor: pointer;
+  position: relative;
+}
+
+/* Category label — snug to text */
+.mosaic-cat-label {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  white-space: nowrap;
+  transition: border-radius 0.2s;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.88);
+}
+.mosaic-cat-count {
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+/* Category colors for mosaic labels */
+.mosaic-cat-label.cat-entertainment { background: rgba(187, 130, 180, 0.4); border-color: rgba(187,130,180,0.25); }
+.mosaic-cat-label.cat-lifestyle     { background: rgba(200, 170, 120, 0.4); border-color: rgba(200,170,120,0.25); }
+.mosaic-cat-label.cat-food          { background: rgba(200, 140, 100, 0.4); border-color: rgba(200,140,100,0.25); }
+.mosaic-cat-label.cat-travel        { background: rgba(120, 170, 160, 0.4); border-color: rgba(120,170,160,0.25); }
+.mosaic-cat-label.cat-people        { background: rgba(210, 160, 160, 0.4); border-color: rgba(210,160,160,0.25); }
+.mosaic-cat-label.cat-fitness       { background: rgba(140, 180, 130, 0.4); border-color: rgba(140,180,130,0.25); }
+.mosaic-cat-label.cat-home          { background: rgba(180, 160, 130, 0.4); border-color: rgba(180,160,130,0.25); }
+.mosaic-cat-label.cat-tech          { background: rgba(130, 160, 190, 0.4); border-color: rgba(130,160,190,0.25); }
+.mosaic-cat-label.cat-creative      { background: rgba(170, 150, 200, 0.4); border-color: rgba(170,150,200,0.25); }
+.mosaic-cat-label.cat-identity      { background: rgba(180, 140, 180, 0.4); border-color: rgba(180,140,180,0.25); }
+.mosaic-cat-label.cat-culture       { background: rgba(140, 165, 180, 0.4); border-color: rgba(140,165,180,0.25); }
+.mosaic-cat-label.cat-age           { background: rgba(170, 155, 140, 0.4); border-color: rgba(170,155,140,0.25); }
+.mosaic-cat-label.cat-representation { background: rgba(155, 175, 155, 0.4); border-color: rgba(155,175,155,0.25); }
+.mosaic-cat-label.cat-other         { background: rgba(160, 155, 150, 0.3); border-color: rgba(160,155,150,0.2); }
+
+/* Tag tray — hidden by default, reveals on hover */
+.mosaic-tag-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease,
+              margin 0.2s ease;
+  margin-top: 0;
+}
+.mosaic-group:hover .mosaic-tag-tray,
+.mosaic-group.expanded .mosaic-tag-tray,
+.mosaic-group.touch-open .mosaic-tag-tray {
+  max-height: 140px;
+  opacity: 1;
+  margin-top: 2px;
+}
+.mosaic-group:hover .mosaic-cat-label,
+.mosaic-group.expanded .mosaic-cat-label {
+  border-radius: 4px 4px 2px 2px;
+}
+
+/* Individual tag pill inside tray */
+.mosaic-tag {
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.82);
+  opacity: 0.85;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.12s;
+}
+.mosaic-tag:hover {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+/* Mosaic tag category colors */
+.mosaic-tag.cat-entertainment { background: rgba(187, 130, 180, 0.35); border-color: rgba(187,130,180,0.2); }
+.mosaic-tag.cat-lifestyle     { background: rgba(200, 170, 120, 0.35); border-color: rgba(200,170,120,0.2); }
+.mosaic-tag.cat-food          { background: rgba(200, 140, 100, 0.35); border-color: rgba(200,140,100,0.2); }
+.mosaic-tag.cat-travel        { background: rgba(120, 170, 160, 0.35); border-color: rgba(120,170,160,0.2); }
+.mosaic-tag.cat-people        { background: rgba(210, 160, 160, 0.35); border-color: rgba(210,160,160,0.2); }
+.mosaic-tag.cat-fitness       { background: rgba(140, 180, 130, 0.35); border-color: rgba(140,180,130,0.2); }
+.mosaic-tag.cat-home          { background: rgba(180, 160, 130, 0.35); border-color: rgba(180,160,130,0.2); }
+.mosaic-tag.cat-tech          { background: rgba(130, 160, 190, 0.35); border-color: rgba(130,160,190,0.2); }
+.mosaic-tag.cat-creative      { background: rgba(170, 150, 200, 0.35); border-color: rgba(170,150,200,0.2); }
+.mosaic-tag.cat-identity      { background: rgba(180, 140, 180, 0.35); border-color: rgba(180,140,180,0.2); }
+.mosaic-tag.cat-culture       { background: rgba(140, 165, 180, 0.35); border-color: rgba(140,165,180,0.2); }
+.mosaic-tag.cat-age           { background: rgba(170, 155, 140, 0.35); border-color: rgba(170,155,140,0.2); }
+.mosaic-tag.cat-representation { background: rgba(155, 175, 155, 0.35); border-color: rgba(155,175,155,0.2); }
+.mosaic-tag.cat-other         { background: rgba(160, 155, 150, 0.25); border-color: rgba(160,155,150,0.15); }
+
+/* Right-aligned variant */
+.mosaic-cloud.side-right .mosaic-cat-label {
+  text-align: right;
+}
+.mosaic-cloud.side-right .mosaic-tag-tray {
+  justify-content: flex-end;
+}
+
+/* Dispatch matched tags in mosaic */
+.mosaic-tag.dispatch-matched-tag {
+  box-shadow: 0 0 6px 1px rgba(142, 174, 139, 0.5);
+}
+
 /* Dense mode: 2-column wrapped grid with scroll for 8+ pills */
 .ring-side-col-dense {
   flex-direction: row !important;
@@ -6727,6 +6855,23 @@ a.ring-platform-chip:hover {
     max-height: none !important;
     overflow-y: visible !important;
     justify-content: center !important;
+  }
+
+  /* Mosaic cloud on mobile — horizontal flow */
+  .mosaic-cloud {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    width: 100%;
+  }
+  .mosaic-cat-label {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+  .mosaic-tag {
+    font-size: 10px;
+    padding: 4px 8px;
   }
 
   .ring-pill {

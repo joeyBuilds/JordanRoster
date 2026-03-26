@@ -2615,7 +2615,13 @@ function showDetailPanel(creatorId) {
 }
 
 // ── Render tag pills inline into a container (for ring body side columns) ──
+// Legacy wrapper — calls mosaic cloud renderer
 function renderInlinePills(tagList, categories, tagType, container, isLeft) {
+  renderMosaicCloud(tagList, categories, tagType, container, isLeft);
+}
+
+// ── Mosaic Cloud: category labels that reveal individual tags on hover ──
+function renderMosaicCloud(tagList, categories, tagType, container, isLeft) {
   const categoryOrder = Object.keys(categories);
   const groups = [];
   const tagSet = new Set(tagList);
@@ -2632,7 +2638,6 @@ function renderInlinePills(tagList, categories, tagType, container, isLeft) {
   const ringHasDispatch = document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters();
   let ringScore = null;
   if (ringHasDispatch) {
-    // Find the creator from the overlay's context
     const overlay = document.getElementById('ringOverlay');
     const creatorId = overlay?.dataset.creatorId;
     if (creatorId) {
@@ -2641,41 +2646,58 @@ function renderInlinePills(tagList, categories, tagType, container, isLeft) {
     }
   }
 
-  let delay = 50;
-  groups.forEach((group, gIdx) => {
-    group.tags.forEach((tag) => {
-      const colorClass = getCategoryColorClass(group.cat);
-      const el = document.createElement('div');
-      el.className = 'ring-pill ' + tagType + ' cat-' + colorClass;
-      el.textContent = tag;
+  // Add mosaic cloud class to container
+  container.classList.add('mosaic-cloud');
+  if (isLeft) container.classList.add('side-left');
+  else container.classList.add('side-right');
 
-      // Grace glow on dispatch-matched pills
+  let delay = 50;
+  groups.forEach((group) => {
+    const colorClass = getCategoryColorClass(group.cat);
+    const groupEl = document.createElement('div');
+    groupEl.className = 'mosaic-group';
+
+    // Category label — always visible
+    const label = document.createElement('div');
+    label.className = 'mosaic-cat-label cat-' + colorClass;
+    const catDisplayName = group.cat ? group.cat.replace(/ & /g, ' & ').replace(/&amp;/g, '&') : 'Other';
+    // Shorten long category names for the pill
+    const shortNames = {
+      'Content & Entertainment': 'Entertainment',
+      'Lifestyle & Wellness': 'Lifestyle',
+      'Food & Drink': 'Food',
+      'Travel & Adventure': 'Travel',
+      'People & Relationships': 'People',
+      'Sports & Fitness': 'Fitness',
+      'Home & DIY': 'Home',
+      'Tech & Business': 'Tech',
+      'Gender & Identity': 'Identity',
+      'Culture & Background': 'Culture',
+      'Age & Generation': 'Age'
+    };
+    const shortName = shortNames[catDisplayName] || catDisplayName;
+    label.innerHTML = `${shortName} <span class="mosaic-cat-count">(${group.tags.length})</span>`;
+    groupEl.appendChild(label);
+
+    // Tag tray — reveals on hover
+    const tray = document.createElement('div');
+    tray.className = 'mosaic-tag-tray';
+
+    group.tags.forEach((tag) => {
+      const pill = document.createElement('div');
+      pill.className = 'mosaic-tag cat-' + colorClass;
+      pill.textContent = tag;
+
+      // Dispatch matched glow
       if (ringHasDispatch && ringScore && ringScore.matchDetails) {
         const isMatchedTag = ringScore.matchDetails.some(d => d.type === tagType && d.label === tag);
         if (isMatchedTag) {
-          el.classList.add('dispatch-matched-tag');
-          if (ringScore.totalFilters > 1) {
-            for (let gp = 0; gp < 3; gp++) {
-              const particle = document.createElement('div');
-              particle.className = 'pill-grace-particle';
-              const xPct = 15 + Math.random() * 70;
-              const dur = 1.8 + Math.random() * 1.5;
-              const pDelay = Math.random() * dur;
-              const sz = 1.5 + Math.random() * 2;
-              particle.style.cssText = `left:${xPct}%;--pg-dur:${dur}s;--pg-delay:-${pDelay.toFixed(1)}s;--pg-size:${sz}px`;
-              el.appendChild(particle);
-            }
-          }
+          pill.classList.add('dispatch-matched-tag');
         }
       }
 
-      // Entrance animation
-      const slideInX = isLeft ? -20 : 20;
-      el.style.opacity = '0';
-      el.style.transform = `translateX(${slideInX}px) scale(0.8)`;
-      el.style.transition = 'opacity 0.15s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)';
-
-      el.onclick = (e) => {
+      // Click to dispatch-filter on this tag
+      pill.onclick = (e) => {
         e.stopPropagation();
         if (tagType === 'niche' || tagType === 'demographic') {
           closeDetailPanel();
@@ -2691,26 +2713,45 @@ function renderInlinePills(tagList, categories, tagType, container, isLeft) {
           renderDispatchFilterPills();
           renderDispatchTab();
           updateMapMarkers();
-        } else {
-          openTagModal(tag, tagType);
         }
       };
 
-      container.appendChild(el);
-
-      setTimeout(() => {
-        el.style.opacity = '1';
-        el.style.transform = 'translateX(0) scale(1)';
-        setTimeout(() => {
-          el.style.opacity = '';
-          el.style.transform = '';
-          el.style.transition = '';
-        }, 280);
-      }, delay);
-
-      delay += 18;
+      tray.appendChild(pill);
     });
-    delay += 5;
+
+    groupEl.appendChild(tray);
+
+    // Hover expand/collapse
+    groupEl.addEventListener('mouseenter', () => groupEl.classList.add('expanded'));
+    groupEl.addEventListener('mouseleave', () => groupEl.classList.remove('expanded'));
+    // Touch support
+    groupEl.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      container.querySelectorAll('.mosaic-group.touch-open').forEach(g => {
+        if (g !== groupEl) g.classList.remove('touch-open');
+      });
+      groupEl.classList.toggle('touch-open');
+    }, { passive: false });
+
+    // Entrance animation
+    const slideInX = isLeft ? -15 : 15;
+    groupEl.style.opacity = '0';
+    groupEl.style.transform = `translateX(${slideInX}px)`;
+    groupEl.style.transition = 'opacity 0.15s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+    container.appendChild(groupEl);
+
+    setTimeout(() => {
+      groupEl.style.opacity = '1';
+      groupEl.style.transform = 'translateX(0)';
+      setTimeout(() => {
+        groupEl.style.opacity = '';
+        groupEl.style.transform = '';
+        groupEl.style.transition = '';
+      }, 250);
+    }, delay);
+
+    delay += 40;
   });
 }
 

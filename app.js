@@ -2150,9 +2150,18 @@ function updateMapMarkers() {
       }
       const sunrayHtml = isPerfect ? `<div class="marker-sunray">${particlesHtml}</div>` : '';
 
+      // Build inline style with score percentage for continuous scaling
+      const pctStyle = (isDispatch && hasDispatchFilters)
+        ? `--score-pct:${scorePct.toFixed(3)};${isMatch ? '--stagger:' + staggerMs + 'ms;' : ''}`
+        : (isMatch ? '--stagger:' + staggerMs + 'ms' : '');
+
+      // Only show badge when score is meaningful (>40% match) to reduce map noise
+      const showBadge = isDispatch && hasDispatchFilters && scorePct > 0.4;
+      const badgeHtml = showBadge ? scoreBadgeHtml : '';
+
       const iconHtml = `
-        <div class="marker-inner" style="${isMatch ? '--stagger:' + staggerMs + 'ms' : ''}">
-          ${scoreBadgeHtml}
+        <div class="marker-inner" style="${pctStyle}">
+          ${badgeHtml}
           <div class="marker-avatar-wrap">
             ${sunrayHtml}
             ${gleamHtml}

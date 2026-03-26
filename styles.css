@@ -8015,45 +8015,32 @@ body.dispatch-mode .marker-cluster-inner {
   font-weight: 700;
 }
 
-/* ── Score-level visual hierarchy: scale + opacity for at-a-glance differentiation ── */
-
-/* Full score (100%): full size, full vibrancy — sunray/particles already distinguish */
-/* Most score (67-99%): full size, full opacity */
-.creator-marker.dispatch-match.score-level-full .marker-inner,
-.creator-marker.dispatch-match.score-level-most .marker-inner {
+/* ── Continuous score-proportional scaling for dispatch-match pins ──
+   --score-pct is set inline on .marker-inner (0.0 → 1.0).
+   Pins scale + fade proportionally so top matches pop and poor matches recede. */
+.creator-marker.dispatch-match .marker-inner {
+  transform: scale(calc(0.5 + 0.5 * var(--score-pct, 1)));
+  opacity: calc(0.25 + 0.75 * var(--score-pct, 1));
+  filter: saturate(calc(0.3 + 0.7 * var(--score-pct, 1)));
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease, filter 0.4s ease;
+}
+/* Perfect score: force full prominence */
+.creator-marker.dispatch-match.score-perfect .marker-inner {
+  transform: scale(1) !important;
   opacity: 1 !important;
   filter: none !important;
 }
-
-/* Half score (34-66%): reduced scale + slight desaturation */
-.creator-marker.dispatch-match.score-level-half .marker-inner {
-  transform: scale(0.82);
-  opacity: 0.68 !important;
-  filter: saturate(0.75) !important;
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease, filter 0.4s ease;
-}
-
-/* Low score (1-33%): smallest + faded + desaturated */
-.creator-marker.dispatch-match.score-level-low .marker-inner {
-  transform: scale(0.72);
-  opacity: 0.48 !important;
-  filter: saturate(0.45) brightness(0.88) !important;
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease, filter 0.4s ease;
-}
-
-/* Hover restores half/low pins to near-full prominence */
-.creator-marker.dispatch-match.score-level-half:hover .marker-inner {
-  transform: scale(0.95);
-  opacity: 0.9 !important;
+/* Hover restores any pin to near-full prominence */
+.creator-marker.dispatch-match:hover .marker-inner {
+  transform: scale(0.95) !important;
+  opacity: 0.92 !important;
   filter: saturate(0.95) !important;
 }
-.creator-marker.dispatch-match.score-level-low:hover .marker-inner {
-  transform: scale(0.88);
-  opacity: 0.8 !important;
-  filter: saturate(0.8) brightness(0.95) !important;
+/* Hide name labels on low-scoring pins */
+.creator-marker.dispatch-match .marker-label {
+  opacity: calc(var(--score-pct, 1) * var(--score-pct, 1));
 }
-
-/* Half/Low scored matches: no breathing halo — reserve for full/most */
+/* Only show gleam halo for high-scoring pins */
 .creator-marker.dispatch-match.score-level-half .marker-gleam-ring,
 .creator-marker.dispatch-match.score-level-low .marker-gleam-ring {
   animation: none;

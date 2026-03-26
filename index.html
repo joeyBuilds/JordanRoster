@@ -31,6 +31,10 @@
   <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
+  <script>
+    // Apply saved theme instantly to prevent flash of wrong theme
+    if (localStorage.getItem('niche-theme') !== 'dark') document.body.classList.add('theme-light');
+  </script>
   <!-- Top Bar -->
   <div id="topBar">
     <div class="topBar-left">
@@ -43,6 +47,7 @@
       </h1>
     </div>
     <div class="topBar-actions">
+      <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle light/dark theme">🌙</button>
       <div class="eqex-brand">
         <img src="BetterAlchemyCircle_transparent.png" alt="" class="eqex-sigil" />
         <div class="built-by-wrap">
@@ -196,7 +201,7 @@
             </div>
             <div id="nichesCollapsible" class="dispatch-collapsible-body">
               <div>
-                <button class="dispatch-edit-cats-btn" onclick="openCategoryOrganizer('niche')" title="Organize niche categories">✎ Edit Niches</button>
+                <button class="dispatch-edit-cats-btn" onclick="openCategoryOrganizer('niche')" title="Organize niche categories">✎</button>
                 <div id="dispatchNichePills" class="dispatch-pill-grid"></div>
               </div>
             </div>
@@ -210,7 +215,7 @@
             </div>
             <div id="demosCollapsible" class="dispatch-collapsible-body">
               <div>
-                <button class="dispatch-edit-cats-btn" onclick="openCategoryOrganizer('demographic')" title="Organize demographic categories">✎ Edit Demographics</button>
+                <button class="dispatch-edit-cats-btn" onclick="openCategoryOrganizer('demographic')" title="Organize demographic categories">✎</button>
                 <div id="dispatchDemoPills" class="dispatch-pill-grid"></div>
               </div>
             </div>
@@ -290,6 +295,9 @@
       </div>
       <div class="match-float-body" id="matchFloatBody"></div>
     </div>
+
+    <!-- Creator slide-out panel — replaces radial ring -->
+    <div id="creatorSlidePanel" class="creator-slide-panel"></div>
 
     <!-- Compare panels float over the map, anchored to sidebar edge -->
     <div id="comparePanelStack" class="compare-panel-stack"></div>

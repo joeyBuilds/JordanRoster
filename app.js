@@ -1509,41 +1509,44 @@ function renderDispatchFilterPills() {
   }
   function onToggleNiche(n) {
     const idx = dispatchFilters.niches.indexOf(n);
-    if (idx >= 0) dispatchFilters.niches.splice(idx, 1);
-    else { dispatchFilters.niches.push(n); if (!_dispatchSections.niches) toggleDispatchSection('niches'); }
-    clearVibeSearch();
+    if (idx >= 0) {
+      dispatchFilters.niches.splice(idx, 1);
+      if (window._nlRemovePill) window._nlRemovePill(n, 'niche');
+    } else {
+      dispatchFilters.niches.push(n);
+      if (!_dispatchSections.niches) toggleDispatchSection('niches');
+      if (window._nlAddPill) window._nlAddPill(n, 'niche');
+    }
+    _vibeSearchTerm = '';
     renderDispatchFilterPills();
     renderDispatchTab();
   }
   function onToggleDemo(d) {
     const idx = dispatchFilters.demographics.indexOf(d);
-    if (idx >= 0) dispatchFilters.demographics.splice(idx, 1);
-    else { dispatchFilters.demographics.push(d); if (!_dispatchSections.demos) toggleDispatchSection('demos'); }
-    clearVibeSearch();
+    if (idx >= 0) {
+      dispatchFilters.demographics.splice(idx, 1);
+      if (window._nlRemovePill) window._nlRemovePill(d, 'demographic');
+    } else {
+      dispatchFilters.demographics.push(d);
+      if (!_dispatchSections.demos) toggleDispatchSection('demos');
+      if (window._nlAddPill) window._nlAddPill(d, 'demographic');
+    }
+    _vibeSearchTerm = '';
     renderDispatchFilterPills();
     renderDispatchTab();
   }
 
-  // ── Render icon-row category lanes (always visible, typeahead filters) ──
+  // ── Render 2-column grid category lanes ──
   function renderLanes(container, items, categories, type, selectedArr, onToggle) {
     container.innerHTML = '';
     const placed = new Set();
     let anyVisible = false;
+    const WIDE_THRESHOLD = 9; // only very large categories span full width
 
-    Object.entries(categories).forEach(([catName, catItems]) => {
-      const catVisible = catItems.filter(item => items.includes(item));
-      if (catVisible.length === 0) return;
-
-      // Filter by typeahead
-      const filtered = q ? catVisible.filter(item => item.toLowerCase().includes(q)) : catVisible;
-      // Mark all as placed regardless of search (to handle uncategorized correctly)
-      catVisible.forEach(item => placed.add(item));
-      if (filtered.length === 0) return;
-      anyVisible = true;
-
-      const colorClass = getCategoryColorClass(catName);
+    function buildGroup(catName, filtered, colorClass) {
       const group = document.createElement('div');
-      group.className = `icon-row-group icon-row-${type} icon-row-cat-${colorClass}`;
+      const isWide = filtered.length >= WIDE_THRESHOLD;
+      group.className = `icon-row-group icon-row-${type} icon-row-cat-${colorClass}${isWide ? ' icon-row-wide' : ''}`;
 
       const header = document.createElement('div');
       header.className = 'icon-row-header';
@@ -1562,7 +1565,18 @@ function renderDispatchFilterPills() {
         pills.appendChild(pill);
       });
       group.appendChild(pills);
-      container.appendChild(group);
+      return group;
+    }
+
+    Object.entries(categories).forEach(([catName, catItems]) => {
+      const catVisible = catItems.filter(item => items.includes(item));
+      if (catVisible.length === 0) return;
+      const filtered = q ? catVisible.filter(item => item.toLowerCase().includes(q)) : catVisible;
+      catVisible.forEach(item => placed.add(item));
+      if (filtered.length === 0) return;
+      anyVisible = true;
+      const colorClass = getCategoryColorClass(catName);
+      container.appendChild(buildGroup(catName, filtered, colorClass));
     });
 
     // Uncategorized
@@ -1570,27 +1584,7 @@ function renderDispatchFilterPills() {
     const filteredUncat = q ? uncat.filter(i => i.toLowerCase().includes(q)) : uncat;
     if (filteredUncat.length > 0) {
       anyVisible = true;
-      const group = document.createElement('div');
-      group.className = `icon-row-group icon-row-${type}`;
-
-      const header = document.createElement('div');
-      header.className = 'icon-row-header';
-      const icon = CATEGORY_ICONS['Other'] || '📌';
-      header.innerHTML = `<div class="icon-row-icon">${icon}</div><h4>Other</h4><span class="icon-row-count">${filteredUncat.length}</span>`;
-      group.appendChild(header);
-
-      const pills = document.createElement('div');
-      pills.className = 'dispatch-lane-pills icon-row-pills';
-      filteredUncat.forEach(item => {
-        const pill = document.createElement('button');
-        const isActive = selectedArr.includes(item);
-        pill.className = 'dispatch-pill cat-other' + (isActive ? ` active ${type}` : '');
-        pill.textContent = item;
-        pill.addEventListener('click', () => onToggle(item));
-        pills.appendChild(pill);
-      });
-      group.appendChild(pills);
-      container.appendChild(group);
+      container.appendChild(buildGroup('Other', filteredUncat, 'other'));
     }
 
     return anyVisible;
@@ -2337,6 +2331,85 @@ function updateRosterMarkerFading() {
 }
 
 // ===========================
+// MARKER HIGHLIGHTING — accentuate active creator, dim others
+// ===========================
+function highlightCreatorMarker(creatorId) {
+  Object.keys(markers).forEach(id => {
+    const el = markers[id] && markers[id].getElement();
+    if (!el) return;
+    // Clean up any existing particles
+    const oldParticles = el.querySelector('.marker-particles');
+    if (oldParticles) oldParticles.remove();
+
+    if (id === creatorId) {
+      el.classList.add('marker-highlighted');
+      el.classList.remove('marker-dimmed');
+      // Add particle effect
+      _addMarkerParticles(el);
+    } else {
+      el.classList.add('marker-dimmed');
+      el.classList.remove('marker-highlighted');
+    }
+  });
+}
+
+function _addMarkerParticles(markerEl) {
+  const container = document.createElement('div');
+  container.className = 'marker-particles';
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'marker-particle';
+    const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.5);
+    const radius0 = 4 + Math.random() * 6;
+    const radius1 = 12 + Math.random() * 10;
+    const radius2 = 18 + Math.random() * 14;
+    const size = 2 + Math.random() * 2.5;
+    const dur = 2 + Math.random() * 1.5;
+    const delay = Math.random() * 2;
+    p.style.cssText = `
+      --p-x0: ${Math.cos(angle) * radius0}px;
+      --p-y0: ${Math.sin(angle) * radius0}px;
+      --p-x1: ${Math.cos(angle) * radius1}px;
+      --p-y1: ${Math.sin(angle) * radius1 - 8}px;
+      --p-x2: ${Math.cos(angle) * radius2}px;
+      --p-y2: ${Math.sin(angle) * radius2 - 16}px;
+      --p-size: ${size}px;
+      --p-dur: ${dur}s;
+      --p-delay: ${delay}s;
+      left: 50%; top: 50%;
+    `;
+    container.appendChild(p);
+  }
+  markerEl.appendChild(container);
+}
+
+function highlightCompareMarkers(creatorIds) {
+  const idSet = new Set(creatorIds);
+  Object.keys(markers).forEach(id => {
+    const el = markers[id] && markers[id].getElement();
+    if (!el) return;
+    if (idSet.has(id)) {
+      el.classList.add('marker-highlighted');
+      el.classList.remove('marker-dimmed');
+    } else {
+      el.classList.add('marker-dimmed');
+      el.classList.remove('marker-highlighted');
+    }
+  });
+}
+
+function restoreAllMarkers() {
+  Object.keys(markers).forEach(id => {
+    const el = markers[id] && markers[id].getElement();
+    if (!el) return;
+    el.classList.remove('marker-highlighted', 'marker-dimmed');
+    const particles = el.querySelector('.marker-particles');
+    if (particles) particles.remove();
+  });
+}
+
+// ===========================
 // LIGHTWEIGHT DISPATCH → ROSTER CLEANUP
 // ===========================
 // Strips dispatch-specific classes and elements from existing markers
@@ -2580,6 +2653,264 @@ function _arrangeMarkerRings() {
   });
 }
 
+// ===========================
+// CREATOR SLIDE-OUT PANEL
+// ===========================
+function renderCreatorSlidePanel(creator, forceDispatch) {
+  const panel = document.getElementById('creatorSlidePanel');
+  if (!panel) return;
+  panel.innerHTML = '';
+  panel.dataset.creatorId = creator.id;
+
+  // Dispatch scoring
+  const ringHasDispatch = forceDispatch || (document.body.classList.contains('dispatch-mode') && hasActiveDispatchFilters());
+  let ringScore = null, ringScoreLevel = '';
+  if (ringHasDispatch) {
+    ringScore = scoreCreatorFilters(creator);
+    const pct = ringScore.pct;
+    ringScoreLevel = pct >= 1 ? 'full' : pct >= 0.75 ? 'most' : pct >= 0.4 ? 'half' : 'low';
+  }
+
+  // Close button
+  const closeRow = document.createElement('div');
+  closeRow.className = 'slide-panel-close';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'slide-panel-close-btn';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.onclick = () => closeDetailPanel();
+  closeRow.appendChild(closeBtn);
+  panel.appendChild(closeRow);
+
+  // Content wrapper
+  const content = document.createElement('div');
+  content.className = 'slide-panel-content';
+
+  // --- Hero: avatar + name + location ---
+  const hero = document.createElement('div');
+  hero.className = 'slide-panel-hero';
+
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'slide-panel-avatar';
+  avatarWrap.style.position = 'relative';
+
+  if (creator.photo) {
+    avatarWrap.innerHTML = `<img src="${creator.photo}" alt="">`;
+  } else {
+    avatarWrap.innerHTML = `<div class="slide-panel-avatar-initial">${getInitials(creator.firstName, creator.lastName)}</div>`;
+  }
+
+  // Score ring SVG around avatar (dispatch only)
+  if (ringHasDispatch && ringScore) {
+    const scoreRingSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    scoreRingSvg.setAttribute('class', 'ring-score-ring');
+    scoreRingSvg.setAttribute('viewBox', '0 0 106 106');
+    const circumference = 2 * Math.PI * 47;
+    const offset = circumference * (1 - ringScore.pct);
+    const strokeColor = ringScoreLevel === 'full' ? 'var(--gold)' : (ringScoreLevel === 'most' ? '#c49035' : (ringScoreLevel === 'half' ? 'var(--warning)' : '#888'));
+    scoreRingSvg.innerHTML = `
+      <circle cx="53" cy="53" r="47" fill="none" stroke="rgba(200,190,180,0.15)" stroke-width="3"/>
+      <circle cx="53" cy="53" r="47" fill="none" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round"
+        stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+        transform="rotate(-90 53 53)" style="filter:drop-shadow(0 0 4px rgba(142,174,139,0.4));transition:stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1) 0.3s;"/>
+    `;
+    avatarWrap.appendChild(scoreRingSvg);
+
+    const scoreBadge = document.createElement('div');
+    scoreBadge.className = 'ring-dispatch-badge';
+    scoreBadge.textContent = `${ringScore.matchCount}/${ringScore.totalFilters}`;
+    scoreBadge.style.background = strokeColor;
+    avatarWrap.appendChild(scoreBadge);
+    setTimeout(() => { scoreRingSvg.classList.add('visible'); scoreBadge.classList.add('visible'); }, 200);
+  }
+
+  hero.appendChild(avatarWrap);
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'slide-panel-name';
+  nameEl.innerHTML = getFullName(creator) + (getCreatorAge(creator) !== null ? ` <span style="font-size:11px;opacity:0.6;font-weight:400">(${getCreatorAge(creator)})</span>` : '');
+  hero.appendChild(nameEl);
+
+  if (creator.location) {
+    const locEl = document.createElement('div');
+    locEl.className = 'slide-panel-location';
+    locEl.textContent = creator.location;
+    hero.appendChild(locEl);
+  }
+
+  // Dispatch pip gauge
+  if (ringHasDispatch && ringScore && ringScore.totalFilters > 0) {
+    const pipGauge = document.createElement('div');
+    pipGauge.className = 'ring-pip-gauge';
+    for (let p = 0; p < ringScore.totalFilters; p++) {
+      const seg = document.createElement('div');
+      const isFilled = p < ringScore.matchCount;
+      const isAmber = ringScoreLevel === 'half' || ringScoreLevel === 'low';
+      seg.className = 'ring-pip-seg' + (isFilled ? ' filled' + (isAmber ? ' amber' : '') : '');
+      pipGauge.appendChild(seg);
+    }
+    hero.appendChild(pipGauge);
+    setTimeout(() => pipGauge.classList.add('visible'), 300);
+
+    if (dispatchDestination && creator.lat && creator.lng) {
+      const dist = haversineDistance(creator.lat, creator.lng, dispatchDestination.lat, dispatchDestination.lng);
+      const distEl = document.createElement('div');
+      distEl.className = 'ring-dispatch-distance';
+      distEl.textContent = `~${Math.round(dist)} mi from ${dispatchDestination.displayName || 'destination'}`;
+      hero.appendChild(distEl);
+      setTimeout(() => distEl.classList.add('visible'), 400);
+    }
+  }
+
+  content.appendChild(hero);
+
+  // --- Platform chips with stats ---
+  const ringPlatforms = getCreatorPlatforms(creator);
+  if (ringPlatforms.length > 0) {
+    const platformRow = document.createElement('div');
+    platformRow.className = 'slide-panel-platforms';
+
+    ringPlatforms.forEach((p, i) => {
+      const url = getUrl(creator, p);
+      const chip = document.createElement(url ? 'a' : 'div');
+      chip.className = 'ring-platform-chip platform-' + p.toLowerCase();
+      if (url) {
+        chip.href = url;
+        chip.target = '_blank';
+        chip.rel = 'noopener noreferrer';
+        chip.title = `Open ${p} profile`;
+        chip.onclick = (e) => e.stopPropagation();
+      }
+      if (PLATFORM_SVGS[p]) {
+        const logoWrap = document.createElement('span');
+        logoWrap.className = 'ring-chip-logo';
+        logoWrap.innerHTML = PLATFORM_SVGS[p];
+        chip.appendChild(logoWrap);
+      }
+      const textWrap = document.createElement('span');
+      textWrap.className = 'ring-chip-text';
+      const followers = getFollowers(creator, p);
+      if (followers !== null) {
+        const followLine = document.createElement('span');
+        followLine.className = 'ring-chip-followers';
+        followLine.textContent = formatFollowers(followers);
+        textWrap.appendChild(followLine);
+      }
+      const engRate = getEngagementRate(creator, p);
+      if (engRate !== null) {
+        const engLine = document.createElement('span');
+        engLine.className = 'ring-chip-engagement';
+        engLine.textContent = formatEngagementRate(engRate) + ' eng';
+        textWrap.appendChild(engLine);
+      }
+      chip.appendChild(textWrap);
+
+      if (ringHasDispatch && ringScore && ringScore.totalFilters > 1) {
+        const f = getFollowers(creator, p);
+        const creatorTier = tierFromFollowers(f);
+        const isMatchedPlatform =
+          dispatchFilters.platformTiers.some(pt => pt.platform === p && pt.tier === creatorTier) ||
+          dispatchFilters.platforms.includes(p) ||
+          dispatchFilters.tiers.includes(tierFromFollowers(f));
+        if (isMatchedPlatform) chip.classList.add('dispatch-matched-tag');
+      }
+
+      platformRow.appendChild(chip);
+    });
+
+    content.appendChild(platformRow);
+  }
+
+  // --- Demographics — flat pills, no category headers ---
+  const hasDemographics = creator.demographics && creator.demographics.length > 0;
+  if (hasDemographics) {
+    const demoSection = document.createElement('div');
+    demoSection.className = 'slide-panel-demographics';
+    const demoLabel = document.createElement('div');
+    demoLabel.className = 'slide-panel-section-label';
+    demoLabel.textContent = 'Demographics';
+    demoSection.appendChild(demoLabel);
+    const pillsWrap = document.createElement('div');
+    pillsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;justify-content:center;';
+    const demoCategories = loadTagCategories('demographic');
+    const demoToCat = {};
+    Object.entries(demoCategories).forEach(([cat, tags]) => {
+      tags.forEach(t => { demoToCat[t] = cat; });
+    });
+    creator.demographics.forEach(d => {
+      const pill = document.createElement('span');
+      const colorClass = getCategoryColorClass(demoToCat[d] || null);
+      pill.className = `ring-pill demographic cat-${colorClass}`;
+      pill.textContent = d;
+      pill.style.fontSize = '9px';
+      pillsWrap.appendChild(pill);
+    });
+    demoSection.appendChild(pillsWrap);
+    content.appendChild(demoSection);
+  }
+
+  // --- Action buttons ---
+  const actions = document.createElement('div');
+  actions.className = 'slide-panel-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'ring-action-btn';
+  editBtn.textContent = 'Edit';
+  editBtn.onclick = (e) => {
+    e.stopPropagation();
+    closeDetailPanel();
+    openEditModal(creator.id);
+  };
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'ring-action-btn danger';
+  deleteBtn.textContent = 'Delete';
+  deleteBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (confirm('Move this creator to the recycle bin?')) {
+      recycleBin.add(creator);
+      closeDetailPanel();
+      creators = creators.filter(c => c.id !== creator.id);
+      db.persist(creators);
+      pruneOrphanedTags('niche');
+      pruneOrphanedTags('demographic');
+      renderRosterTab();
+      renderDispatchTab();
+      updateMapMarkers();
+      updateRecycleBinBadge();
+      showToast('Moved to recycle bin', 'success');
+    }
+  };
+
+  actions.appendChild(editBtn);
+  actions.appendChild(deleteBtn);
+  content.appendChild(actions);
+
+  // --- Bio / Notes ---
+  if (creator.notes) {
+    const notes = document.createElement('div');
+    notes.className = 'ring-notes';
+    notes.appendChild(document.createTextNode(creator.notes));
+
+    const notesHint = document.createElement('div');
+    notesHint.className = 'ring-notes-hint';
+    notesHint.textContent = 'click for bio';
+    notes.appendChild(notesHint);
+
+    notes.onclick = (e) => {
+      e.stopPropagation();
+      const isExpanded = notes.classList.toggle('expanded');
+      notesHint.textContent = isExpanded ? 'click to close' : 'click for bio';
+    };
+    content.appendChild(notes);
+  }
+
+  panel.appendChild(content);
+
+  // Show the panel
+  panel.classList.add('open');
+  panel.classList.remove('retracted');
+}
+
 function showDetailPanel(creatorId) {
   const creator = creators.find(c => c.id === creatorId);
   if (!creator) return;
@@ -2595,6 +2926,9 @@ function showDetailPanel(creatorId) {
 
   currentEditingCreator = creatorId;
   _nicheInjectedForCreator = null; // reset so niches re-inject on next Niche tab visit
+
+  // Highlight this creator's marker, dim others
+  highlightCreatorMarker(creatorId);
 
   // Always track for Demo's panel (persists after ring closes)
   _demosCreatorId = creatorId;
@@ -2622,19 +2956,14 @@ function showDetailPanel(creatorId) {
   }
   renderDemosPanel(creator);
 
-  // On mobile, skip map pan — ring renders as full-screen detail sheet
-  if (isMobile()) {
-    renderRing(creator, wasDispatchMode);
-  } else {
-    // Pan map to center the creator so ring elements don't get clipped
-    if (creator.lat && creator.lng) {
-      const marker = markers[creator.id];
-      const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-      map.once('moveend', () => renderRing(creator, wasDispatchMode));
-      map.panTo(latLng, { animate: true, duration: 0.3 });
-    } else {
-      renderRing(creator, wasDispatchMode);
-    }
+  // Render the slide-out panel
+  renderCreatorSlidePanel(creator, wasDispatchMode);
+
+  // Pan map to center the creator
+  if (!isMobile() && creator.lat && creator.lng) {
+    const marker = markers[creator.id];
+    const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
+    map.panTo(latLng, { animate: true, duration: 0.3 });
   }
 }
 
@@ -2746,9 +3075,19 @@ function renderMosaicCloud(tagList, categories, tagType, container, isLeft) {
 
     groupEl.appendChild(tray);
 
-    // Hover expand/collapse
-    groupEl.addEventListener('mouseenter', () => groupEl.classList.add('expanded'));
-    groupEl.addEventListener('mouseleave', () => groupEl.classList.remove('expanded'));
+    // Auto-expand groups with dispatch-matched tags
+    if (ringHasDispatch && tray.querySelector('.dispatch-matched-tag')) {
+      groupEl.classList.add('expanded', 'dispatch-matched-group');
+    }
+
+    // Hover expand/collapse — 1s linger after mouse leaves
+    groupEl.addEventListener('mouseenter', () => {
+      clearTimeout(groupEl._collapseTimer);
+      groupEl.classList.add('expanded');
+    });
+    groupEl.addEventListener('mouseleave', () => {
+      groupEl._collapseTimer = setTimeout(() => groupEl.classList.remove('expanded'), 2000);
+    });
     // Touch support
     groupEl.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -3191,16 +3530,8 @@ function renderRing(creator, forceDispatch) {
 // Make it global for marker click
 window.showDetailPanel = showDetailPanel;
 
-// ── Viewport resize handler: fully re-render ring (petal arcs need recalculation) ──
-window.addEventListener('resize', debounce(() => {
-  const overlay = document.getElementById('ringOverlay');
-  if (overlay && overlay.classList.contains('open') && currentEditingCreator) {
-    const creator = creators.find(c => c.id === currentEditingCreator);
-    if (creator) {
-      renderRing(creator);
-    }
-  }
-}, 150));
+// ── Viewport resize handler: slide-out panel doesn't need repositioning ──
+// (Legacy ring resize handler removed — slide-out panel is CSS-positioned)
 
 function closeDetailPanel() {
   const overlay = document.getElementById('ringOverlay');
@@ -3210,8 +3541,18 @@ function closeDetailPanel() {
   currentEditingCreator = null;
   // Note: _demosCreatorId is NOT cleared — Demo's panel persists last-viewed creator
 
+  // Restore all markers to normal
+  restoreAllMarkers();
+
+  // Also close the slide-out panel if open
+  const slidePanel = document.getElementById('creatorSlidePanel');
+  if (slidePanel) slidePanel.classList.remove('open');
+
   // Clean up after animation
-  setTimeout(() => { overlay.innerHTML = ''; }, 400);
+  setTimeout(() => {
+    overlay.innerHTML = '';
+    if (slidePanel) slidePanel.innerHTML = '';
+  }, 400);
 }
 
 // ===========================
@@ -3548,24 +3889,7 @@ function renderModalBody() {
   nameRow.appendChild(lastNameGroup);
   idFields.appendChild(nameRow);
 
-  // Email + Birthday (date) row
-  const ebRow = document.createElement('div');
-  ebRow.className = 'email-mediakit-row';
-
-  const emailGroup = document.createElement('div');
-  emailGroup.className = 'form-group';
-  const emailLabel = document.createElement('label');
-  emailLabel.className = 'form-label';
-  emailLabel.textContent = 'Email';
-  const emailInput = document.createElement('input');
-  emailInput.type = 'email';
-  emailInput.className = 'form-input';
-  emailInput.id = 'emailInput';
-  emailInput.placeholder = 'creator@email.com';
-  emailInput.value = creator?.email || '';
-  emailGroup.appendChild(emailLabel);
-  emailGroup.appendChild(emailInput);
-
+  // Birthday row
   const bdayGroup = document.createElement('div');
   bdayGroup.className = 'form-group';
   const bdayLabel = document.createElement('label');
@@ -3579,26 +3903,7 @@ function renderModalBody() {
   bdayInput.style.colorScheme = 'dark';
   bdayGroup.appendChild(bdayLabel);
   bdayGroup.appendChild(bdayInput);
-
-  ebRow.appendChild(emailGroup);
-  ebRow.appendChild(bdayGroup);
-  idFields.appendChild(ebRow);
-
-  // Media Kit row
-  const mkGroup = document.createElement('div');
-  mkGroup.className = 'form-group';
-  const mkLabel = document.createElement('label');
-  mkLabel.className = 'form-label';
-  mkLabel.textContent = 'Media Kit';
-  const mkInput = document.createElement('input');
-  mkInput.type = 'url';
-  mkInput.className = 'form-input';
-  mkInput.id = 'mediaKitInput';
-  mkInput.placeholder = 'https://...';
-  mkInput.value = creator?.mediaKit || '';
-  mkGroup.appendChild(mkLabel);
-  mkGroup.appendChild(mkInput);
-  idFields.appendChild(mkGroup);
+  idFields.appendChild(bdayGroup);
 
   identityRow.appendChild(idFields);
   body.appendChild(identityRow);
@@ -4518,8 +4823,6 @@ async function saveCreator() {
     const existingEng = existingCreator?.platforms?.[p]?.engagementRate || null;
     platforms[p] = { handle, url, followers, engagementRate: existingEng };
   });
-  const email = document.getElementById('emailInput').value.trim();
-  const mediaKit = document.getElementById('mediaKitInput').value.trim();
   const birthday = document.getElementById('birthdayInput').value || null;
   const niches = document.getElementById('modalBody').modalNiches || [];
   const demographics = document.getElementById('modalBody').modalDemographics || [];
@@ -4531,8 +4834,6 @@ async function saveCreator() {
   creator.firstName = firstName;
   creator.lastName = lastName;
   creator.photo = photo || null;
-  creator.email = email || null;
-  creator.mediaKit = mediaKit || null;
   creator.birthday = birthday;
   creator.platforms = platforms;
   creator.niches = niches;
@@ -4816,21 +5117,46 @@ function renderDemosPanel(creator) {
   if (subTabsEl) {
     subTabsEl.style.display = 'block';
     const niches = (creator.niches || []);
-    const nichesHtml = niches.length > 0
-      ? `<div class="demos-niches-row" title="Click to edit niches">${niches.map(n => `<span class="demos-niche-pill">${n}</span>`).join('')}</div>`
-      : '';
     const avatarHtml = creator.photo
       ? `<div class="demos-primary-avatar"><img src="${creator.photo}" alt=""></div>`
       : `<div class="demos-primary-avatar">${(creator.firstName || creator.name || '?')[0].toUpperCase()}</div>`;
-    subTabsEl.innerHTML = `<div class="demos-primary-hero">${avatarHtml}<div class="demos-creator-name">${getFullName(creator)}</div></div>${nichesHtml}`;
-    // Make niches row clickable → opens Edit Creator modal
-    const nichesRow = subTabsEl.querySelector('.demos-niches-row');
-    if (nichesRow) {
-      nichesRow.style.cursor = 'pointer';
-      nichesRow.onclick = () => {
-        closeDetailPanel();
-        openEditModal(creator.id);
-      };
+    subTabsEl.innerHTML = `<div class="demos-primary-hero">${avatarHtml}<div class="demos-creator-name">${getFullName(creator)}</div></div>`;
+
+    // Niche pills — category-colored, clickable → dispatch filter
+    if (niches.length > 0) {
+      const nichesRow = document.createElement('div');
+      nichesRow.className = 'demos-niches-row';
+      const nicheCategories = loadTagCategories('niche');
+      // Build reverse lookup: niche → category name
+      const nicheToCat = {};
+      Object.entries(nicheCategories).forEach(([cat, tags]) => {
+        tags.forEach(t => { nicheToCat[t] = cat; });
+      });
+      niches.forEach(n => {
+        const pill = document.createElement('span');
+        const colorClass = getCategoryColorClass(nicheToCat[n] || null);
+        pill.className = `demos-niche-pill dispatch-pill cat-${colorClass}`;
+        pill.textContent = n;
+        pill.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // Clean slate dispatch with this niche
+          if (window._nlClearPills) window._nlClearPills(true);
+          dispatchFilters.niches = [n];
+          dispatchFilters.demographics = [];
+          dispatchFilters.platformTiers = [];
+          dispatchFilters.platforms = [];
+          dispatchFilters.tiers = [];
+          const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
+          if (dispatchBtn) dispatchBtn.click();
+          if (!_dispatchSections.niches) toggleDispatchSection('niches');
+          if (window._nlAddPill) window._nlAddPill(n, 'niche');
+          renderDispatchFilterPills();
+          renderDispatchTab();
+          updateMapMarkers();
+        });
+        nichesRow.appendChild(pill);
+      });
+      subTabsEl.appendChild(nichesRow);
     }
     const tabRow = document.createElement('div');
     tabRow.className = 'demos-sub-tab-row';
@@ -4886,8 +5212,9 @@ function addCompareCreator(creatorId) {
   if (_compareCreatorIds.length >= 2) _compareCreatorIds.shift();
   _compareCreatorIds.push(creatorId);
 
-  // Close ring — we're entering compare mode, ring would just be in the way
-  closeDetailPanel();
+  // Retract creator slide-out panel (don't close — preserve state)
+  const slidePanel = document.getElementById('creatorSlidePanel');
+  if (slidePanel) slidePanel.classList.add('retracted');
 
   // Auto-switch to Demo's tab if not there
   const demosBtn = document.querySelector('.tab-button[data-tab="demos"]');
@@ -4897,11 +5224,33 @@ function addCompareCreator(creatorId) {
   }
 
   renderAllComparePanels();
+
+  // Highlight compared creators on map
+  const allHighlighted = [_demosCreatorId, ..._compareCreatorIds].filter(Boolean);
+  highlightCompareMarkers(allHighlighted);
 }
 
 function removeCompareCreator(index) {
   _compareCreatorIds.splice(index, 1);
   renderAllComparePanels();
+
+  if (_compareCreatorIds.length === 0) {
+    // Restore creator slide-out panel
+    const slidePanel = document.getElementById('creatorSlidePanel');
+    if (slidePanel && slidePanel.classList.contains('retracted')) {
+      slidePanel.classList.remove('retracted');
+    }
+    // Restore single-creator highlight
+    if (_demosCreatorId) {
+      highlightCreatorMarker(_demosCreatorId);
+    } else {
+      restoreAllMarkers();
+    }
+  } else {
+    // Update highlighting for remaining compare creators
+    const allHighlighted = [_demosCreatorId, ..._compareCreatorIds].filter(Boolean);
+    highlightCompareMarkers(allHighlighted);
+  }
 }
 
 function renderAllComparePanels() {
@@ -4987,12 +5336,6 @@ function renderAllComparePanels() {
     nameEl.className = 'demos-creator-name';
     nameEl.textContent = getFullName(creator);
     heroInfo.appendChild(nameEl);
-    if (creator.location) {
-      const loc = document.createElement('div');
-      loc.className = 'compare-location';
-      loc.textContent = '\uD83D\uDCCD ' + creator.location;
-      heroInfo.appendChild(loc);
-    }
     hero.appendChild(heroInfo);
     headerArea.appendChild(hero);
 
@@ -5000,10 +5343,32 @@ function renderAllComparePanels() {
     if (niches.length > 0) {
       const nichesRow = document.createElement('div');
       nichesRow.className = 'demos-niches-row';
+      const nicheCategories = loadTagCategories('niche');
+      const nicheToCat = {};
+      Object.entries(nicheCategories).forEach(([cat, tags]) => {
+        tags.forEach(t => { nicheToCat[t] = cat; });
+      });
       niches.forEach(n => {
         const pill = document.createElement('span');
-        pill.className = 'demos-niche-pill';
+        const colorClass = getCategoryColorClass(nicheToCat[n] || null);
+        pill.className = `demos-niche-pill dispatch-pill cat-${colorClass}`;
         pill.textContent = n;
+        pill.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window._nlClearPills) window._nlClearPills(true);
+          dispatchFilters.niches = [n];
+          dispatchFilters.demographics = [];
+          dispatchFilters.platformTiers = [];
+          dispatchFilters.platforms = [];
+          dispatchFilters.tiers = [];
+          const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
+          if (dispatchBtn) dispatchBtn.click();
+          if (!_dispatchSections.niches) toggleDispatchSection('niches');
+          if (window._nlAddPill) window._nlAddPill(n, 'niche');
+          renderDispatchFilterPills();
+          renderDispatchTab();
+          updateMapMarkers();
+        });
         nichesRow.appendChild(pill);
       });
       headerArea.appendChild(nichesRow);
@@ -5860,6 +6225,10 @@ function clearNLInlinePills() {
   window._nlAddPill = addInlinePill;
   window._nlReapply = reapplyFromPills;
   window._nlClearPills = clearAllPills;
+  window._nlRemovePill = function(value, type) {
+    const entry = _nlInlinePills.find(p => p.value === value && p.type === type);
+    if (entry) removeInlinePill(entry.element);
+  };
 })();
 
 document.getElementById('sortSelect').addEventListener('change', () => {
@@ -6545,6 +6914,32 @@ function triggerModeTransition(tab) {
   else if (tab === 'demos') document.body.classList.add('demos-mode');
 }
 
+// ── Theme toggle (light/dark) ──
+function initThemeToggle() {
+  const btn = document.getElementById('themeToggleBtn');
+  if (!btn) return;
+  const saved = localStorage.getItem('niche-theme') || 'light';
+  applyTheme(saved);
+  btn.addEventListener('click', () => {
+    const isDark = !document.body.classList.contains('theme-light');
+    applyTheme(isDark ? 'light' : 'dark');
+  });
+}
+function applyTheme(theme) {
+  const btn = document.getElementById('themeToggleBtn');
+  if (theme === 'light') {
+    document.body.classList.add('theme-light');
+    if (btn) btn.textContent = '☀️';
+    if (btn) btn.title = 'Switch to dark theme';
+  } else {
+    document.body.classList.remove('theme-light');
+    if (btn) btn.textContent = '🌙';
+    if (btn) btn.title = 'Switch to light theme';
+  }
+  localStorage.setItem('niche-theme', theme);
+}
+initThemeToggle();
+
 // Tab switching — orchestrated transition
 let _modeTransitioning = false;
 
@@ -6630,28 +7025,28 @@ function _handleTabLogic(tab, wasDispatch) {
     renderDemosPanel();
     renderAllComparePanels();
 
-    // UX: Reopen ring for the creator we were investigating
+    // UX: Reopen slide-out panel for the creator we were investigating
     if (_demosCreatorId && !currentEditingCreator) {
       const creator = creators.find(c => c.id === _demosCreatorId);
       if (creator) {
         currentEditingCreator = _demosCreatorId;
-        // Pass true to force dispatch scoring (user may have adjusted filters)
-        if (isMobile()) {
-          renderRing(creator, true);
-        } else if (creator.lat && creator.lng) {
+        renderCreatorSlidePanel(creator, true);
+        highlightCreatorMarker(creator.id);
+        if (!isMobile() && creator.lat && creator.lng) {
           const marker = markers[creator.id];
           const latLng = marker ? marker.getLatLng() : L.latLng(creator.lat, creator.lng);
-          map.once('moveend', () => renderRing(creator, true));
           map.panTo(latLng, { animate: true, duration: 0.3 });
-        } else {
-          renderRing(creator, true);
         }
       }
     }
   } else {
-    // Hide compare panels when not on Demo's tab
+    // Hide compare panels and creator slide-out when not on Demo's tab
     const stack = document.getElementById('comparePanelStack');
     if (stack) stack.innerHTML = '';
+    const slidePanel = document.getElementById('creatorSlidePanel');
+    if (slidePanel) { slidePanel.classList.remove('open'); slidePanel.innerHTML = ''; }
+    restoreAllMarkers();
+    currentEditingCreator = null;
   }
   if (tab === 'recycle') {
     document.getElementById('matchFloatPanel').classList.remove('visible', 'dispatch-mode');

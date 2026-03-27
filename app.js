@@ -3399,6 +3399,254 @@ function renderCreatorSlidePanel(creator, forceDispatch) {
   }
 }
 
+// ===========================
+// MOBILE DETAIL VIEW
+// ===========================
+// Lightweight contacts-style drill-down for mobile only.
+// Desktop is completely untouched — this only renders when isMobile() is true.
+
+async function renderMobileDetail(creator) {
+  const container = document.getElementById('mobileDetailView');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // --- Back pill (pinned above scroll area) ---
+  const backBtn = document.createElement('button');
+  backBtn.className = 'mob-detail-back';
+  backBtn.innerHTML = '&larr; Roster';
+  backBtn.onclick = () => closeMobileDetail();
+  container.appendChild(backBtn);
+
+  // --- Scrollable content area (fills below the back bar) ---
+  const scrollArea = document.createElement('div');
+  scrollArea.className = 'mob-detail-scroll';
+  container.appendChild(scrollArea);
+
+  // --- Avatar ---
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'mob-detail-avatar';
+  if (creator.photo) {
+    avatarWrap.innerHTML = `<img src="${creator.photo}" alt="">`;
+  } else {
+    avatarWrap.innerHTML = `<div class="mob-detail-initials">${getInitials(creator.firstName, creator.lastName)}</div>`;
+  }
+  scrollArea.appendChild(avatarWrap);
+
+  // --- Name ---
+  const nameEl = document.createElement('div');
+  nameEl.className = 'mob-detail-name';
+  nameEl.textContent = getFullName(creator);
+  scrollArea.appendChild(nameEl);
+
+  // --- Location ---
+  if (creator.location) {
+    const locEl = document.createElement('div');
+    locEl.className = 'mob-detail-location';
+    locEl.innerHTML = `📍 ${creator.location}`;
+    scrollArea.appendChild(locEl);
+  }
+
+  // --- Platform chips ---
+  const platforms = getCreatorPlatforms(creator);
+  if (platforms.length > 0) {
+    const platRow = document.createElement('div');
+    platRow.className = 'mob-detail-platforms';
+
+    platforms.forEach(p => {
+      const url = getUrl(creator, p);
+      const chip = document.createElement(url ? 'a' : 'div');
+      chip.className = 'mob-detail-plat-chip platform-' + p.toLowerCase();
+      if (url) {
+        chip.href = url;
+        chip.target = '_blank';
+        chip.rel = 'noopener noreferrer';
+        chip.onclick = (e) => e.stopPropagation();
+      }
+      // Logo
+      if (PLATFORM_SVGS[p]) {
+        const logo = document.createElement('span');
+        logo.className = 'mob-plat-logo';
+        logo.innerHTML = PLATFORM_SVGS[p];
+        chip.appendChild(logo);
+      }
+      // Stats
+      const stats = document.createElement('span');
+      stats.className = 'mob-plat-stats';
+      const followers = getFollowers(creator, p);
+      if (followers !== null) {
+        const fEl = document.createElement('span');
+        fEl.className = 'mob-plat-followers';
+        fEl.textContent = formatFollowers(followers);
+        stats.appendChild(fEl);
+      }
+      const eng = getEngagementRate(creator, p);
+      if (eng !== null) {
+        const eEl = document.createElement('span');
+        eEl.className = 'mob-plat-eng';
+        eEl.textContent = formatEngagementRate(eng) + ' eng';
+        stats.appendChild(eEl);
+      }
+      chip.appendChild(stats);
+
+      // Per-platform tier pill
+      if (followers !== null) {
+        const tier = tierFromFollowers(followers);
+        if (tier) {
+          const tierPill = document.createElement('span');
+          tierPill.className = 'mob-plat-tier';
+          tierPill.textContent = tier;
+          chip.appendChild(tierPill);
+        }
+      }
+
+      platRow.appendChild(chip);
+    });
+
+    scrollArea.appendChild(platRow);
+
+    // Total reach
+    const totalFollowers = platforms.reduce((sum, p) => sum + (getFollowers(creator, p) || 0), 0);
+    if (totalFollowers > 0) {
+      const totalPill = document.createElement('div');
+      totalPill.className = 'mob-detail-total';
+      totalPill.innerHTML = `<span class="mob-total-val">${formatFollowers(totalFollowers)}</span> <span class="mob-total-label">total reach</span>`;
+      scrollArea.appendChild(totalPill);
+    }
+  }
+
+  // --- Niche pills (display only) ---
+  const hasNiches = creator.niches && creator.niches.length > 0;
+  if (hasNiches) {
+    const nicheSection = document.createElement('div');
+    nicheSection.className = 'mob-detail-niches';
+    const nicheCategories = loadTagCategories('niche');
+    const nicheToCat = {};
+    Object.entries(nicheCategories).forEach(([cat, tags]) => {
+      tags.forEach(t => { nicheToCat[t] = cat; });
+    });
+    creator.niches.forEach(n => {
+      const pill = document.createElement('span');
+      const colorClass = getCategoryColorClass(nicheToCat[n] || null);
+      pill.className = `mob-niche-pill cat-${colorClass}`;
+      pill.textContent = n;
+      nicheSection.appendChild(pill);
+    });
+    scrollArea.appendChild(nicheSection);
+  }
+
+  // --- Demographics pills (display only) ---
+  const hasDemos = creator.demographics && creator.demographics.length > 0;
+  if (hasDemos) {
+    const demoSection = document.createElement('div');
+    demoSection.className = 'mob-detail-demos';
+    const demoCategories = loadTagCategories('demographic');
+    const demoToCat = {};
+    Object.entries(demoCategories).forEach(([cat, tags]) => {
+      tags.forEach(t => { demoToCat[t] = cat; });
+    });
+    creator.demographics.forEach(d => {
+      const pill = document.createElement('span');
+      const colorClass = getCategoryColorClass(demoToCat[d] || null);
+      pill.className = `mob-demo-pill cat-${colorClass}`;
+      pill.textContent = d;
+      demoSection.appendChild(pill);
+    });
+    scrollArea.appendChild(demoSection);
+  }
+
+  // Edit, Delete, and Bio buttons removed from mobile — view-only experience
+
+  // --- Audience data section (platform sub-tabs + stats + demographics) ---
+  if (platforms.length > 0) {
+    // Lazy-load audience data if not yet fetched
+    const hasAudienceData = Object.values(creator.platforms || {}).some(p => p && p.audienceData);
+    if (!hasAudienceData && !creator._audienceLoaded) {
+      const audienceMap = await db.loadAudienceData(creator.id);
+      for (const [plat, data] of Object.entries(audienceMap)) {
+        if (creator.platforms[plat]) creator.platforms[plat].audienceData = data;
+      }
+      creator._audienceLoaded = true;
+    }
+
+    // Divider
+    const divider = document.createElement('div');
+    divider.className = 'mob-detail-divider';
+    scrollArea.appendChild(divider);
+
+    // Platform sub-tabs
+    const tabRow = document.createElement('div');
+    tabRow.className = 'mob-audience-tabs';
+    let activePlatform = platforms[0];
+
+    const contentArea = document.createElement('div');
+    contentArea.className = 'mob-audience-content';
+
+    // Include Partners tab if creator has collabs
+    const hasPartners = creator.collabs && creator.collabs.length > 0;
+    const allTabs = [...platforms];
+    if (hasPartners) allTabs.push('partners');
+
+    allTabs.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'mob-audience-tab' + (p === activePlatform ? ' active' : '');
+      if (p === 'partners') {
+        btn.textContent = 'Partners';
+      } else if (PLATFORM_SVGS_SM[p]) {
+        btn.innerHTML = PLATFORM_SVGS_SM[p];
+      } else {
+        btn.textContent = p;
+      }
+      btn.onclick = () => {
+        tabRow.querySelectorAll('.mob-audience-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        contentArea.innerHTML = '';
+        if (p === 'partners') {
+          renderPartnersView(creator, contentArea);
+        } else {
+          renderPlatformStats(creator, p, contentArea);
+        }
+        // Scroll the content area into view
+        contentArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+      tabRow.appendChild(btn);
+    });
+
+    scrollArea.appendChild(tabRow);
+
+    // Render initial platform stats
+    renderPlatformStats(creator, activePlatform, contentArea);
+    scrollArea.appendChild(contentArea);
+  }
+
+  // Show the view with slide animation
+  container.style.display = 'flex';
+  document.getElementById('sidebar').style.display = 'none';
+  // Push history state so browser/swipe-back closes the detail view
+  window._mobileDetailHistoryPushed = true;
+  history.pushState({ mobileDetail: true }, '');
+  requestAnimationFrame(() => container.classList.add('open'));
+}
+
+function closeMobileDetail() {
+  const container = document.getElementById('mobileDetailView');
+  if (!container) return;
+  container.classList.remove('open');
+  document.getElementById('sidebar').style.display = '';
+  // Pop the history state so browser back works naturally
+  if (window._mobileDetailHistoryPushed) {
+    window._mobileDetailHistoryPushed = false;
+  }
+  setTimeout(() => { container.style.display = 'none'; container.innerHTML = ''; }, 250);
+}
+
+// Browser back button support for mobile detail view
+window.addEventListener('popstate', (e) => {
+  const container = document.getElementById('mobileDetailView');
+  if (container && container.classList.contains('open')) {
+    closeMobileDetail();
+  }
+});
+
 function showDetailPanel(creatorId) {
   const creator = creators.find(c => c.id === creatorId);
   if (!creator) return;
@@ -3407,8 +3655,15 @@ function showDetailPanel(creatorId) {
   const _si = document.getElementById('searchInput');
   if (_si && _si.value) {
     _si.value = '';
-    _syncSearchClearBtn();
-    updateRosterMarkerFading();
+    if (typeof _syncSearchClearBtn === 'function') _syncSearchClearBtn();
+    renderRosterTab();
+    if (typeof updateRosterMarkerFading === 'function') updateRosterMarkerFading();
+  }
+
+  // Mobile: use lightweight detail view instead of full ring/slide/demos
+  if (isMobile()) {
+    renderMobileDetail(creator);
+    return;
   }
 
   // Close compare mode if active
@@ -4410,6 +4665,78 @@ function renderModalBody() {
   identityRow.appendChild(idFields);
   body.appendChild(identityRow);
 
+  // Location with autocomplete — placed right under name for quick access
+  const locationGroup = document.createElement('div');
+  locationGroup.className = 'form-group';
+  const locationLabel = document.createElement('label');
+  locationLabel.className = 'form-label';
+  locationLabel.textContent = 'Location';
+
+  const locWrap = document.createElement('div');
+  locWrap.className = 'loc-autocomplete-wrap';
+
+  const locationInput = document.createElement('input');
+  locationInput.type = 'text';
+  locationInput.className = 'form-input';
+  locationInput.id = 'locationInput';
+  locationInput.placeholder = 'City, State or Country...';
+  locationInput.value = creator?.location || '';
+  locationInput.autocomplete = 'off';
+
+  const locSuggestions = document.createElement('div');
+  locSuggestions.className = 'loc-suggestions';
+  locSuggestions.id = 'locSuggestions';
+
+  // Store selected coords on the input
+  locationInput.dataset.lat = creator?.lat || '';
+  locationInput.dataset.lng = creator?.lng || '';
+
+  locationInput.oninput = () => {
+    const q = locationInput.value.trim();
+    if (q.length < 2) {
+      locSuggestions.classList.remove('open');
+      return;
+    }
+    debounceLocSearch(q, (results) => {
+      locSuggestions.innerHTML = '';
+      if (results.length === 0) {
+        locSuggestions.classList.remove('open');
+        return;
+      }
+      results.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'loc-suggestion-item';
+        const simplified = simplifyAddress(r);
+        item.innerHTML = `<div>${simplified}</div>`;
+        item.onmousedown = (e) => {
+          e.preventDefault();
+          locationInput.value = simplifyAddress(r);
+          locationInput.dataset.lat = r.lat;
+          locationInput.dataset.lng = r.lon;
+          locSuggestions.classList.remove('open');
+        };
+        locSuggestions.appendChild(item);
+      });
+      locSuggestions.classList.add('open');
+    });
+  };
+
+  locationInput.onblur = () => {
+    setTimeout(() => locSuggestions.classList.remove('open'), 150);
+  };
+
+  locationInput.onfocus = () => {
+    if (locSuggestions.children.length > 0) {
+      locSuggestions.classList.add('open');
+    }
+  };
+
+  locWrap.appendChild(locationInput);
+  locWrap.appendChild(locSuggestions);
+  locationGroup.appendChild(locationLabel);
+  locationGroup.appendChild(locWrap);
+  body.appendChild(locationGroup);
+
   // Platforms — horizontal 3-column layout with branded colors
   const platformsGroup = document.createElement('div');
   platformsGroup.className = 'form-group';
@@ -5220,79 +5547,6 @@ function renderModalBody() {
     bodyKey: 'modalDemographics'
   });
   body.appendChild(demographicsGroup);
-
-  // Location with autocomplete dropdown
-  const locationGroup = document.createElement('div');
-  locationGroup.className = 'form-group';
-  const locationLabel = document.createElement('label');
-  locationLabel.className = 'form-label';
-  locationLabel.textContent = 'Location';
-
-  const locWrap = document.createElement('div');
-  locWrap.className = 'loc-autocomplete-wrap';
-
-  const locationInput = document.createElement('input');
-  locationInput.type = 'text';
-  locationInput.className = 'form-input';
-  locationInput.id = 'locationInput';
-  locationInput.placeholder = 'City, State or Country...';
-  locationInput.value = creator?.location || '';
-  locationInput.autocomplete = 'off';
-
-  const locSuggestions = document.createElement('div');
-  locSuggestions.className = 'loc-suggestions';
-  locSuggestions.id = 'locSuggestions';
-
-  // Store selected coords on the input
-  locationInput.dataset.lat = creator?.lat || '';
-  locationInput.dataset.lng = creator?.lng || '';
-
-  locationInput.oninput = () => {
-    const q = locationInput.value.trim();
-    if (q.length < 2) {
-      locSuggestions.classList.remove('open');
-      return;
-    }
-    debounceLocSearch(q, (results) => {
-      locSuggestions.innerHTML = '';
-      if (results.length === 0) {
-        locSuggestions.classList.remove('open');
-        return;
-      }
-      results.forEach(r => {
-        const item = document.createElement('div');
-        item.className = 'loc-suggestion-item';
-        // Show simplified city, state, country
-        const simplified = simplifyAddress(r);
-        item.innerHTML = `<div>${simplified}</div>`;
-        item.onmousedown = (e) => {
-          e.preventDefault();
-          locationInput.value = simplifyAddress(r);
-          locationInput.dataset.lat = r.lat;
-          locationInput.dataset.lng = r.lon;
-          locSuggestions.classList.remove('open');
-        };
-        locSuggestions.appendChild(item);
-      });
-      locSuggestions.classList.add('open');
-    });
-  };
-
-  locationInput.onblur = () => {
-    setTimeout(() => locSuggestions.classList.remove('open'), 150);
-  };
-
-  locationInput.onfocus = () => {
-    if (locSuggestions.children.length > 0) {
-      locSuggestions.classList.add('open');
-    }
-  };
-
-  locWrap.appendChild(locationInput);
-  locWrap.appendChild(locSuggestions);
-  locationGroup.appendChild(locationLabel);
-  locationGroup.appendChild(locWrap);
-  body.appendChild(locationGroup);
 
   // Notes
   const notesGroup = document.createElement('div');

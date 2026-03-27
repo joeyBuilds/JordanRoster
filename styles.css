@@ -6575,6 +6575,89 @@ body.theme-light .tag-picker-pill.demographic {
   border-color: rgba(80, 50, 120, 0.4);
   color: #FFFFFF;
 }
+
+/* ── Light theme: Edit Creator modal legibility fixes ── */
+body.theme-light .modal {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+body.theme-light .modal-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+body.theme-light .modal-footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+body.theme-light .form-input,
+body.theme-light .form-textarea {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+body.theme-light .form-input:focus,
+body.theme-light .form-textarea:focus {
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.02);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+body.theme-light .platform-col {
+  border-color: rgba(0, 0, 0, 0.10);
+  background: rgba(0, 0, 0, 0.02);
+}
+body.theme-light .platform-col.checked.col-instagram {
+  border-color: rgba(225, 48, 108, 0.45);
+  background: rgba(225, 48, 108, 0.04);
+}
+body.theme-light .platform-col.checked.col-tiktok {
+  border-color: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.03);
+}
+body.theme-light .platform-col.checked.col-youtube {
+  border-color: rgba(255, 0, 0, 0.35);
+  background: rgba(255, 0, 0, 0.04);
+}
+body.theme-light .platform-col-check {
+  border-color: rgba(0, 0, 0, 0.20);
+}
+body.theme-light .platform-col-fields input {
+  border-color: rgba(0, 0, 0, 0.10);
+  background: rgba(0, 0, 0, 0.03);
+}
+body.theme-light .platform-col-fields input:focus {
+  background: rgba(0, 0, 0, 0.02);
+}
+body.theme-light .tag-picker-selected {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+body.theme-light .btn-secondary {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: none;
+}
+body.theme-light .btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+body.theme-light .btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.25);
+}
+body.theme-light .btn-primary:hover {
+  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  box-shadow: 0 6px 24px rgba(var(--accent-rgb), 0.35);
+}
+body.theme-light .photo-preview {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+body.theme-light .modal-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+}
+body.theme-light .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
 .tag-picker-pill .pill-x {
   font-size: 14px;
   line-height: 1;
@@ -8342,6 +8425,469 @@ body.theme-light .tag-picker-pill.demographic {
   /* Compare tabs hidden on desktop */
   .mobile-compare-tabs {
     display: flex;
+  }
+
+  /* ── Phase 11: Hide tabs & map FAB — roster-only mobile ── */
+  .sidebar-tabs {
+    display: none !important;
+  }
+  .mobile-map-toggle {
+    display: none !important;
+  }
+
+  /* ── Phase 12: Mobile Detail View (contacts-style drill-down) ── */
+  .mobile-detail-view {
+    position: fixed;
+    /* Sit below the top bar so "niche" branding stays visible */
+    top: calc(48px + env(safe-area-inset-top));
+    left: 0;
+    width: 100%;
+    height: calc(100% - 48px - env(safe-area-inset-top));
+    z-index: 1500;  /* just below #topBar (1502) */
+    background: var(--bg-primary);
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .mobile-detail-view.open {
+    transform: translateX(0);
+  }
+
+  /* Back bar — pinned above scroll area */
+  .mob-detail-back {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-primary);
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 10px 16px;
+    min-height: 40px;
+  }
+  .mob-detail-back:active {
+    opacity: 0.6;
+  }
+
+  /* Scrollable content area — fills the view */
+  .mob-detail-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  /* Avatar */
+  .mob-detail-avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid rgba(var(--accent-rgb), 0.25);
+    flex-shrink: 0;
+  }
+  .mob-detail-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 20%;
+  }
+  .mob-detail-initials {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--lavender), var(--sage));
+    color: white;
+    font-size: 36px;
+    font-weight: 700;
+    font-family: 'Playfair Display', serif;
+  }
+
+  /* Name & location */
+  .mob-detail-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+  }
+  .mob-detail-location {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: -6px;
+  }
+
+  /* Platform chips */
+  .mob-detail-platforms {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 340px;
+  }
+  .mob-detail-plat-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: transform 0.15s;
+  }
+  .mob-detail-plat-chip:active {
+    transform: scale(0.97);
+  }
+  .mob-detail-plat-chip.platform-instagram {
+    background: rgba(225, 48, 108, 0.12);
+    border: 1px solid rgba(225, 48, 108, 0.3);
+  }
+  .mob-detail-plat-chip.platform-tiktok {
+    background: rgba(0, 242, 234, 0.08);
+    border: 1px solid rgba(0, 242, 234, 0.25);
+  }
+  .mob-detail-plat-chip.platform-youtube {
+    background: rgba(255, 0, 0, 0.10);
+    border: 1px solid rgba(255, 0, 0, 0.25);
+  }
+  .mob-plat-logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .mob-detail-plat-chip.platform-instagram .mob-plat-logo svg * { stroke: var(--color-instagram); fill: none; }
+  .mob-detail-plat-chip.platform-instagram .mob-plat-logo svg circle[r="1.5"] { fill: var(--color-instagram); stroke: none; }
+  .mob-detail-plat-chip.platform-tiktok .mob-plat-logo svg path { fill: var(--color-tiktok); }
+  .mob-detail-plat-chip.platform-youtube .mob-plat-logo svg * { stroke: var(--color-youtube); fill: none; }
+  .mob-detail-plat-chip.platform-youtube .mob-plat-logo svg path { fill: var(--color-youtube); stroke: none; }
+
+  .mob-plat-stats {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+  .mob-plat-followers {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+  .mob-plat-eng {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .mob-plat-tier {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: rgba(var(--tag-tier-rgb), 0.2);
+    color: var(--tag-tier);
+    white-space: nowrap;
+    align-self: center;
+  }
+
+  /* Total reach */
+  .mob-detail-total {
+    text-align: center;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: rgba(var(--accent-rgb), 0.08);
+    border: 1px solid rgba(var(--accent-rgb), 0.15);
+  }
+  .mob-total-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .mob-total-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-left: 4px;
+  }
+
+  /* Niche pills (display only) */
+  .mob-detail-niches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    width: 100%;
+    max-width: 340px;
+  }
+  .mob-niche-pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 14px;
+  }
+  /* Reuse existing category color palette */
+  .mob-niche-pill.cat-entertainment { background: rgba(187,130,180,0.20); color: rgb(187,130,180); }
+  .mob-niche-pill.cat-lifestyle     { background: rgba(200,170,120,0.20); color: rgb(200,170,120); }
+  .mob-niche-pill.cat-food          { background: rgba(200,140,100,0.20); color: rgb(200,140,100); }
+  .mob-niche-pill.cat-travel        { background: rgba(120,170,160,0.20); color: rgb(120,170,160); }
+  .mob-niche-pill.cat-people        { background: rgba(210,160,160,0.20); color: rgb(210,160,160); }
+  .mob-niche-pill.cat-fitness       { background: rgba(140,180,130,0.20); color: rgb(140,180,130); }
+  .mob-niche-pill.cat-home          { background: rgba(180,160,130,0.20); color: rgb(180,160,130); }
+  .mob-niche-pill.cat-tech          { background: rgba(130,160,190,0.20); color: rgb(130,160,190); }
+  .mob-niche-pill.cat-creative      { background: rgba(170,150,200,0.20); color: rgb(170,150,200); }
+  .mob-niche-pill.cat-identity      { background: rgba(180,140,180,0.20); color: rgb(180,140,180); }
+  .mob-niche-pill.cat-culture       { background: rgba(140,165,180,0.20); color: rgb(140,165,180); }
+  .mob-niche-pill.cat-other         { background: rgba(160,155,150,0.15); color: rgb(160,155,150); }
+
+  /* Demographic pills (display only) */
+  .mob-detail-demos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+    width: 100%;
+    max-width: 340px;
+  }
+  .mob-demo-pill {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(var(--tag-demographic-rgb), 0.15);
+    color: var(--tag-demographic);
+  }
+
+  /* Action buttons */
+  .mob-detail-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 340px;
+    margin-top: 4px;
+  }
+  .mob-action-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    background: rgba(var(--accent-rgb), 0.08);
+    color: var(--accent);
+    min-height: 44px;
+    transition: transform 0.15s;
+  }
+  .mob-action-btn:active {
+    transform: scale(0.96);
+  }
+  .mob-action-btn.danger {
+    border-color: rgba(var(--danger-rgb), 0.3);
+    background: rgba(var(--danger-rgb), 0.08);
+    color: var(--danger);
+  }
+
+  /* Bio toggle & content */
+  .mob-detail-bio-toggle {
+    width: 100%;
+    max-width: 340px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: rgba(var(--bg-card-rgb), 0.4);
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .mob-detail-bio-toggle:active {
+    transform: scale(0.97);
+  }
+  .mob-detail-bio {
+    width: 100%;
+    max-width: 340px;
+    max-height: 0;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    background: rgba(var(--bg-card-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    transition: all 0.3s ease;
+  }
+  .mob-detail-bio.expanded {
+    max-height: 400px;
+    padding: 14px;
+    margin-top: -6px;
+    border: 1px solid var(--border);
+  }
+
+  /* Light theme adjustments for mobile detail */
+  body.theme-light .mob-detail-plat-chip.platform-instagram {
+    background: rgba(225, 48, 108, 0.08);
+  }
+  body.theme-light .mob-detail-plat-chip.platform-tiktok {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+  body.theme-light .mob-detail-plat-chip.platform-tiktok .mob-plat-logo svg path { fill: #010101; }
+  body.theme-light .mob-detail-plat-chip.platform-youtube {
+    background: rgba(255, 0, 0, 0.06);
+  }
+  body.theme-light .mob-niche-pill.cat-entertainment { color: #6A2860; }
+  body.theme-light .mob-niche-pill.cat-lifestyle     { color: #6A5010; }
+  body.theme-light .mob-niche-pill.cat-food          { color: #7A4010; }
+  body.theme-light .mob-niche-pill.cat-travel        { color: #1A5A4A; }
+  body.theme-light .mob-niche-pill.cat-people        { color: #7A2828; }
+  body.theme-light .mob-niche-pill.cat-fitness       { color: #2A5A20; }
+  body.theme-light .mob-niche-pill.cat-home          { color: #5A4A28; }
+  body.theme-light .mob-niche-pill.cat-tech          { color: #1A4A6A; }
+  body.theme-light .mob-niche-pill.cat-creative      { color: #4A2A7A; }
+  body.theme-light .mob-niche-pill.cat-identity      { color: #5A2A5A; }
+  body.theme-light .mob-niche-pill.cat-culture       { color: #2A4A5A; }
+  body.theme-light .mob-niche-pill.cat-other         { color: #3A3530; }
+  body.theme-light .mob-action-btn {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(var(--accent-rgb), 0.3);
+  }
+  body.theme-light .mob-action-btn.danger {
+    background: rgba(var(--danger-rgb), 0.05);
+  }
+  body.theme-light .mob-detail-bio-toggle {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.10);
+  }
+  body.theme-light .mob-detail-bio {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  body.theme-light .mob-detail-bio.expanded {
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  /* ── Audience data section inside mobile detail ── */
+  .mob-detail-divider {
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 4px 0;
+  }
+  .mob-audience-tabs {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    width: 100%;
+    max-width: 340px;
+  }
+  .mob-audience-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: rgba(var(--bg-card-rgb), 0.3);
+    color: var(--text-secondary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 40px;
+    transition: all 0.2s ease;
+  }
+  .mob-audience-tab svg { width: 16px; height: 16px; }
+  .mob-audience-tab.active {
+    background: rgba(var(--accent-rgb), 0.12);
+    border-color: rgba(var(--accent-rgb), 0.35);
+    color: var(--accent);
+  }
+  .mob-audience-tab:active {
+    transform: scale(0.95);
+  }
+  .mob-audience-content {
+    width: 100%;
+    max-width: 340px;
+  }
+  /* Stat grid adjustments for mobile detail */
+  .mob-audience-content .demos-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .mob-audience-content .demos-stat-cell {
+    padding: 8px 6px;
+  }
+  .mob-audience-content .demos-stat-value {
+    font-size: 16px;
+  }
+  .mob-audience-content .demos-stat-label {
+    font-size: 7px;
+  }
+  .mob-audience-content .demos-demo-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .mob-audience-content .demos-demo-card {
+    min-height: auto;
+  }
+  .mob-audience-content .demos-donut-wrap {
+    flex-direction: row;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+  }
+  .mob-audience-content .demos-donut {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+  .mob-audience-content .demos-donut-hole {
+    width: 48px;
+    height: 48px;
+  }
+  .mob-audience-content .demos-partners-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .mob-audience-content .demos-partner-card {
+    padding: 10px 6px;
+  }
+  .mob-audience-content .demos-partner-logo,
+  .mob-audience-content .demos-partner-logo-placeholder {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  .mob-audience-content .demos-partner-name {
+    font-size: 9px;
+  }
+  /* Light theme tab adjustments */
+  body.theme-light .mob-audience-tab {
+    border-color: rgba(0, 0, 0, 0.10);
+    background: rgba(0, 0, 0, 0.02);
+  }
+  body.theme-light .mob-audience-tab.active {
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: rgba(var(--accent-rgb), 0.3);
   }
 }
 

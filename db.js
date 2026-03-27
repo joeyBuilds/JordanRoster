@@ -99,7 +99,8 @@ const db = {
   async load() {
     const [{ data: rows, error: e1 }, { data: platforms }, { data: niches }, { data: demos }, { data: collabs }] = await Promise.all([
       _supabase.from('creators').select('*'),
-      _supabase.from('creator_platforms').select('*'),
+      // Skip audience_data on initial load — it's large JSONB and only needed for Demos tab
+      _supabase.from('creator_platforms').select('creator_id,platform,handle,url,followers,engagement_rate'),
       _supabase.from('creator_niches').select('*'),
       _supabase.from('creator_demographics').select('*'),
       safeQuery(_supabase.from('creator_collabs').select('*'))
@@ -205,6 +206,25 @@ const db = {
       const mainRows = creators.map(creatorToRow);
       await _supabase.from('creators').upsert(mainRows);
 
+      // Preserve audience_data for creators that haven't lazy-loaded it yet
+      const needsAudience = creators.filter(c =>
+        !c._audienceLoaded && Object.values(c.platforms || {}).every(p => !p.audienceData)
+      );
+      if (needsAudience.length > 0) {
+        const naIds = needsAudience.map(c => c.id);
+        const { data: existingPlats } = await _supabase
+          .from('creator_platforms')
+          .select('creator_id,platform,audience_data')
+          .in('creator_id', naIds)
+          .not('audience_data', 'is', null);
+        (existingPlats || []).forEach(ep => {
+          const cr = needsAudience.find(c => c.id === ep.creator_id);
+          if (cr && cr.platforms[ep.platform]) {
+            cr.platforms[ep.platform].audienceData = ep.audience_data;
+          }
+        });
+      }
+
       // Rebuild related data: delete existing, then re-insert
       const ids = creators.map(c => c.id);
       await Promise.all([
@@ -242,6 +262,20 @@ const db = {
       const { error } = await _supabase.from('creators').upsert(creatorToRow(creator));
       if (error) throw error;
 
+      // Preserve audience_data if not loaded in memory
+      if (!creator._audienceLoaded && Object.values(creator.platforms || {}).every(p => !p.audienceData)) {
+        const { data: existingPlats } = await _supabase
+          .from('creator_platforms')
+          .select('platform,audience_data')
+          .eq('creator_id', creator.id)
+          .not('audience_data', 'is', null);
+        (existingPlats || []).forEach(ep => {
+          if (creator.platforms[ep.platform]) {
+            creator.platforms[ep.platform].audienceData = ep.audience_data;
+          }
+        });
+      }
+
       // Delete + reinsert related data for this creator
       await Promise.all([
         _supabase.from('creator_platforms').delete().eq('creator_id', creator.id),
@@ -267,6 +301,25 @@ const db = {
   async delete(creatorId) {
     // CASCADE handles related tables
     await _supabase.from('creators').delete().eq('id', creatorId);
+  },
+
+  // Update only lat/lng for a creator — avoids touching related tables
+  async updateCoords(creatorId, lat, lng) {
+    await _supabase.from('creators').update({ lat, lng }).eq('id', creatorId);
+  },
+
+  // Lazy-load audience_data for a specific creator's platforms (deferred from initial load)
+  async loadAudienceData(creatorId) {
+    const { data } = await _supabase
+      .from('creator_platforms')
+      .select('platform,audience_data')
+      .eq('creator_id', creatorId);
+    if (!data) return {};
+    const result = {};
+    data.forEach(p => {
+      if (p.audience_data) result[p.platform] = p.audience_data;
+    });
+    return result;
   },
 
   getSize() {

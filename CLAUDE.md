@@ -3,12 +3,12 @@
 ## Overview
 A single-page HTML web app for managing a roster of creators and quickly dispatching them to brand requests. Core workflow: brand requests a creator profile (e.g., "Instagram lifestyle creator near Seattle") → use dispatch filters → map highlights matching creators → pick best fits.
 
-**File:** `creator-roster.html` (single file — all HTML, CSS, JS embedded)
+**Files:** `index.html` (entry point), `app.js` (frontend logic), `styles.css` (styling), `db.js` (Supabase data layer)
 
 ## Tech Stack
 - **Leaflet.js** — interactive map with CartoDB light tiles + sepia filter
 - **Nominatim API** — free OpenStreetMap geocoding with debounced autocomplete
-- **localStorage** — persistence via abstracted `db` data layer (designed for future Supabase swap)
+- **Supabase** — cloud persistence via `db.js` abstraction layer (creators, creator_platforms, creator_niches, creator_demographics, creator_collabs tables)
 - **Google Fonts** — DM Sans (body) + Playfair Display (headings)
 - **Aesthetic** — "lo-fi cozy girl chic" warm palette
 
@@ -42,7 +42,7 @@ function getAllNiches() { /* returns PRESET_NICHES + any custom niches found in 
 ### Key Design Decisions
 - **Name split**: `firstName` + `lastName` fields, with `getFullName(c)` helper (falls back to legacy `c.name`)
 - **No partnerships/status/VIP**: Removed in favor of dispatch-focused workflow
-- **Data layer**: `db.load()`, `db.save()`, `db.persist()` abstracted for future Supabase migration. Warns at 4MB localStorage usage.
+- **Data layer**: `db.load()`, `db.save()`, `db.persist()` provide Supabase CRUD operations with optimistic local caching.
 
 ## Features
 
@@ -75,6 +75,16 @@ function getAllNiches() { /* returns PRESET_NICHES + any custom niches found in 
 - **Import/Export**: JSON data portability
 - **Async save**: Falls back to geocoding on save if user typed location without selecting from autocomplete
 
+## API Layer (Vercel Serverless Functions)
+- `api/scrape-july.js` — scrapes july.bio/iamsocial roster, returns normalized creator data (called by frontend Import panel)
+- `api/sync-july.js` — scrapes July + syncs to Supabase (daily cron at 8am UTC)
+- `api/july-helpers.js` — shared scraping/parsing utilities used by both July functions
+- `api/nominatim.js` — proxy for Nominatim geocoding (avoids browser CORS)
+
+## Automated Sync
+- Vercel cron runs `api/sync-july` daily at 08:00 UTC (configured in vercel.json)
+- Function timeout: scrape-july=120s, sync-july=180s, memory=512MB
+
 ## CSS Color Palette
 ```css
 :root {
@@ -87,5 +97,4 @@ function getAllNiches() { /* returns PRESET_NICHES + any custom niches found in 
 ```
 
 ## Future Plans
-- Supabase integration for persistent cloud storage
 - Visual analytics upgrade (donut charts, heatmap, timeline) for dashboard

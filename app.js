@@ -2371,19 +2371,112 @@ function openCategoryOrganizer(type) {
     }
   }
 
-  addRow.onclick = () => {
-    const val = search.value.trim();
+  // Category picker for new custom tags (mirrors createTagPicker behavior)
+  function showCategoryPicker(tagName, callback) {
+    document.querySelector('.tag-category-picker-overlay')?.remove();
+
+    const pickerOverlay = document.createElement('div');
+    pickerOverlay.className = 'tag-category-picker-overlay';
+
+    const picker = document.createElement('div');
+    picker.className = 'tag-category-picker';
+
+    const pickerTitle = document.createElement('div');
+    pickerTitle.className = 'tag-category-picker-title';
+    pickerTitle.innerHTML = `Add "<strong>${tagName}</strong>" to:`;
+    picker.appendChild(pickerTitle);
+
+    const catList = document.createElement('div');
+    catList.className = 'tag-category-picker-list';
+
+    Object.keys(categories).forEach(catName => {
+      const btn = document.createElement('button');
+      btn.className = 'tag-category-picker-btn';
+      const icon = CATEGORY_ICONS[catName] || '📁';
+      btn.innerHTML = `<span class="picker-icon">${icon}</span> ${catName}`;
+      btn.onclick = () => {
+        categories[catName].push(tagName);
+        saveTagCategories(type, categories);
+        pickerOverlay.remove();
+        callback();
+      };
+      catList.appendChild(btn);
+    });
+
+    picker.appendChild(catList);
+
+    const newCatRow = document.createElement('button');
+    newCatRow.className = 'tag-category-picker-btn new-cat';
+    newCatRow.innerHTML = '<span class="picker-icon">✚</span> New Category';
+    newCatRow.onclick = () => {
+      const name = prompt('New category name:');
+      if (name && name.trim()) {
+        const trimmed = name.trim();
+        if (!categories[trimmed]) categories[trimmed] = [];
+        categories[trimmed].push(tagName);
+        saveTagCategories(type, categories);
+      }
+      pickerOverlay.remove();
+      callback();
+    };
+    picker.appendChild(newCatRow);
+
+    pickerOverlay.onclick = (e) => {
+      if (e.target === pickerOverlay) {
+        pickerOverlay.remove();
+        search.value = '';
+        renderGrid();
+        search.focus();
+      }
+    };
+    pickerOverlay.appendChild(picker);
+    document.body.appendChild(pickerOverlay);
+  }
+
+  function addCustomItem(val) {
     if (!val) return;
-    // Add to uncategorized
     const allItems = getAllItems();
-    if (!allItems.includes(val)) {
-      // It's new — just add it to the custom pool
+    // Check if already exists (case-insensitive)
+    if (allItems.some(n => n.toLowerCase() === val.toLowerCase())) return;
+
+    // Check if already in a category
+    const inCategory = Object.values(categories).some(arr => arr.includes(val));
+    if (inCategory) {
+      search.value = '';
+      invalidateTagCaches();
+      renderGrid();
+      search.focus();
+    } else {
+      showCategoryPicker(val, () => {
+        search.value = '';
+        invalidateTagCaches();
+        renderGrid();
+        search.focus();
+      });
     }
-    search.value = '';
-    renderGrid();
+  }
+
+  addRow.onclick = () => {
+    addCustomItem(search.value.trim());
   };
 
   search.oninput = () => renderGrid();
+  search.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = search.value.trim();
+      if (!val) return;
+      const allItems = getAllItems();
+      const exact = allItems.find(n => n.toLowerCase() === val.toLowerCase());
+      if (!exact) {
+        addCustomItem(val);
+      } else {
+        // Item already exists, just clear the search
+        search.value = '';
+        renderGrid();
+      }
+    }
+  };
 
   // Assemble panel
   panel.appendChild(header);

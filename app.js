@@ -3287,6 +3287,36 @@ function renderCreatorSlidePanel(creator, forceDispatch) {
       pill.className = `ring-pill demographic cat-${colorClass}`;
       pill.textContent = d;
       pill.style.fontSize = '9px';
+      pill.style.cursor = 'pointer';
+
+      // Dispatch-matched highlight
+      if (ringHasDispatch && ringScore && ringScore.matchDetails) {
+        if (ringScore.matchDetails.some(md => md.type === 'demographic' && md.label === d)) {
+          pill.classList.add('dispatch-matched-tag');
+        }
+      }
+
+      // Click → close panel, switch to dispatch tab with ONLY this demographic filtered
+      pill.onclick = (e) => {
+        e.stopPropagation();
+        // Prevent full-creator injection when dispatch tab activates
+        _nicheInjectedForCreator = creator.id;
+        // Clear existing NL pills
+        if (window._nlClearPills) window._nlClearPills(true);
+        closeDetailPanel();
+        // Set only this single demographic as filter
+        dispatchFilters.niches = [];
+        dispatchFilters.demographics = [d];
+        const dispatchBtn = document.querySelector('.tab-button[data-tab="dispatch"]');
+        if (dispatchBtn) dispatchBtn.click();
+        if (!_dispatchSections.demos) toggleDispatchSection('demos');
+        // Add single pill to NL bar
+        if (window._nlAddPill) window._nlAddPill(d, 'demographic');
+        renderDispatchFilterPills();
+        renderDispatchTab();
+        updateMapMarkers();
+      };
+
       pillsWrap.appendChild(pill);
     });
     demoSection.appendChild(pillsWrap);

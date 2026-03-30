@@ -50,8 +50,10 @@ async function differentialSync(supabase, rosterCreators, force) {
 
   // Build lookup maps
   const existingByName = {};
+  const existingById = {};
   const duplicateIds = [];
   (existingRows || []).forEach(row => {
+    existingById[row.id] = row;
     const fullName = normalizeName((row.first_name || '') + ' ' + (row.last_name || ''));
     if (existingByName[fullName]) {
       const existing = existingByName[fullName];
@@ -100,8 +102,13 @@ async function differentialSync(supabase, rosterCreators, force) {
     if (!rc.name) continue;
     const hash = computeRosterHash(rc);
     const cached = rc.username ? cacheByUsername[rc.username] : null;
+
+    // Primary match: by cache creator_id (stable across renames)
+    // Fallback: by July name (for first-time imports)
     const jName = normalizeName(rc.name);
-    const existing = existingByName[jName];
+    const existing = (cached && existingById[cached.creator_id])
+      ? existingById[cached.creator_id]
+      : existingByName[jName] || null;
 
     if (!cached && !existing) {
       // Brand new creator
@@ -111,8 +118,7 @@ async function differentialSync(supabase, rosterCreators, force) {
       changedCreators.push({ roster: rc, hash, existing, cached });
     } else if (cached.roster_hash !== hash) {
       // Cache exists but data changed
-      const existingById = (existingRows || []).find(r => r.id === cached.creator_id);
-      changedCreators.push({ roster: rc, hash, existing: existingById || existing, cached });
+      changedCreators.push({ roster: rc, hash, existing, cached });
     } else {
       // Unchanged
       unchangedCreators.push({ roster: rc, hash, cached, existing });
@@ -220,9 +226,15 @@ async function differentialSync(supabase, rosterCreators, force) {
   const changedCollabCreatorIds = [];
   const changedCollabRows = [];
 
-  for (const { roster, existing } of changedCreators) {
+  for (const { roster, existing, cached } of changedCreators) {
     if (!existing) {
-      // Edge case: in cache but not in DB (deleted by user?) — treat as new
+      if (cached) {
+        // Creator was in cache but deleted from DB by user — respect the deletion
+        console.log(`[sync] Skipping "${roster.name}" — was deleted by user`);
+        unchanged++;
+        continue;
+      }
+      // Truly orphaned: exists by name match but not in cache — treat as new
       const { firstName, lastName } = parseName(roster.name);
       const id = generateId();
       newCreatorIdMap[roster.username || roster.name] = id;
@@ -253,6 +265,24 @@ async function differentialSync(supabase, rosterCreators, force) {
     const creatorId = existing.id;
     let changed = false;
     const updates = {};
+
+    // Name: update from July UNLESS the user has manually renamed this creator.
+    // Compare DB name against the July name we stored last sync (cached.july_name).
+    // If DB name matches cached July name → user hasn't renamed → safe to update.
+    // If DB name differs from cached July name → user renamed → preserve theirs.
+    const { firstName: julyFirst, lastName: julyLast } = parseName(roster.name);
+    const existingFullName = normalizeName((existing.first_name || '') + ' ' + (existing.last_name || ''));
+    const julyFullName = normalizeName(roster.name);
+    const cachedJulyName = cached?.july_name ? normalizeName(cached.july_name) : '';
+    const userRenamed = cachedJulyName
+      ? existingFullName !== cachedJulyName   // cache exists: user changed from what July provided
+      : existingFullName !== julyFullName;    // no cache yet: if different, assume user renamed (conservative)
+
+    if (!userRenamed && julyFullName !== existingFullName) {
+      updates.first_name = julyFirst;
+      updates.last_name = julyLast;
+      changed = true;
+    }
 
     // Only update photo if we have a new one (don't overwrite user-set photos with null)
     if (roster.photo && roster.photo !== existing.photo) { updates.photo = roster.photo; changed = true; }
@@ -401,6 +431,7 @@ async function differentialSync(supabase, rosterCreators, force) {
       july_username: roster.username || normalizeName(roster.name),
       creator_id: id,
       roster_hash: hash,
+      july_name: roster.name || null,
       photo_source_url: (roster.photo && !roster.photo.startsWith('data:')) ? roster.photo : null,
       audience_enriched: Object.values(roster.platforms || {}).some(p => p.audienceData),
       last_synced_at: now,
@@ -414,6 +445,7 @@ async function differentialSync(supabase, rosterCreators, force) {
       july_username: roster.username || normalizeName(roster.name),
       creator_id: creatorId,
       roster_hash: hash,
+      july_name: roster.name || null,
       photo_source_url: (roster.photo && !roster.photo.startsWith('data:')) ? roster.photo : null,
       audience_enriched: cached?.audience_enriched || Object.values(roster.platforms || {}).some(p => p.audienceData),
       last_synced_at: now,
@@ -426,6 +458,7 @@ async function differentialSync(supabase, rosterCreators, force) {
       july_username: cached.july_username,
       creator_id: cached.creator_id,
       roster_hash: cached.roster_hash,
+      july_name: cached.july_name || null,
       photo_source_url: cached.photo_source_url,
       audience_enriched: cached.audience_enriched,
       last_synced_at: now,
@@ -434,7 +467,17 @@ async function differentialSync(supabase, rosterCreators, force) {
 
   if (cacheUpserts.length > 0) {
     const { error } = await supabase.from('sync_cache').upsert(cacheUpserts);
-    if (error) console.warn('[sync] sync_cache upsert:', error.message);
+    if (error) {
+      // july_name column may not exist yet — retry without it
+      if (error.message && error.message.includes('july_name')) {
+        console.warn('[sync] sync_cache missing july_name column — retrying without it');
+        const fallback = cacheUpserts.map(({ july_name, ...rest }) => rest);
+        const { error: e2 } = await supabase.from('sync_cache').upsert(fallback);
+        if (e2) console.warn('[sync] sync_cache upsert fallback:', e2.message);
+      } else {
+        console.warn('[sync] sync_cache upsert:', error.message);
+      }
+    }
   }
 
   return { added, updated, unchanged };

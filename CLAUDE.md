@@ -44,6 +44,12 @@ function getAllNiches() { /* returns PRESET_NICHES + any custom niches found in 
 - **No partnerships/status/VIP**: Removed in favor of dispatch-focused workflow
 - **Data layer**: `db.load()`, `db.save()`, `db.persist()` provide Supabase CRUD operations with optimistic local caching.
 
+### Data Safety Rules (db.js)
+- `db.load()` **throws** on query error or 15s timeout — it never silently returns `[]`. A failed load sets an internal `_loadFailed` flag that **blocks all writes** (`persist`/`save`/`_syncAll`) until a load succeeds, so a bad session can never wipe the cloud roster.
+- `db.save([])` (full wipe) requires an explicit `{ allowEmpty: true }` — only the Reset All flow passes it. Import uses `db.save(creators)` for intentional full replaces.
+- `db._syncAll()` refuses suspicious bulk deletes: an empty in-memory array against a populated DB, or deleting >10 creators when that's more than half the DB.
+- `init()` renders a visible "Couldn't load your roster" + Retry state on load failure, and a "Roster is empty — Sync from July" CTA when the DB is healthy but empty.
+
 ## Features
 
 ### Sidebar Tabs
@@ -83,7 +89,16 @@ function getAllNiches() { /* returns PRESET_NICHES + any custom niches found in 
 
 ## Automated Sync
 - Vercel cron runs `api/sync-july` daily at 08:00 UTC (configured in vercel.json)
-- Function timeout: scrape-july=120s, sync-july=180s, memory=512MB
+- Function timeout: scrape-july=120s, sync-july=180s, memory=512MB (do NOT lower sync-july below ~180s — a cold-cache run of ~50 creators needs it)
+- **Differential sync**: roster-page fingerprints (`sync_cache` table, keyed on `july_username`) mean unchanged creators are skipped; typical warm runs are 2-3s
+- **Time budget**: enrichment/photo work stops at 120s elapsed and the run proceeds to DB writes, returning `partial: true`; budget-skipped creators get no cache row so the next run finishes them. Creator rows always land before the timeout.
+- **No server-side geocoding** in the sync path — new/moved creators are written with `lat/lng: null` and the frontend's `geocodeMissing()` fills coordinates client-side (~1.1s/creator, Nominatim rate limit)
+- **`?force=true`**: full refresh that also *restores* creators present in `sync_cache` but missing from the DB (recovery after accidental data loss). Normal syncs respect user deletions.
+- Sync response shape: `{ success, added, updated, unchanged, partial, cacheWarning, total, syncedAt }`
+
+## Known Security Posture (accepted risk, follow-up recommended)
+- The Supabase anon key is public in `db.js` and RLS policies are fully permissive — anyone with the site URL can read/write/delete the roster. Real fix: restrictive RLS + auth, or route writes through serverless functions holding a service key.
+- `/api/sync-july` is publicly callable (no CRON_SECRET).
 
 ## CSS Color Palette
 ```css

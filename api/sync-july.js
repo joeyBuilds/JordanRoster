@@ -10,7 +10,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const {
   scrapeRoster, downloadCreatorPhotos, resolveHandles,
-  enrichWithAudienceData, geocodeCreators, computeRosterHash
+  enrichWithAudienceData, computeRosterHash
 } = require('./july-helpers');
 
 const SUPABASE_URL = 'https://imlmcbnvrkupplvgmytb.supabase.co';
@@ -32,21 +32,35 @@ function normalizeName(name) {
 
 // ── Differential sync: compare roster hashes, only process new/changed creators ──
 
-async function differentialSync(supabase, rosterCreators, force) {
+async function differentialSync(supabase, rosterCreators, force, budget) {
   const now = new Date().toISOString();
+
+  // Optional-work time budget: once exceeded, skip enrichment/photo work and go
+  // straight to DB writes so creator rows always land before the function timeout.
+  // Skipped creators get no sync_cache row, so the next run picks them back up.
+  const skippedOptional = new Set();
+  const skipKey = (r) => r.username || normalizeName(r.name);
+  const overBudget = () => !!budget && (Date.now() - budget.startedAt > budget.maxMs);
+  const markSkipped = (list) => list.forEach(r => skippedOptional.add(skipKey(r)));
 
   // Load existing DB state + sync cache in parallel
   const [
-    { data: existingRows },
+    { data: existingRows, error: creatorsReadError },
     { data: existingPlatforms },
     { data: existingNiches },
-    { data: cacheRows },
+    { data: cacheRows, error: cacheReadError },
   ] = await Promise.all([
     supabase.from('creators').select('*'),
     supabase.from('creator_platforms').select('*'),
     supabase.from('creator_niches').select('*'),
     supabase.from('sync_cache').select('*'),
   ]);
+
+  // A failed creators read would make every roster creator look NEW and cause
+  // blind duplicate inserts — fail loudly instead. A failed cache read only
+  // costs extra work, so it degrades gracefully.
+  if (creatorsReadError) throw new Error('Failed to read existing creators: ' + creatorsReadError.message);
+  if (cacheReadError) console.warn('[sync] sync_cache read failed (continuing uncached):', cacheReadError.message);
 
   // Build lookup maps
   const existingByName = {};
@@ -127,19 +141,30 @@ async function differentialSync(supabase, rosterCreators, force) {
 
   console.log(`[sync] Categorized: ${newCreators.length} new, ${changedCreators.length} changed, ${unchangedCreators.length} unchanged`);
 
-  // ── Process NEW creators: full pipeline ──
+  // ── Process NEW creators: resolve + enrich + photos ──
+  // No server-side geocoding here: it's sequential (1.1s/creator, Nominatim rate
+  // limit) and was the main cause of function timeouts. New creators are inserted
+  // with lat/lng null and the frontend's geocodeMissing() fills them client-side.
   if (newCreators.length > 0) {
     const newRoster = newCreators.map(n => n.roster);
     await resolveHandles(newRoster, { logPrefix: '[sync]' });
-    await enrichWithAudienceData(newRoster, { logPrefix: '[sync]' });
-    await geocodeCreators(newRoster, { logPrefix: '[sync]' });
-    await downloadCreatorPhotos(newRoster, { logPrefix: '[sync]' });
+    if (overBudget()) {
+      console.log(`[sync] Time budget hit — deferring enrichment for ${newRoster.length} new creator(s)`);
+      markSkipped(newRoster);
+    } else {
+      await enrichWithAudienceData(newRoster, { logPrefix: '[sync]' });
+      if (overBudget()) {
+        console.log(`[sync] Time budget hit — deferring photos for ${newRoster.length} new creator(s)`);
+        markSkipped(newRoster);
+      } else {
+        await downloadCreatorPhotos(newRoster, { logPrefix: '[sync]' });
+      }
+    }
   }
 
   // ── Process CHANGED creators: selective work ──
   if (changedCreators.length > 0) {
     const needsEnrich = [];
-    const needsGeocode = [];
     const needsPhoto = [];
     const needsResolve = [];
 
@@ -149,8 +174,9 @@ async function differentialSync(supabase, rosterCreators, force) {
       const wasEnriched = cached ? cached.audience_enriched : !!(existing && Object.values(existingPlatformMap[existing.id] || {}).some(p => p.audience_data));
 
       if (!wasEnriched) needsEnrich.push(roster);
-      if (locationChanged && (!existing || existing.lat == null)) needsGeocode.push(roster);
-      else if (existing && existing.lat != null && !locationChanged) {
+      // No server-side geocoding: carry over known coordinates when the location
+      // is unchanged; otherwise leave lat/lng null for client-side geocoding.
+      if (existing && existing.lat != null && !locationChanged) {
         roster.lat = existing.lat;
         roster.lng = existing.lng;
       }
@@ -163,9 +189,22 @@ async function differentialSync(supabase, rosterCreators, force) {
     }
 
     if (needsResolve.length > 0) await resolveHandles(needsResolve, { logPrefix: '[sync]' });
-    if (needsEnrich.length > 0) await enrichWithAudienceData(needsEnrich, { logPrefix: '[sync]' });
-    if (needsGeocode.length > 0) await geocodeCreators(needsGeocode, { logPrefix: '[sync]' });
-    if (needsPhoto.length > 0) await downloadCreatorPhotos(needsPhoto, { logPrefix: '[sync]' });
+    if (needsEnrich.length > 0) {
+      if (overBudget()) {
+        console.log(`[sync] Time budget hit — deferring enrichment for ${needsEnrich.length} changed creator(s)`);
+        markSkipped(needsEnrich);
+      } else {
+        await enrichWithAudienceData(needsEnrich, { logPrefix: '[sync]' });
+      }
+    }
+    if (needsPhoto.length > 0) {
+      if (overBudget()) {
+        console.log(`[sync] Time budget hit — deferring photos for ${needsPhoto.length} changed creator(s)`);
+        markSkipped(needsPhoto);
+      } else {
+        await downloadCreatorPhotos(needsPhoto, { logPrefix: '[sync]' });
+      }
+    }
   }
 
   // ── Write changes to Supabase ──
@@ -228,15 +267,17 @@ async function differentialSync(supabase, rosterCreators, force) {
 
   for (const { roster, existing, cached } of changedCreators) {
     if (!existing) {
-      if (cached) {
-        // Creator was in cache but deleted from DB by user — respect the deletion
+      if (cached && !force) {
+        // Creator was in cache but deleted from DB by user — respect the deletion.
+        // force=true overrides this (recovery path after accidental data loss).
         console.log(`[sync] Skipping "${roster.name}" — was deleted by user`);
         unchanged++;
         continue;
       }
-      // Truly orphaned: exists by name match but not in cache — treat as new
+      // Orphaned (name match but no cache) or force-restoring a cached-but-missing
+      // creator — insert as new, reusing the cached ID so the cache stays consistent.
       const { firstName, lastName } = parseName(roster.name);
-      const id = generateId();
+      const id = (cached && cached.creator_id) || generateId();
       newCreatorIdMap[roster.username || roster.name] = id;
       newCreatorRows.push({
         id, first_name: firstName, last_name: lastName,
@@ -286,7 +327,13 @@ async function differentialSync(supabase, rosterCreators, force) {
 
     // Only update photo if we have a new one (don't overwrite user-set photos with null)
     if (roster.photo && roster.photo !== existing.photo) { updates.photo = roster.photo; changed = true; }
-    if (roster.location && roster.location !== existing.location) { updates.location = roster.location; changed = true; }
+    if (roster.location && roster.location !== existing.location) {
+      updates.location = roster.location;
+      // Location moved and we have no fresh coords — clear the stale pin so the
+      // frontend's geocodeMissing() re-geocodes the new location.
+      if (roster.lat == null) { updates.lat = null; updates.lng = null; }
+      changed = true;
+    }
     if (roster.lat != null && roster.lat !== existing.lat) { updates.lat = roster.lat; changed = true; }
     if (roster.lng != null && roster.lng !== existing.lng) { updates.lng = roster.lng; changed = true; }
     // Notes are NEVER overwritten — user may have edited them
@@ -358,10 +405,11 @@ async function differentialSync(supabase, rosterCreators, force) {
 
   // ── Execute batched writes ──
 
-  // New creators
+  // New creators — fail loudly: nothing else has been written yet, and a silent
+  // failure here would report success while the roster stays empty.
   if (newCreatorRows.length > 0) {
     const { error } = await supabase.from('creators').insert(newCreatorRows);
-    if (error) console.error('[sync] Failed to insert new creators:', error);
+    if (error) throw new Error('Failed to insert new creators: ' + error.message);
   }
   if (newPlatformRows.length > 0) {
     await supabase.from('creator_platforms').insert(newPlatformRows);
@@ -422,9 +470,12 @@ async function differentialSync(supabase, rosterCreators, force) {
   }
 
   // ── Update sync_cache ──
+  // Creators whose optional work was budget-deferred get NO cache row: the next
+  // run then reclassifies them as changed and finishes the enrichment/photos.
   const cacheUpserts = [];
 
   for (const { roster, hash } of newCreators) {
+    if (skippedOptional.has(skipKey(roster))) continue;
     const id = newCreatorIdMap[roster.username || roster.name];
     if (!id) continue;
     cacheUpserts.push({
@@ -439,6 +490,7 @@ async function differentialSync(supabase, rosterCreators, force) {
   }
 
   for (const { roster, hash, existing, cached } of changedCreators) {
+    if (skippedOptional.has(skipKey(roster))) continue;
     const creatorId = existing ? existing.id : newCreatorIdMap[roster.username || roster.name];
     if (!creatorId) continue;
     cacheUpserts.push({
@@ -465,22 +517,24 @@ async function differentialSync(supabase, rosterCreators, force) {
     });
   }
 
+  let cacheWarning = null;
   if (cacheUpserts.length > 0) {
-    const { error } = await supabase.from('sync_cache').upsert(cacheUpserts);
+    const { error } = await supabase.from('sync_cache').upsert(cacheUpserts, { onConflict: 'july_username' });
     if (error) {
       // july_name column may not exist yet — retry without it
       if (error.message && error.message.includes('july_name')) {
         console.warn('[sync] sync_cache missing july_name column — retrying without it');
         const fallback = cacheUpserts.map(({ july_name, ...rest }) => rest);
-        const { error: e2 } = await supabase.from('sync_cache').upsert(fallback);
-        if (e2) console.warn('[sync] sync_cache upsert fallback:', e2.message);
+        const { error: e2 } = await supabase.from('sync_cache').upsert(fallback, { onConflict: 'july_username' });
+        if (e2) { cacheWarning = e2.message; console.warn('[sync] sync_cache upsert fallback:', e2.message); }
       } else {
+        cacheWarning = error.message;
         console.warn('[sync] sync_cache upsert:', error.message);
       }
     }
   }
 
-  return { added, updated, unchanged };
+  return { added, updated, unchanged, partial: skippedOptional.size > 0, cacheWarning };
 }
 
 // ── Handler ──
@@ -491,6 +545,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    const startedAt = Date.now();
     const force = req.query?.force === 'true';
     console.log(`[sync] Starting July sync...${force ? ' (force refresh)' : ''}`);
 
@@ -511,15 +566,17 @@ module.exports = async function handler(req, res) {
         success: true,
         message: 'No creators found on July — nothing to sync',
         added: 0, updated: 0, unchanged: 0,
+        partial: false, cacheWarning: null,
         syncedAt: new Date().toISOString()
       });
     }
 
-    // Step 2: Differential sync
+    // Step 2: Differential sync, with a time budget that guarantees DB writes
+    // happen well before the function's maxDuration (180s) kills the run.
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const result = await differentialSync(supabase, rosterCreators, force);
+    const result = await differentialSync(supabase, rosterCreators, force, { startedAt, maxMs: 120000 });
 
-    console.log(`[sync] Done: ${result.added} added, ${result.updated} updated, ${result.unchanged} unchanged`);
+    console.log(`[sync] Done: ${result.added} added, ${result.updated} updated, ${result.unchanged} unchanged${result.partial ? ' (partial — will finish next run)' : ''}`);
 
     return res.status(200).json({
       success: true,

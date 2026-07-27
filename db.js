@@ -11,7 +11,9 @@ let _supabase = null;
 let _settingsCache = {};
 let _persistTimeout = null;
 let _recycleBinCount = 0;
+let _loadFailed = false; // set when db.load() fails — blocks all writes until a successful load
 const PERSIST_DEBOUNCE_MS = 500;
+const LOAD_TIMEOUT_MS = 15000;
 
 // Safe wrapper for Supabase queries that might fail (e.g. table doesn't exist yet)
 async function safeQuery(queryBuilder) {
@@ -97,7 +99,7 @@ function creatorRelatedRows(c) {
 
 const db = {
   async load() {
-    const [{ data: rows, error: e1 }, { data: platforms }, { data: niches }, { data: demos }, { data: collabs }] = await Promise.all([
+    const queries = Promise.all([
       _supabase.from('creators').select('*'),
       // Skip audience_data on initial load — it's large JSONB and only needed for Demos tab
       _supabase.from('creator_platforms').select('creator_id,platform,handle,url,followers,engagement_rate'),
@@ -105,9 +107,26 @@ const db = {
       _supabase.from('creator_demographics').select('*'),
       safeQuery(_supabase.from('creator_collabs').select('*'))
     ]);
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Database load timed out')), LOAD_TIMEOUT_MS));
 
-    if (e1) { console.error('Failed to load creators:', e1); return []; }
-    if (!rows || rows.length === 0) return [];
+    let results;
+    try {
+      results = await Promise.race([queries, timeout]);
+    } catch (e) {
+      _loadFailed = true;
+      throw e;
+    }
+    const [{ data: rows, error: e1 }, { data: platforms }, { data: niches }, { data: demos }, { data: collabs }] = results;
+
+    // A failed load must THROW, never masquerade as an empty roster — writes are
+    // blocked until a load succeeds, so a bad session can't wipe the cloud data.
+    if (e1 || !rows) {
+      _loadFailed = true;
+      throw new Error('Failed to load creators: ' + (e1 && e1.message ? e1.message : 'no data returned'));
+    }
+    _loadFailed = false;
+    if (rows.length === 0) return [];
 
     // Build lookup maps
     const platformMap = {};
@@ -144,7 +163,12 @@ const db = {
     ));
   },
 
-  async save(creators) {
+  async save(creators, { allowEmpty = false } = {}) {
+    if (_loadFailed) { console.error('Blocked db.save — data never loaded in this session'); return; }
+    if (creators.length === 0 && !allowEmpty) {
+      console.error('Blocked db.save([]) — wiping all creators requires { allowEmpty: true } (Reset)');
+      return;
+    }
     try {
       // Full wipe and re-insert (used for reset/import)
       await _supabase.from('creators').delete().not('id', 'is', null);
@@ -179,6 +203,7 @@ const db = {
   },
 
   persist(creators) {
+    if (_loadFailed) { console.error('Blocked db.persist — data never loaded in this session'); return; }
     // Debounced sync to Supabase — fire and forget
     clearTimeout(_persistTimeout);
     _persistTimeout = setTimeout(() => {
@@ -188,14 +213,28 @@ const db = {
   },
 
   async _syncAll(creators) {
+    if (_loadFailed) { console.error('Blocked sync — data never loaded in this session'); return; }
     try {
       // Get existing IDs in Supabase
-      const { data: existing } = await _supabase.from('creators').select('id');
+      const { data: existing, error: idError } = await _supabase.from('creators').select('id');
+      if (idError) { console.error('Sync aborted — could not read existing ids:', idError); return; }
       const existingIds = new Set((existing || []).map(r => r.id));
       const currentIds = new Set(creators.map(c => c.id));
 
       // Delete removed creators (CASCADE handles related tables)
       const toDelete = [...existingIds].filter(id => !currentIds.has(id));
+
+      // Safety net: never mass-delete the cloud roster from a suspicious in-memory
+      // state (e.g. an empty array after a bad load). Legitimate full replaces go
+      // through db.save() instead.
+      const wipingAll = creators.length === 0 && existingIds.size > 3;
+      const massDelete = toDelete.length > 10 && toDelete.length > existingIds.size / 2;
+      if (wipingAll || massDelete) {
+        console.error(`Blocked bulk delete of ${toDelete.length}/${existingIds.size} creators as a safety measure`);
+        if (typeof showToast === 'function') showToast('Blocked a bulk delete as a safety measure — reload the page', 'error');
+        return;
+      }
+
       if (toDelete.length > 0) {
         await _supabase.from('creators').delete().in('id', toDelete);
       }

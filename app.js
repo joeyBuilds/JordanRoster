@@ -1126,8 +1126,7 @@ function renderRosterTab() {
   list.innerHTML = '';
 
   if (filtered.length === 0) {
-    list.innerHTML = `<div class="empty-state">
-      <svg width="80" height="100" viewBox="0 0 80 100" fill="none">
+    const emptySvg = `<svg width="80" height="100" viewBox="0 0 80 100" fill="none">
         <path d="M40 95V50" stroke="var(--sage)" stroke-width="2.5" stroke-linecap="round"/>
         <path d="M40 50C40 42 35 32 25 26C20 23 16 26 18 30C22 38 30 44 40 50Z" stroke="var(--sage)" stroke-width="2" fill="none" stroke-linecap="round"/>
         <path d="M28 34C32 32 37 36 40 42" stroke="var(--sage)" stroke-width="1.2" fill="none" opacity="0.5" stroke-linecap="round"/>
@@ -1136,7 +1135,21 @@ function renderRosterTab() {
         <circle cx="25" cy="25" r="2" fill="var(--rose)" opacity="0.6"/>
         <circle cx="61" cy="49" r="1.5" fill="var(--lavender)" opacity="0.5"/>
         <circle cx="40" cy="15" r="1.5" fill="var(--warning)" opacity="0.4"/>
-      </svg>
+      </svg>`;
+
+    if (creators.length === 0) {
+      // Healthy-but-empty database: offer one-click recovery instead of a bare list
+      list.innerHTML = `<div class="empty-state">
+        ${emptySvg}
+        <div class="empty-title">Roster is empty</div>
+        <div class="empty-sub">Sync from July to rebuild it, or add a creator by hand</div>
+        <button class="btn btn-primary" style="margin-top: 14px;" onclick="document.getElementById('julySyncBtn').click()">Sync from July</button>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = `<div class="empty-state">
+      ${emptySvg}
       <div class="empty-title">Plant your first seed</div>
       <div class="empty-sub">Add a creator to watch your garden grow</div>
     </div>`;
@@ -6460,17 +6473,20 @@ function importData(file) {
     try {
       const data = JSON.parse(e.target.result);
       if (!Array.isArray(data)) throw new Error('Invalid format');
+      if (data.length === 0) throw new Error('File contains no creators');
       creators = deduplicateCreators(data);
       creators.forEach(migratePlatforms);
       creators.forEach(migrateDemographics);
       assignAllCreatorRegions();
-      db.persist(creators);
+      // Full replace: db.save (not the debounced persist) — an intentional
+      // restore of an older/smaller backup must bypass the bulk-delete guard.
+      db.save(creators);
       renderRosterTab();
       renderDispatchTab();
       updateMapMarkers();
       showToast('Data imported', 'success');
     } catch (err) {
-      showToast('Import failed', 'error');
+      showToast('Import failed — ' + err.message, 'error');
     }
   };
   reader.readAsText(file);
@@ -8038,7 +8054,7 @@ document.getElementById('resetAllBtn').addEventListener('click', () => {
     if (!confirmBtn.classList.contains('armed')) return;
     overlay.remove();
     creators = [];
-    db.save(creators);
+    db.save(creators, { allowEmpty: true });
     recycleBin.emptyAll();
     setSetting('deletedDemographics', []);
     setSetting('creator_roster_niche_categories', DEFAULT_NICHE_CATEGORIES);
@@ -8673,7 +8689,11 @@ const julyImport = (() => {
     updateFooter();
   }
 
+  let julyFetchInFlight = false;
   async function fetchFromJuly() {
+    if (julyFetchInFlight) return;
+    julyFetchInFlight = true;
+
     const loading = document.getElementById('julyLoading');
     const grid = document.getElementById('julyGrid');
     const status = document.getElementById('julyStatus');
@@ -8686,6 +8706,13 @@ const julyImport = (() => {
 
     try {
       const resp = await fetch('/api/scrape-july');
+      if (!resp.ok) {
+        throw new Error(resp.status === 504 || resp.status === 502
+          ? 'The scrape took too long — try again in a minute'
+          : `Server error (HTTP ${resp.status})`);
+      }
+      const contentType = resp.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) throw new Error('Unexpected server response');
       const data = await resp.json();
 
       if (data.success && data.creators) {
@@ -8709,6 +8736,7 @@ const julyImport = (() => {
     } finally {
       loading.style.display = 'none';
       refreshBtn.classList.remove('spinning');
+      julyFetchInFlight = false;
     }
 
     selectedIds.clear();
@@ -8855,11 +8883,28 @@ const julyImport = (() => {
 
     try {
       const resp = await fetch('/api/sync-july');
+      // The server can be killed at its time limit, returning Vercel's non-JSON
+      // error page — check status/content-type before parsing.
+      if (!resp.ok) {
+        throw new Error(resp.status === 504 || resp.status === 502
+          ? 'the server took too long. Try again in a minute'
+          : `server error (HTTP ${resp.status})`);
+      }
+      const contentType = resp.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) throw new Error('unexpected server response');
       const data = await resp.json();
 
       if (data.success) {
+        if (data.cacheWarning) console.warn('[july-sync] Cache warning:', data.cacheWarning);
+
         // Reload roster from Supabase to pick up changes
-        creators = await db.load();
+        try {
+          creators = await db.load();
+        } catch (reloadErr) {
+          console.error('[july-sync] Post-sync reload failed:', reloadErr);
+          showToast('Sync succeeded — refresh the page to see changes', 'success');
+          return;
+        }
         creators.forEach(migratePlatforms);
         creators.forEach(migrateDemographics);
         creators.forEach(migrateLocation);
@@ -8873,7 +8918,9 @@ const julyImport = (() => {
         const parts = [];
         if (data.added > 0) parts.push(`${data.added} new`);
         if (data.updated > 0) parts.push(`${data.updated} updated`);
-        if (parts.length === 0) {
+        if (data.partial) {
+          showToast(`Synced${parts.length ? ': ' + parts.join(', ') : ''} — remaining details finish on the next run`, 'success');
+        } else if (parts.length === 0) {
           showToast('Roster is up to date with July', 'success');
         } else {
           showToast(`Synced: ${parts.join(', ')}`, 'success');
@@ -9011,6 +9058,22 @@ function initMobileMapToggle() {
 // ===========================
 // INITIALIZATION
 // ===========================
+
+// Visible failure state for the roster list — replaces the old behavior of
+// silently rendering an empty roster when the database couldn't be reached.
+function renderLoadErrorState(message) {
+  const list = document.getElementById('creatorList');
+  if (list) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-title">Couldn't load your roster</div>
+      <div class="empty-sub">${message}</div>
+      <button class="btn btn-primary" style="margin-top: 14px;" onclick="location.reload()">Retry</button>
+    </div>`;
+  }
+  const count = document.getElementById('creatorCount');
+  if (count) count.textContent = '—';
+}
+
 async function init() {
   try {
     await initDatabase();
@@ -9018,6 +9081,7 @@ async function init() {
   } catch (e) {
     console.error('Database initialization failed:', e);
     showToast('Database failed to load — check console', 'error');
+    renderLoadErrorState('The database connection failed to start.');
     // Still try to render the map so the page isn't completely broken
     initMap();
     return;
@@ -9030,7 +9094,16 @@ async function init() {
     restoreCategoryOrder();
 
     console.log('[init] Loading creators from DB...');
-    creators = await db.load();
+    try {
+      creators = await db.load();
+    } catch (loadErr) {
+      // db.load() throws on failure/timeout (never silently returns empty), and
+      // db.js blocks all writes until a load succeeds — show the state and stop.
+      console.error('[init] Creator load failed:', loadErr);
+      renderLoadErrorState("The database didn't respond — your data is safe in the cloud.");
+      initMap();
+      return;
+    }
     console.log('[init] Loaded', creators.length, 'creators');
 
     let dataChanged = false;

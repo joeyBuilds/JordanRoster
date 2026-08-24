@@ -383,7 +383,7 @@ function getRegionBoundsForLabel(label) {
 
 // Helper: fly map to combined bounds of all selected regions
 function _flyToSelectedRegions() {
-  if (dispatchFilters.regions.length === 0 || !map) return;
+  if (dispatchFilters.regions.length === 0 || !mapHasSize()) return;
   let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
   dispatchFilters.regions.forEach(label => {
     const b = getRegionBoundsForLabel(label);
@@ -6313,6 +6313,7 @@ function renderAllComparePanels() {
 }
 
 function _fitMapToCompareCreators() {
+  if (!mapHasSize()) return;
   const allIds = [_demosCreatorId, ..._compareCreatorIds].filter(Boolean);
   const points = allIds.map(id => {
     const c = creators.find(cr => cr.id === id);
@@ -7732,7 +7733,7 @@ function renderNearestCreators() {
     row.addEventListener('mouseenter', () => {
       clearTimeout(activeRowEnterTimeout);
       activeRowEnterTimeout = setTimeout(() => {
-        if (!c.lat || !c.lng || !dispatchDestination) return;
+        if (!c.lat || !c.lng || !dispatchDestination || !mapHasSize()) return;
         map.stop();
         const bounds = L.latLngBounds(
           [c.lat, c.lng],
@@ -8127,6 +8128,7 @@ document.addEventListener('keydown', (e) => {
 // MAP INITIALIZATION
 // ===========================
 function initMap() {
+  if (map) return; // idempotent — error paths may call this again after a partial init
   map = L.map('map', {
     center: [37.0902, -95.7129],
     zoom: 4,
@@ -8414,7 +8416,17 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// True when the Leaflet map exists and has a rendered size. Bounds/zoom math
+// NaNs (and throws) on a hidden 0×0 container — e.g. the mobile layout keeps
+// the map display:none until toggled, and a throw here would abort init.
+function mapHasSize() {
+  if (typeof map === 'undefined' || !map) return false;
+  const size = map.getSize();
+  return size.x > 0 && size.y > 0;
+}
+
 function fitMapToCreators() {
+  if (!mapHasSize()) return;
   const located = creators.filter(c => c.lat && c.lng);
   if (located.length === 0) return;
   if (located.length === 1) {
@@ -8427,6 +8439,7 @@ function fitMapToCreators() {
 
 // Zoom-to-fit matched dispatch results, accounting for the match results panel
 function _fitMapToMatched(matched) {
+  if (!mapHasSize()) return;
   // Always fit to ALL creators so the full roster stays visible on the board.
   // Matched creators are highlighted; non-matching ones fade but remain in view.
   const allCreators = creators.filter(c => !c.deleted && c.lat && c.lng);
@@ -9038,8 +9051,10 @@ function initMobileMapToggle() {
     } else {
       // Open map fullscreen
       mc.classList.add('mobile-visible');
-      if (typeof map !== 'undefined') {
-        setTimeout(() => map.invalidateSize(), 50);
+      if (typeof map !== 'undefined' && map) {
+        // Re-measure the previously-hidden container, then fit to the roster
+        // (init skips the fit while the map is display:none)
+        setTimeout(() => { map.invalidateSize(); fitMapToCreators(); }, 50);
       }
       // Add close button to map
       const closeBtn = document.createElement('button');

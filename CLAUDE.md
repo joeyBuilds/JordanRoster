@@ -48,6 +48,7 @@ function getAllNiches() { /* returns PRESET_NICHES + any custom niches found in 
 - `db.load()` **throws** on query error or 15s timeout — it never silently returns `[]`. A failed load sets an internal `_loadFailed` flag that **blocks all writes** (`persist`/`save`/`_syncAll`) until a load succeeds, so a bad session can never wipe the cloud roster.
 - `db.save([])` (full wipe) requires an explicit `{ allowEmpty: true }` — only the Reset All flow passes it. Import uses `db.save(creators)` for intentional full replaces.
 - `db._syncAll()` refuses suspicious bulk deletes: an empty in-memory array against a populated DB, or deleting >10 creators when that's more than half the DB.
+- `audience_data` is skipped by `db.load()` (large JSONB, lazy-loaded), so every rebuild path (`_syncAll`, `upsert`, `save`) grafts it back from the DB first and **aborts if that read fails** — a rebuild must never run blind, or the stats get wiped.
 - `init()` renders a visible "Couldn't load your roster" + Retry state on load failure, and a "Roster is empty — Sync from July" CTA when the DB is healthy but empty.
 
 ## Features
@@ -94,7 +95,8 @@ function getAllNiches() { /* returns PRESET_NICHES + any custom niches found in 
 - **Time budget**: enrichment/photo work stops at 120s elapsed and the run proceeds to DB writes, returning `partial: true`; budget-skipped creators get no cache row so the next run finishes them. Creator rows always land before the timeout.
 - **No server-side geocoding** in the sync path — new/moved creators are written with `lat/lng: null` and the frontend's `geocodeMissing()` fills coordinates client-side (~1.1s/creator, Nominatim rate limit)
 - **`?force=true`**: full refresh that also *restores* creators present in `sync_cache` but missing from the DB (recovery after accidental data loss). Normal syncs respect user deletions.
-- Sync response shape: `{ success, added, updated, unchanged, partial, cacheWarning, total, syncedAt }`
+- Sync response shape: `{ success, added, updated, unchanged, partial, cacheWarning, writeWarning, total, syncedAt }`
+- **Re-enrichment is DB-truth based**: a creator is re-enriched on any changed/force run when no `creator_platforms.audience_data` exists in the DB — the `sync_cache.audience_enriched` flag alone is never trusted
 
 ## Known Security Posture (accepted risk, follow-up recommended)
 - The Supabase anon key is public in `db.js` and RLS policies are fully permissive — anyone with the site URL can read/write/delete the roster. Real fix: restrictive RLS + auth, or route writes through serverless functions holding a service key.

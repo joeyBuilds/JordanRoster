@@ -170,6 +170,27 @@ const db = {
       return;
     }
     try {
+      // Graft audience_data from the DB into any creator lacking it (JSON
+      // exports don't carry it) BEFORE the wipe — abort if the read fails.
+      if (creators.length > 0) {
+        const needsAudience = creators.filter(c =>
+          Object.values(c.platforms || {}).some(p => !p.audienceData)
+        );
+        if (needsAudience.length > 0) {
+          const { data: existingPlats, error: audErr } = await _supabase
+            .from('creator_platforms')
+            .select('creator_id,platform,audience_data')
+            .not('audience_data', 'is', null);
+          if (audErr) throw new Error('Could not preserve audience data: ' + audErr.message);
+          (existingPlats || []).forEach(ep => {
+            const cr = needsAudience.find(c => c.id === ep.creator_id);
+            if (cr && cr.platforms && cr.platforms[ep.platform] && !cr.platforms[ep.platform].audienceData) {
+              cr.platforms[ep.platform].audienceData = ep.audience_data;
+            }
+          });
+        }
+      }
+
       // Full wipe and re-insert (used for reset/import)
       await _supabase.from('creators').delete().not('id', 'is', null);
 
@@ -245,20 +266,27 @@ const db = {
       const mainRows = creators.map(creatorToRow);
       await _supabase.from('creators').upsert(mainRows);
 
-      // Preserve audience_data for creators that haven't lazy-loaded it yet
+      // Preserve audience_data through the delete+reinsert below. db.load()
+      // deliberately skips that column, so memory usually doesn't have it —
+      // graft it back per-platform from the DB, and ABORT the sync if that read
+      // fails: rebuilding rows without it would permanently wipe the stats.
       const needsAudience = creators.filter(c =>
-        !c._audienceLoaded && Object.values(c.platforms || {}).every(p => !p.audienceData)
+        Object.values(c.platforms || {}).some(p => !p.audienceData)
       );
       if (needsAudience.length > 0) {
         const naIds = needsAudience.map(c => c.id);
-        const { data: existingPlats } = await _supabase
+        const { data: existingPlats, error: audErr } = await _supabase
           .from('creator_platforms')
           .select('creator_id,platform,audience_data')
           .in('creator_id', naIds)
           .not('audience_data', 'is', null);
+        if (audErr) {
+          console.error('Sync aborted — could not preserve audience data:', audErr);
+          return;
+        }
         (existingPlats || []).forEach(ep => {
           const cr = needsAudience.find(c => c.id === ep.creator_id);
-          if (cr && cr.platforms[ep.platform]) {
+          if (cr && cr.platforms[ep.platform] && !cr.platforms[ep.platform].audienceData) {
             cr.platforms[ep.platform].audienceData = ep.audience_data;
           }
         });
@@ -301,15 +329,17 @@ const db = {
       const { error } = await _supabase.from('creators').upsert(creatorToRow(creator));
       if (error) throw error;
 
-      // Preserve audience_data if not loaded in memory
-      if (!creator._audienceLoaded && Object.values(creator.platforms || {}).every(p => !p.audienceData)) {
-        const { data: existingPlats } = await _supabase
+      // Preserve audience_data if not loaded in memory — abort (throw into the
+      // catch below) if the read fails, so the delete+reinsert can't wipe stats
+      if (Object.values(creator.platforms || {}).some(p => !p.audienceData)) {
+        const { data: existingPlats, error: audErr } = await _supabase
           .from('creator_platforms')
           .select('platform,audience_data')
           .eq('creator_id', creator.id)
           .not('audience_data', 'is', null);
+        if (audErr) throw new Error('Could not preserve audience data: ' + audErr.message);
         (existingPlats || []).forEach(ep => {
-          if (creator.platforms[ep.platform]) {
+          if (creator.platforms[ep.platform] && !creator.platforms[ep.platform].audienceData) {
             creator.platforms[ep.platform].audienceData = ep.audience_data;
           }
         });

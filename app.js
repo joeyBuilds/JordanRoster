@@ -8896,6 +8896,7 @@ const julyImport = (() => {
 
       if (data.success) {
         if (data.cacheWarning) console.warn('[july-sync] Cache warning:', data.cacheWarning);
+        if (data.writeWarning) console.warn('[july-sync] Write warning:', data.writeWarning);
 
         // Reload roster from Supabase to pick up changes
         try {

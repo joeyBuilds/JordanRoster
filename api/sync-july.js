@@ -171,7 +171,10 @@ async function differentialSync(supabase, rosterCreators, force, budget) {
     for (const { roster, existing, cached } of changedCreators) {
       const locationChanged = existing ? normalizeName(roster.location || '') !== normalizeName(existing.location || '') : true;
       const photoUrlChanged = cached ? (roster.photo !== cached.photo_source_url) : true;
-      const wasEnriched = cached ? cached.audience_enriched : !!(existing && Object.values(existingPlatformMap[existing.id] || {}).some(p => p.audience_data));
+      // Trust the DB, not the cache flag: if audience_data is missing from the
+      // DB (e.g. lost to a client-side rebuild), re-enrich even though a past
+      // run reported success — the cache flag can go stale against reality.
+      const wasEnriched = !!(existing && Object.values(existingPlatformMap[existing.id] || {}).some(p => p.audience_data));
 
       if (!wasEnriched) needsEnrich.push(roster);
       // No server-side geocoding: carry over known coordinates when the location
@@ -405,6 +408,15 @@ async function differentialSync(supabase, rosterCreators, force, budget) {
 
   // ── Execute batched writes ──
 
+  // Related-table writes stay tolerant (they self-heal next run) but are no
+  // longer silent — failures surface in the response as writeWarning.
+  let writeWarning = null;
+  const noteWriteError = (label, error) => {
+    if (!error) return;
+    console.error(`[sync] ${label} failed:`, error);
+    writeWarning = (writeWarning ? writeWarning + '; ' : '') + `${label}: ${error.message}`;
+  };
+
   // New creators — fail loudly: nothing else has been written yet, and a silent
   // failure here would report success while the roster stays empty.
   if (newCreatorRows.length > 0) {
@@ -412,10 +424,12 @@ async function differentialSync(supabase, rosterCreators, force, budget) {
     if (error) throw new Error('Failed to insert new creators: ' + error.message);
   }
   if (newPlatformRows.length > 0) {
-    await supabase.from('creator_platforms').insert(newPlatformRows);
+    const { error } = await supabase.from('creator_platforms').insert(newPlatformRows);
+    noteWriteError('new-platform insert', error);
   }
   if (newNicheRows.length > 0) {
-    await supabase.from('creator_niches').insert(newNicheRows);
+    const { error } = await supabase.from('creator_niches').insert(newNicheRows);
+    noteWriteError('new-niche insert', error);
   }
   if (newCollabRows.length > 0) {
     try { await supabase.from('creator_collabs').insert(newCollabRows); } catch (e) { console.warn('[sync] creator_collabs insert:', e.message); }
@@ -434,32 +448,40 @@ async function differentialSync(supabase, rosterCreators, force, budget) {
   // Rebuild platforms for updated creators
   const platformDeleteIds = [...new Set(updatePlatformDeletes)];
   if (platformDeleteIds.length > 0) {
-    await supabase.from('creator_platforms').delete().in('creator_id', platformDeleteIds);
-    const reinsertPlatforms = [];
-    platformDeleteIds.forEach(cid => {
-      const fromInserts = updatePlatformInserts.filter(p => p.creator_id === cid);
-      const fromExisting = Object.values(existingPlatformMap[cid] || {})
-        .filter(ep => !fromInserts.some(fi => fi.platform === ep.platform))
-        .map(ep => ({
-          creator_id: cid, platform: ep.platform,
-          handle: ep.handle || '', url: ep.url || '',
-          followers: ep.followers, engagement_rate: ep.engagement_rate,
-          audience_data: ep.audience_data || null,
-        }));
-      reinsertPlatforms.push(...fromInserts, ...fromExisting);
-    });
-    if (reinsertPlatforms.length > 0) {
-      await supabase.from('creator_platforms').insert(reinsertPlatforms);
+    const { error: delErr } = await supabase.from('creator_platforms').delete().in('creator_id', platformDeleteIds);
+    if (delErr) {
+      // Skip the reinsert if the delete failed — inserting on top would duplicate rows
+      noteWriteError('platform-rebuild delete', delErr);
+    } else {
+      const reinsertPlatforms = [];
+      platformDeleteIds.forEach(cid => {
+        const fromInserts = updatePlatformInserts.filter(p => p.creator_id === cid);
+        const fromExisting = Object.values(existingPlatformMap[cid] || {})
+          .filter(ep => !fromInserts.some(fi => fi.platform === ep.platform))
+          .map(ep => ({
+            creator_id: cid, platform: ep.platform,
+            handle: ep.handle || '', url: ep.url || '',
+            followers: ep.followers, engagement_rate: ep.engagement_rate,
+            audience_data: ep.audience_data || null,
+          }));
+        reinsertPlatforms.push(...fromInserts, ...fromExisting);
+      });
+      if (reinsertPlatforms.length > 0) {
+        const { error } = await supabase.from('creator_platforms').insert(reinsertPlatforms);
+        noteWriteError('platform-rebuild insert', error);
+      }
     }
   }
 
   const newPlatformOnlyInserts = updatePlatformInserts.filter(p => !platformDeleteIds.includes(p.creator_id));
   if (newPlatformOnlyInserts.length > 0) {
-    await supabase.from('creator_platforms').insert(newPlatformOnlyInserts);
+    const { error } = await supabase.from('creator_platforms').insert(newPlatformOnlyInserts);
+    noteWriteError('platform insert', error);
   }
 
   if (updateNicheInserts.length > 0) {
-    await supabase.from('creator_niches').insert(updateNicheInserts);
+    const { error } = await supabase.from('creator_niches').insert(updateNicheInserts);
+    noteWriteError('niche insert', error);
   }
 
   // Collabs: only rebuild for CHANGED creators that have July collab data
@@ -534,7 +556,7 @@ async function differentialSync(supabase, rosterCreators, force, budget) {
     }
   }
 
-  return { added, updated, unchanged, partial: skippedOptional.size > 0, cacheWarning };
+  return { added, updated, unchanged, partial: skippedOptional.size > 0, cacheWarning, writeWarning };
 }
 
 // ── Handler ──
@@ -566,7 +588,7 @@ module.exports = async function handler(req, res) {
         success: true,
         message: 'No creators found on July — nothing to sync',
         added: 0, updated: 0, unchanged: 0,
-        partial: false, cacheWarning: null,
+        partial: false, cacheWarning: null, writeWarning: null,
         syncedAt: new Date().toISOString()
       });
     }
